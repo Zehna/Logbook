@@ -138,13 +138,30 @@ export async function exportLogbookToPowerPoint(
   slide1.addText(`PRESENTASI SIDANG AKHIR • ${programName.toUpperCase()}`, {
     x: 0.8,
     y: 0.9,
-    w: 8.5,
+    w: 7.2,
     h: 0.35,
     fontSize: 12,
     bold: true,
     color: COLOR_ACCENT,
     fontFace: "Arial",
   });
+
+  if (student.logoKampusBase64) {
+    try {
+      slide1.addImage({
+        data: normalizeBase64DataUrl(
+          student.logoKampusBase64,
+          student.logoKampusMimeType || "image/png"
+        ),
+        x: 8.2,
+        y: 0.7,
+        w: 1.1,
+        h: 1.1,
+      });
+    } catch (err) {
+      console.error("Gagal menyematkan logo kampus ke PowerPoint:", err);
+    }
+  }
 
   slide1.addText(
     `Laporan Pelaksanaan & Capaian Kompetensi\nsebagai ${roleName}`,

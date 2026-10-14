@@ -19,6 +19,7 @@ import {
   LogbookEntry,
   StudentProfile,
   DEFAULT_STUDENT_PROFILE,
+  KampusPreset,
 } from "./types";
 
 const FONT_FAMILY = "Times New Roman";
@@ -61,9 +62,10 @@ function createImageParagraph(base64Data: string, width = 140, height = 95): Par
   try {
     const isPng = base64Data.includes("image/png");
     const cleanBase64 = base64Data.replace(/^data:[^;]+;base64,/, "");
-    const binaryString = typeof atob !== "undefined"
-      ? atob(cleanBase64)
-      : Buffer.from(cleanBase64, "base64").toString("binary");
+    const binaryString =
+      typeof atob !== "undefined"
+        ? atob(cleanBase64)
+        : Buffer.from(cleanBase64, "base64").toString("binary");
     const len = binaryString.length;
     const bytes = new Uint8Array(len);
     for (let i = 0; i < len; i++) {
@@ -72,7 +74,7 @@ function createImageParagraph(base64Data: string, width = 140, height = 95): Par
 
     return new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { line: LINE_SPACING_1_5, before: 60, after: 60 },
+      spacing: { line: LINE_SPACING_1_5, before: 120, after: 120 },
       children: [
         new ImageRun({
           data: bytes,
@@ -152,18 +154,34 @@ function createBioRow(label: string, value: string): TableRow {
 
 export async function exportLogbookToWord(
   entries: LogbookEntry[],
-  profile: Partial<StudentProfile> = {}
+  profile: Partial<StudentProfile> = {},
+  selectedPreset?: KampusPreset
 ): Promise<void> {
   const student: StudentProfile = { ...DEFAULT_STUDENT_PROFILE, ...profile };
+  const preset: KampusPreset = selectedPreset || student.kampusPreset || "dikti";
   const primaryEntry = entries[0];
   const programName = primaryEntry?.tipeKegiatan || "Magang MBKM";
   const roleName = primaryEntry?.peran || "Mahasiswa Peserta Program";
+
+  // Margin Twips Calculation: 1 cm ≈ 567 twips
+  // Standar Dikti: Atas 4 cm (2268), Kiri 4 cm (2268), Bawah 3 cm (1701), Kanan 3 cm (1701)
+  // Standar ITS: Atas 3 cm (1701), Kiri 4 cm (2268), Bawah 3 cm (1701), Kanan 3 cm (1701)
+  // Standar UI/UGM/IPB: Atas 2.54 cm (1440), Kiri 3 cm (1701), Bawah 2.54 cm (1440), Kanan 2.54 cm (1440)
+  const pageMargins =
+    preset === "dikti"
+      ? { top: 2268, left: 2268, bottom: 1701, right: 1701 }
+      : preset === "its"
+      ? { top: 1701, left: 2268, bottom: 1701, right: 1701 }
+      : { top: 1440, left: 1701, bottom: 1440, right: 1440 };
 
   const thinBorder = {
     style: BorderStyle.SINGLE,
     size: 4,
     color: "94A3B8",
   };
+
+  const headerBgColor =
+    preset === "its" ? "003366" : preset === "ui_ugm_ipb" ? "0F766E" : "1E1B4B";
 
   // Tabel Logbook Harian Formal
   const logbookTableHeader = new TableRow({
@@ -181,7 +199,7 @@ export async function exportLogbookToWord(
           width: { size: col.width, type: WidthType.PERCENTAGE },
           verticalAlign: VerticalAlign.CENTER,
           shading: {
-            fill: "1E1B4B",
+            fill: headerBgColor,
             type: ShadingType.CLEAR,
             color: "auto",
           },
@@ -340,7 +358,7 @@ export async function exportLogbookToWord(
     });
   });
 
-  // Detail Naratif per Entri
+  // Uraian Rinci
   const detailedNarrativeParagraphs: Paragraph[] = [];
   entries.forEach((entry, index) => {
     detailedNarrativeParagraphs.push(
@@ -348,29 +366,29 @@ export async function exportLogbookToWord(
         `Catatan Kegiatan #${index + 1} — ${entry.tanggal} (${entry.peran})`,
         {
           bold: true,
-          before: 240,
-          after: 100,
+          before: 200,
+          after: 80,
           alignment: AlignmentType.LEFT,
         }
       ),
       createAcademicParagraph(
         `1. Deskripsi Kegiatan: ${entry.deskripsiKegiatan}`,
-        { after: 100 }
+        { after: 80 }
       )
     );
 
     if (entry.fotoBase64) {
-      const imgP = createImageParagraph(entry.fotoBase64, 260, 170);
+      const imgP = createImageParagraph(entry.fotoBase64, 250, 160);
       if (imgP) {
         detailedNarrativeParagraphs.push(imgP);
         detailedNarrativeParagraphs.push(
           createAcademicParagraph(
-            `Gambar 1.${index + 1}: Dokumentasi Kegiatan Lapangan (${entry.tanggal})`,
+            `Gambar 1.${index + 1}: Bukti Pelaksanaan Aktivitas (${entry.tanggal})`,
             {
               italics: true,
               size: 20,
               alignment: AlignmentType.CENTER,
-              after: 120,
+              after: 100,
             }
           )
         );
@@ -380,174 +398,381 @@ export async function exportLogbookToWord(
     detailedNarrativeParagraphs.push(
       createAcademicParagraph(
         `2. Kompetensi yang Dikembangkan: ${entry.kompetensiDikembangkan}`,
-        { after: 100 }
+        { after: 80 }
       ),
       createAcademicParagraph(
         `3. Kendala yang Dihadapi: ${entry.kendalaDihadapi}`,
-        { after: 100 }
+        { after: 80 }
       ),
       createAcademicParagraph(`4. Solusi & Tindakan: ${entry.solusiTindakan}`, {
-        after: 100,
+        after: 80,
       }),
       createAcademicParagraph(
         `5. Refleksi Pembelajaran: ${entry.refleksiPembelajaran}`,
-        { after: 180 }
+        { after: 160 }
       )
     );
   });
 
+  // Logo Kampus jika ada
+  let logoParagraph: Paragraph | null = null;
+  if (student.logoKampusBase64) {
+    logoParagraph = createImageParagraph(student.logoKampusBase64, 110, 110);
+  }
+
+  // Cover Judul berdasarkan Preset
+  const coverTitle =
+    preset === "its"
+      ? "BUKU LAPORAN KERJA PRAKTIK (KP)"
+      : preset === "ui_ugm_ipb"
+      ? "EXECUTIVE SUMMARY & LOGBOOK MAGANG"
+      : "LAPORAN KEGIATAN HARIAN (LOGBOOK)";
+
+  // Subtitle Cover
+  const coverSubtitle =
+    preset === "its"
+      ? `DEPARTEMEN / PROGRAM STUDI ${student.programStudi.toUpperCase()}`
+      : `PROGRAM ${programName.toUpperCase()}`;
+
+  // Konstruksi Halaman Dokumen
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const docChildren: any[] = [
+    // ==================== COVER LAPORAN ====================
+    createAcademicParagraph(coverTitle, {
+      bold: true,
+      size: SIZE_16PT,
+      alignment: AlignmentType.CENTER,
+      before: 300,
+      after: 100,
+    }),
+    createAcademicParagraph(coverSubtitle, {
+      bold: true,
+      size: SIZE_14PT,
+      alignment: AlignmentType.CENTER,
+      after: 240,
+    }),
+    createAcademicParagraph(`Peran / Posisi: ${roleName}`, {
+      bold: true,
+      size: SIZE_12PT,
+      alignment: AlignmentType.CENTER,
+      after: 60,
+    }),
+    createAcademicParagraph(`Mitra / Lokasi: ${student.namaMitra}`, {
+      italics: true,
+      size: SIZE_12PT,
+      alignment: AlignmentType.CENTER,
+      after: logoParagraph ? 240 : 700,
+    }),
+  ];
+
+  if (logoParagraph) {
+    docChildren.push(logoParagraph);
+  }
+
+  docChildren.push(
+    createAcademicParagraph("Disusun Oleh:", {
+      alignment: AlignmentType.CENTER,
+      before: logoParagraph ? 240 : 400,
+      after: 100,
+    }),
+    createAcademicParagraph(student.namaMahasiswa, {
+      bold: true,
+      size: SIZE_14PT,
+      alignment: AlignmentType.CENTER,
+      after: 40,
+    }),
+    createAcademicParagraph(`NIM: ${student.nim}`, {
+      bold: true,
+      size: SIZE_12PT,
+      alignment: AlignmentType.CENTER,
+      after: 800,
+    }),
+    createAcademicParagraph(student.programStudi.toUpperCase(), {
+      bold: true,
+      size: SIZE_14PT,
+      alignment: AlignmentType.CENTER,
+      after: 60,
+    }),
+    createAcademicParagraph(student.perguruanTinggi.toUpperCase(), {
+      bold: true,
+      size: SIZE_14PT,
+      alignment: AlignmentType.CENTER,
+      after: 60,
+    }),
+    createAcademicParagraph(student.periodeKegiatan.toUpperCase(), {
+      bold: true,
+      size: SIZE_12PT,
+      alignment: AlignmentType.CENTER,
+    }),
+    new Paragraph({ children: [new PageBreak()] })
+  );
+
+  // ==================== LEMBAR PENGESAHAN PRESET ITS / POLITEKNIK ====================
+  if (preset === "its") {
+    docChildren.push(
+      createAcademicParagraph("LEMBAR PENGESAHAN LAPORAN KERJA PRAKTIK", {
+        bold: true,
+        size: SIZE_14PT,
+        alignment: AlignmentType.CENTER,
+        before: 200,
+        after: 300,
+      }),
+      createAcademicParagraph(
+        `Laporan Kerja Praktik dengan judul pelaksanaan kegiatan di ${student.namaMitra} ini telah diperiksa, disetujui, dan disahkan oleh Dosen Pembimbing Kerja Praktik dan Pembimbing Lapangan.`,
+        { after: 360 }
+      ),
+      // Tabel Tanda Tangan Ganda
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: [
+          new TableRow({
+            children: [
+              new TableCell({
+                width: { size: 50, type: WidthType.PERCENTAGE },
+                borders: {
+                  top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                  bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                  left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                  right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                },
+                children: [
+                  createAcademicParagraph("Menyetujui,", { alignment: AlignmentType.CENTER, after: 40 }),
+                  createAcademicParagraph("Dosen Pembimbing KP,", { bold: true, alignment: AlignmentType.CENTER, after: 850 }),
+                  createAcademicParagraph(`(${student.namaPembimbing})`, { bold: true, alignment: AlignmentType.CENTER }),
+                  createAcademicParagraph("NIP. ___________________", { italics: true, size: 20, alignment: AlignmentType.CENTER }),
+                ],
+              }),
+              new TableCell({
+                width: { size: 50, type: WidthType.PERCENTAGE },
+                borders: {
+                  top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                  bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                  left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                  right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                },
+                children: [
+                  createAcademicParagraph("Menyetujui,", { alignment: AlignmentType.CENTER, after: 40 }),
+                  createAcademicParagraph("Pembimbing Lapangan / Mentor Mitra,", { bold: true, alignment: AlignmentType.CENTER, after: 850 }),
+                  createAcademicParagraph(`( Mentor ${student.namaMitra} )`, { bold: true, alignment: AlignmentType.CENTER }),
+                  createAcademicParagraph("NIP / ID. _______________", { italics: true, size: 20, alignment: AlignmentType.CENTER }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      }),
+      createAcademicParagraph("Mengetahui,", { alignment: AlignmentType.CENTER, before: 600, after: 40 }),
+      createAcademicParagraph("Koordinator Kerja Praktik / Ketua Departemen", {
+        bold: true,
+        alignment: AlignmentType.CENTER,
+        after: 800,
+      }),
+      createAcademicParagraph("( ____________________________________ )", {
+        bold: true,
+        alignment: AlignmentType.CENTER,
+      }),
+      new Paragraph({ children: [new PageBreak()] })
+    );
+  }
+
+  // ==================== STRUKTUR BAB ====================
+  if (preset === "its") {
+    // FORMAT BUKU KP ITS: Bab I - Bab V
+    docChildren.push(
+      // BAB I
+      createAcademicParagraph("BAB I: PENDAHULUAN & PROFIL INSTANSI", {
+        bold: true,
+        size: SIZE_14PT,
+        alignment: AlignmentType.LEFT,
+        after: 160,
+      }),
+      createAcademicParagraph(
+        `Kerja Praktik dilaksanakan di ${student.namaMitra} sebagai bagian dari pemenuhan kurikulum akademik program studi ${student.programStudi}, ${student.perguruanTinggi}. Mahasiswa berperan aktif sebagai ${roleName} pada periode ${student.periodeKegiatan}.`,
+        { after: 200 }
+      ),
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: [
+          createBioRow("Nama Mahasiswa", student.namaMahasiswa),
+          createBioRow("NIM", student.nim),
+          createBioRow("Departemen / Prodi", student.programStudi),
+          createBioRow("Perguruan Tinggi", student.perguruanTinggi),
+          createBioRow("Perusahaan / Mitra", student.namaMitra),
+          createBioRow("Dosen Pembimbing", student.namaPembimbing),
+        ],
+      }),
+      // BAB II
+      createAcademicParagraph("BAB II: LINGKUP PENUGASAN & RENCANA KERJA", {
+        bold: true,
+        size: SIZE_14PT,
+        alignment: AlignmentType.LEFT,
+        before: 300,
+        after: 160,
+      }),
+      createAcademicParagraph(
+        `Lingkup penugasan difokuskan pada perancangan, eksekusi teknis, dan verifikasi alur kerja operasional. Mahasiswa mengintegrasikan kompetensi teoritis perkuliahan dengan praktik standar industri di lapangan.`,
+        { after: 240 }
+      ),
+      // BAB III
+      createAcademicParagraph("BAB III: REKAPITULASI BUKU HARIAN KERJA PRAKTIK (LOGBOOK)", {
+        bold: true,
+        size: SIZE_14PT,
+        alignment: AlignmentType.LEFT,
+        before: 300,
+        after: 160,
+      }),
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: [logbookTableHeader, ...logbookTableRows],
+      }),
+      // BAB IV
+      createAcademicParagraph("BAB IV: ANALISIS MASALAH, PROBLEM SOLVING & CAPAIAN", {
+        bold: true,
+        size: SIZE_14PT,
+        alignment: AlignmentType.LEFT,
+        before: 360,
+        after: 160,
+      }),
+      ...detailedNarrativeParagraphs,
+      // BAB V
+      createAcademicParagraph("BAB V: KESIMPULAN & REKOMENDASI PEMBELAJARAN", {
+        bold: true,
+        size: SIZE_14PT,
+        alignment: AlignmentType.LEFT,
+        before: 360,
+        after: 160,
+      }),
+      createAcademicParagraph(
+        `Berdasarkan pelaksanaan Kerja Praktik yang telah diselesaikan, disimpulkan bahwa target penugasan operasional telah tercapai dengan baik. Mahasiswa berhasil mengasah kemampuan problem solving, adaptasi budaya kerja profesional, dan penguasaan perkakas teknis secara menyeluruh.`,
+        { after: 200 }
+      )
+    );
+  } else if (preset === "ui_ugm_ipb") {
+    // FORMAT EKSEKUTIF UI / UGM / IPB
+    docChildren.push(
+      createAcademicParagraph("EXECUTIVE SUMMARY (RINGKASAN EKSEKUTIF)", {
+        bold: true,
+        size: SIZE_14PT,
+        alignment: AlignmentType.LEFT,
+        after: 140,
+      }),
+      createAcademicParagraph(
+        `Laporan ini merangkum ketercapaian program ${programName} oleh ${student.namaMahasiswa} (${student.nim}) di ${student.namaMitra}. Program ini dirancang untuk mengonversi hingga 20 SKS melalui pemenuhan Capaian Pembelajaran Lulusan (CPL) berbasis Taksonomi Bloom ranah C3–C6.`,
+        { after: 200 }
+      ),
+      createAcademicParagraph("MATRIKS IDENTITAS MAHASISWA & MITRA", {
+        bold: true,
+        size: SIZE_12PT,
+        alignment: AlignmentType.LEFT,
+        after: 120,
+      }),
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: [
+          createBioRow("Nama Mahasiswa", student.namaMahasiswa),
+          createBioRow("NIM", student.nim),
+          createBioRow("Program Studi", student.programStudi),
+          createBioRow("Mitra Kolaborasi", student.namaMitra),
+          createBioRow("Pembimbing Akademik", student.namaPembimbing),
+        ],
+      }),
+      createAcademicParagraph("TABEL LOGBOOK HARIAN & MATRIKS CAPAIAN KOMPETENSI", {
+        bold: true,
+        size: SIZE_14PT,
+        alignment: AlignmentType.LEFT,
+        before: 300,
+        after: 160,
+      }),
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: [logbookTableHeader, ...logbookTableRows],
+      }),
+      createAcademicParagraph("DOKUMENTASI CAPAIAN & ANALISIS REFLEKSI BERKALA", {
+        bold: true,
+        size: SIZE_14PT,
+        alignment: AlignmentType.LEFT,
+        before: 360,
+        after: 160,
+      }),
+      ...detailedNarrativeParagraphs
+    );
+  } else {
+    // STANDAR NASIONAL DIKTI / UMUM
+    docChildren.push(
+      createAcademicParagraph("I. IDENTITAS MAHASISWA & MITRA KEGIATAN", {
+        bold: true,
+        size: SIZE_14PT,
+        alignment: AlignmentType.LEFT,
+        after: 200,
+      }),
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: [
+          createBioRow("Nama Mahasiswa", student.namaMahasiswa),
+          createBioRow("Nomor Induk Mahasiswa (NIM)", student.nim),
+          createBioRow("Program Studi", student.programStudi),
+          createBioRow("Perguruan Tinggi", student.perguruanTinggi),
+          createBioRow("Jenis Program", programName),
+          createBioRow("Peran / Posisi", roleName),
+          createBioRow("Instansi / Mitra Kegiatan", student.namaMitra),
+          createBioRow("Dosen Pembimbing / Mentor", student.namaPembimbing),
+          createBioRow("Periode Pelaksanaan", student.periodeKegiatan),
+        ],
+      }),
+      createAcademicParagraph(
+        "II. REKAPITULASI TABEL LOGBOOK HARIAN (BERBASIS TAKSONOMI BLOOM)",
+        {
+          bold: true,
+          size: SIZE_14PT,
+          alignment: AlignmentType.LEFT,
+          before: 360,
+          after: 200,
+        }
+      ),
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: [logbookTableHeader, ...logbookTableRows],
+      }),
+      createAcademicParagraph(
+        "III. URAIAN RINCI KEGIATAN & LAMPIRAN DOKUMENTASI",
+        {
+          bold: true,
+          size: SIZE_14PT,
+          alignment: AlignmentType.LEFT,
+          before: 400,
+          after: 160,
+        }
+      ),
+      ...detailedNarrativeParagraphs,
+      createAcademicParagraph("Mengetahui dan Menyetujui,", {
+        alignment: AlignmentType.RIGHT,
+        before: 480,
+        after: 60,
+      }),
+      createAcademicParagraph("Dosen Pembimbing / Mentor Lapangan", {
+        bold: true,
+        alignment: AlignmentType.RIGHT,
+        after: 960,
+      }),
+      createAcademicParagraph(`(${student.namaPembimbing})`, {
+        bold: true,
+        alignment: AlignmentType.RIGHT,
+      })
+    );
+  }
+
   const doc = new Document({
     creator: "LogMagang — Dokumen & Export Hub",
     title: `Laporan Kegiatan Resmi ${programName}`,
-    description:
-      "Laporan Logbook Harian Berbasis Taksonomi Bloom dengan Bukti Dokumentasi Foto",
+    description: `Laporan Logbook Harian Berformat ${preset.toUpperCase()} Berbasis Taksonomi Bloom`,
     sections: [
       {
         properties: {
           page: {
-            margin: {
-              top: 1440, // 1 inch (2.54 cm)
-              right: 1440,
-              bottom: 1440,
-              left: 1700, // ~3 cm margin kiri standar penjilidan akademik
-            },
+            margin: pageMargins,
           },
         },
-        children: [
-          // ==================== COVER LAPORAN ====================
-          createAcademicParagraph("LAPORAN KEGIATAN HARIAN (LOGBOOK)", {
-            bold: true,
-            size: SIZE_16PT,
-            alignment: AlignmentType.CENTER,
-            before: 400,
-            after: 120,
-          }),
-          createAcademicParagraph(`PROGRAM ${programName.toUpperCase()}`, {
-            bold: true,
-            size: SIZE_14PT,
-            alignment: AlignmentType.CENTER,
-            after: 360,
-          }),
-          createAcademicParagraph(`Peran / Posisi: ${roleName}`, {
-            bold: true,
-            size: SIZE_12PT,
-            alignment: AlignmentType.CENTER,
-            after: 80,
-          }),
-          createAcademicParagraph(`Mitra / Lokasi: ${student.namaMitra}`, {
-            italics: true,
-            size: SIZE_12PT,
-            alignment: AlignmentType.CENTER,
-            after: 1200,
-          }),
-          createAcademicParagraph("Disusun Oleh:", {
-            alignment: AlignmentType.CENTER,
-            after: 120,
-          }),
-          createAcademicParagraph(student.namaMahasiswa, {
-            bold: true,
-            size: SIZE_14PT,
-            alignment: AlignmentType.CENTER,
-            after: 60,
-          }),
-          createAcademicParagraph(`NIM: ${student.nim}`, {
-            bold: true,
-            size: SIZE_12PT,
-            alignment: AlignmentType.CENTER,
-            after: 1400,
-          }),
-          createAcademicParagraph(student.programStudi.toUpperCase(), {
-            bold: true,
-            size: SIZE_14PT,
-            alignment: AlignmentType.CENTER,
-            after: 80,
-          }),
-          createAcademicParagraph(student.perguruanTinggi.toUpperCase(), {
-            bold: true,
-            size: SIZE_14PT,
-            alignment: AlignmentType.CENTER,
-            after: 80,
-          }),
-          createAcademicParagraph(student.periodeKegiatan.toUpperCase(), {
-            bold: true,
-            size: SIZE_12PT,
-            alignment: AlignmentType.CENTER,
-          }),
-
-          new Paragraph({
-            children: [new PageBreak()],
-          }),
-
-          // ==================== BAB I: BIODATA MAHASISWA & MITRA ====================
-          createAcademicParagraph("I. IDENTITAS MAHASISWA & MITRA KEGIATAN", {
-            bold: true,
-            size: SIZE_14PT,
-            alignment: AlignmentType.LEFT,
-            after: 200,
-          }),
-          new Table({
-            width: { size: 100, type: WidthType.PERCENTAGE },
-            rows: [
-              createBioRow("Nama Mahasiswa", student.namaMahasiswa),
-              createBioRow("Nomor Induk Mahasiswa (NIM)", student.nim),
-              createBioRow("Program Studi", student.programStudi),
-              createBioRow("Perguruan Tinggi", student.perguruanTinggi),
-              createBioRow("Jenis Program", programName),
-              createBioRow("Peran / Posisi", roleName),
-              createBioRow("Instansi / Mitra Kegiatan", student.namaMitra),
-              createBioRow(
-                "Dosen Pembimbing / Mentor",
-                student.namaPembimbing
-              ),
-              createBioRow("Periode Pelaksanaan", student.periodeKegiatan),
-            ],
-          }),
-
-          // ==================== BAB II: TABEL LOGBOOK HARIAN ====================
-          createAcademicParagraph(
-            "II. REKAPITULASI TABEL LOGBOOK HARIAN (BERBASIS TAKSONOMI BLOOM)",
-            {
-              bold: true,
-              size: SIZE_14PT,
-              alignment: AlignmentType.LEFT,
-              before: 360,
-              after: 200,
-            }
-          ),
-          new Table({
-            width: { size: 100, type: WidthType.PERCENTAGE },
-            rows: [logbookTableHeader, ...logbookTableRows],
-          }),
-
-          // ==================== BAB III: URAIAN LENGKAP LOGBOOK ====================
-          createAcademicParagraph(
-            "III. URAIAN RINCI KEGIATAN & LAMPIRAN DOKUMENTASI",
-            {
-              bold: true,
-              size: SIZE_14PT,
-              alignment: AlignmentType.LEFT,
-              before: 400,
-              after: 160,
-            }
-          ),
-          ...detailedNarrativeParagraphs,
-
-          // ==================== LEMBAR PENGESAHAN SINGKAT ====================
-          createAcademicParagraph("Mengetahui dan Menyetujui,", {
-            alignment: AlignmentType.RIGHT,
-            before: 480,
-            after: 60,
-          }),
-          createAcademicParagraph("Dosen Pembimbing / Mentor Lapangan", {
-            bold: true,
-            alignment: AlignmentType.RIGHT,
-            after: 960,
-          }),
-          createAcademicParagraph(`(${student.namaPembimbing})`, {
-            bold: true,
-            alignment: AlignmentType.RIGHT,
-          }),
-        ],
+        children: docChildren,
       },
     ],
   });
@@ -555,5 +780,5 @@ export async function exportLogbookToWord(
   const blob = await Packer.toBlob(doc);
   const safeProgram = programName.replace(/[^a-zA-Z0-9]/g, "_");
   const dateStamp = new Date().toISOString().slice(0, 10);
-  saveAs(blob, `Laporan_Resmi_${safeProgram}_${dateStamp}.docx`);
+  saveAs(blob, `Laporan_${preset.toUpperCase()}_${safeProgram}_${dateStamp}.docx`);
 }

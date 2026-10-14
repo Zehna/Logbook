@@ -43,6 +43,9 @@ import {
   Mic,
   Tent,
   Sprout,
+  GitBranch,
+  ArrowRightLeft,
+  ImagePlus,
 } from "lucide-react";
 import {
   TipeKegiatan,
@@ -51,6 +54,8 @@ import {
   WeeklyLogbookDayItem,
   StudentProfile,
   DEFAULT_STUDENT_PROFILE,
+  KampusPreset,
+  KAMPUS_PRESETS,
 } from "@/src/lib/exporters/types";
 import { exportLogbookToExcel } from "@/src/lib/exporters/exportExcel";
 import { exportLogbookToWord } from "@/src/lib/exporters/exportWord";
@@ -61,6 +66,9 @@ import { DplSimulatorTab } from "@/src/components/DplSimulatorTab";
 import { KknTeamTab } from "@/src/components/KknTeamTab";
 import { ToneType, TONE_OPTIONS, LicenseInfo } from "@/src/lib/types/modules";
 import { LicenseModal } from "@/src/components/LicenseModal";
+import { VoiceDictationButton } from "@/src/components/VoiceDictationButton";
+import { SmartIngestionModal } from "@/src/components/SmartIngestionModal";
+import { WorkspaceSyncModal } from "@/src/components/WorkspaceSyncModal";
 
 const MAX_FREE_QUOTA = 3;
 const STORAGE_QUOTA_KEY = "logmagang_free_usage_count";
@@ -335,7 +343,13 @@ export default function HomePage() {
   const [isInlineVerifying, setIsInlineVerifying] = useState<boolean>(false);
   const [inlineLicenseError, setInlineLicenseError] = useState<string | null>(null);
 
+  // New Enterprise States: Smart Ingestion, Workspace Sync, & Kampus Preset
+  const [isSmartIngestionOpen, setIsSmartIngestionOpen] = useState<boolean>(false);
+  const [isWorkspaceSyncOpen, setIsWorkspaceSyncOpen] = useState<boolean>(false);
+  const [selectedPreset, setSelectedPreset] = useState<KampusPreset>("dikti");
+
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
   const resultRef = useRef<HTMLDivElement>(null);
   const paywallRef = useRef<HTMLDivElement>(null);
 
@@ -374,6 +388,9 @@ export default function HomePage() {
         const parsedProfile = JSON.parse(savedProfile);
         if (parsedProfile && typeof parsedProfile === "object") {
           setStudentProfile((prev) => ({ ...prev, ...parsedProfile }));
+          if (parsedProfile.kampusPreset) {
+            setSelectedPreset(parsedProfile.kampusPreset);
+          }
         }
       }
     } catch {
@@ -400,6 +417,79 @@ export default function HomePage() {
       }
       return updated;
     });
+  };
+
+  const handleLogoUpload = (file: File) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setErrorMsg("Format logo kampus harus berupa gambar (PNG atau JPG).");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result as string;
+      setStudentProfile((prev) => {
+        const updated = {
+          ...prev,
+          logoKampusBase64: base64,
+          logoKampusMimeType: file.type || "image/png",
+        };
+        try {
+          localStorage.setItem(STORAGE_PROFILE_KEY, JSON.stringify(updated));
+        } catch {
+          // ignore
+        }
+        return updated;
+      });
+      triggerToast("Logo kampus berhasil diunggah dan disimpan!");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveLogo = () => {
+    setStudentProfile((prev) => {
+      const updated = { ...prev };
+      delete updated.logoKampusBase64;
+      delete updated.logoKampusMimeType;
+      try {
+        localStorage.setItem(STORAGE_PROFILE_KEY, JSON.stringify(updated));
+      } catch {
+        // ignore
+      }
+      return updated;
+    });
+    if (logoInputRef.current) logoInputRef.current.value = "";
+    triggerToast("Logo kampus berhasil dihapus.");
+  };
+
+  const handlePresetChange = (preset: KampusPreset) => {
+    setSelectedPreset(preset);
+    handleUpdateProfile("kampusPreset", preset);
+    const presetObj = KAMPUS_PRESETS.find((p) => p.value === preset);
+    triggerToast(`Pedoman dokumen disetel ke: ${presetObj?.label}`);
+  };
+
+  const handleRefreshWorkspaceFromSync = () => {
+    try {
+      const savedQuota = localStorage.getItem(STORAGE_QUOTA_KEY);
+      const savedPro = localStorage.getItem(STORAGE_PRO_KEY);
+      const savedLicense = localStorage.getItem(STORAGE_LICENSE_KEY);
+      const savedHistory = localStorage.getItem(STORAGE_HISTORY_KEY);
+      const savedProfile = localStorage.getItem(STORAGE_PROFILE_KEY);
+
+      if (savedQuota !== null) setUsedQuota(parseInt(savedQuota, 10) || 0);
+      setIsPro(savedPro === "true");
+      if (savedLicense) setLicenseDetails(JSON.parse(savedLicense));
+      if (savedHistory) setHistory(JSON.parse(savedHistory));
+      if (savedProfile) {
+        const p = JSON.parse(savedProfile);
+        setStudentProfile(p);
+        if (p.kampusPreset) setSelectedPreset(p.kampusPreset);
+      }
+      triggerToast("Workspace berhasil disinkronkan kembali!");
+    } catch {
+      // ignore
+    }
   };
 
   const handleFillSample = () => {
@@ -766,9 +856,10 @@ export default function HomePage() {
     if (entries.length === 0) return;
     setExportingType("word");
     try {
-      await exportLogbookToWord(entries, studentProfile);
+      await exportLogbookToWord(entries, studentProfile, selectedPreset);
+      const presetObj = KAMPUS_PRESETS.find((p) => p.value === selectedPreset);
       triggerToast(
-        `Berhasil mengunduh Laporan Kegiatan Resmi (.docx) berisi ${entries.length} entri!`
+        `Berhasil mengunduh Laporan Resmi [${presetObj?.label}] (.docx) berisi ${entries.length} entri!`
       );
     } catch (err) {
       console.error("Gagal ekspor Word:", err);
@@ -1168,6 +1259,16 @@ export default function HomePage() {
           {/* Indikator Kuota Gratis & Lisensi Pro */}
           {isHydrated && (
             <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsWorkspaceSyncOpen(true)}
+                className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full text-xs font-bold bg-white text-slate-700 hover:text-indigo-600 border border-slate-200/90 shadow-2xs hover:bg-slate-50 transition cursor-pointer"
+                title="Sinkronisasi Data Multi-Device (HP <-> Laptop) & Cadangan JSON"
+              >
+                <ArrowRightLeft className="w-3.5 h-3.5 text-indigo-600" />
+                <span className="hidden sm:inline">Backup & Sync</span>
+              </button>
+
               {isPro ? (
                 <button
                   type="button"
@@ -1749,20 +1850,36 @@ export default function HomePage() {
 
                 {/* Textarea Catatan Harian Santai */}
                 <div>
-                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
                     <label
                       htmlFor="input-catatan"
                       className="block text-xs sm:text-sm font-bold text-slate-800"
                     >
                       4. Catatan Harian Santai
                     </label>
-                    <button
-                      type="button"
-                      onClick={handleFillSample}
-                      className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 underline underline-offset-2 cursor-pointer"
-                    >
-                      Isi Contoh Otomatis
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <VoiceDictationButton
+                        onTranscript={(text) =>
+                          setCatatan((prev) => (prev.trim() ? `${prev.trim()} ${text}` : text))
+                        }
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setIsSmartIngestionOpen(true)}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition cursor-pointer"
+                        title="Tarik commit GitHub atau jadwal kalender otomatis"
+                      >
+                        <GitBranch className="w-3.5 h-3.5" />
+                        <span>GitHub / Agenda</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleFillSample}
+                        className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 underline underline-offset-2 cursor-pointer"
+                      >
+                        Contoh
+                      </button>
+                    </div>
                   </div>
                   <textarea
                     id="input-catatan"
@@ -1780,7 +1897,7 @@ export default function HomePage() {
                   <p className="mt-1 text-[11px] text-slate-500">
                     {fotoBase64
                       ? "Jika catatan teks kosong, AI secara mandiri mendeteksi dan menginferensikan kegiatan kerja berdasarkan analisis foto dokumentasi."
-                      : "Tulis saja apa adanya dengan bahasa santai. AI akan menyusunnya ke dalam 5 bagian laporan formal berbasis Taksonomi Bloom."}
+                      : "Tulis saja apa adanya dengan bahasa santai. Anda juga dapat menggunakan Dikte Suara (id-ID) atau Smart Ingestion (GitHub/Kalender)."}
                   </p>
                 </div>
 
@@ -1883,12 +2000,30 @@ export default function HomePage() {
                 </div>
 
                 <div>
-                  <label
-                    htmlFor="input-ringkasan-mingguan"
-                    className="block text-xs sm:text-sm font-bold text-slate-800 mb-1.5"
-                  >
-                    4. Ringkasan Aktivitas Pekan Ini
-                  </label>
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+                    <label
+                      htmlFor="input-ringkasan-mingguan"
+                      className="block text-xs sm:text-sm font-bold text-slate-800"
+                    >
+                      4. Ringkasan Aktivitas Pekan Ini
+                    </label>
+                    <div className="flex items-center gap-1.5">
+                      <VoiceDictationButton
+                        onTranscript={(text) =>
+                          setRingkasanMingguan((prev) => (prev.trim() ? `${prev.trim()} ${text}` : text))
+                        }
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setIsSmartIngestionOpen(true)}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition cursor-pointer"
+                        title="Tarik commit GitHub atau jadwal kalender otomatis"
+                      >
+                        <GitBranch className="w-3.5 h-3.5" />
+                        <span>GitHub / Agenda</span>
+                      </button>
+                    </div>
+                  </div>
 
                   <div className="mb-2 flex flex-wrap items-center gap-1.5">
                     <span className="text-[11px] text-slate-400 mr-0.5">
@@ -2379,6 +2514,50 @@ export default function HomePage() {
               </div>
             </div>
 
+            {/* Pilihan Preset Pedoman Kampus */}
+            <div className="rounded-xl bg-white border border-slate-200/90 p-4 space-y-2.5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                <div className="flex items-center gap-2">
+                  <BookOpen className="w-4 h-4 text-indigo-600" />
+                  <span className="text-xs sm:text-sm font-bold text-slate-800">
+                    Preset Pedoman Kampus (.docx & .pptx)
+                  </span>
+                </div>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 self-start sm:self-auto">
+                  {KAMPUS_PRESETS.find((p) => p.value === selectedPreset)?.badge}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {KAMPUS_PRESETS.map((preset) => {
+                  const isSelected = selectedPreset === preset.value;
+                  return (
+                    <div
+                      key={preset.value}
+                      onClick={() => handlePresetChange(preset.value)}
+                      className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
+                        isSelected
+                          ? "bg-indigo-50/70 border-indigo-500 ring-2 ring-indigo-500/20 shadow-xs"
+                          : "bg-slate-50/60 border-slate-200 hover:bg-slate-100 hover:border-slate-300"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-bold text-xs text-slate-900">
+                          {preset.label}
+                        </span>
+                        {isSelected && (
+                          <Check className="w-3.5 h-3.5 text-indigo-600" />
+                        )}
+                      </div>
+                      <p className="text-[11px] text-slate-500 leading-tight">
+                        {preset.description}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* Pengaturan Opsional Biodata Cover Word & Slide Sidang */}
             <div className="rounded-xl bg-white border border-slate-200/90 overflow-hidden">
               <button
@@ -2389,7 +2568,7 @@ export default function HomePage() {
                 <span className="flex items-center gap-2">
                   <UserCheck className="w-4 h-4 text-indigo-600" />
                   <span>
-                    Identitas Cover Laporan & Slide Sidang (Nama, NIM, Mitra)
+                    Identitas Cover Laporan & Slide Sidang (Nama, NIM, Mitra, Logo)
                   </span>
                 </span>
                 {showProfileEditor ? (
@@ -2478,6 +2657,58 @@ export default function HomePage() {
                       }
                       className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-900"
                     />
+                  </div>
+
+                  {/* Upload Logo Kampus */}
+                  <div className="sm:col-span-2 pt-2 border-t border-slate-200/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div>
+                      <span className="block text-[11px] font-bold text-slate-700">
+                        Logo Kampus / Universitas (PNG/JPG)
+                      </span>
+                      <p className="text-[10px] text-slate-500">
+                        Otomatis disematkan di Cover Laporan Word (.docx) dan Slide Judul PowerPoint (.pptx).
+                      </p>
+                    </div>
+
+                    <input
+                      ref={logoInputRef}
+                      type="file"
+                      accept="image/png,image/jpeg"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleLogoUpload(file);
+                      }}
+                    />
+
+                    {studentProfile.logoKampusBase64 ? (
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-10 h-10 rounded-lg overflow-hidden border border-slate-200 bg-white p-0.5 shrink-0 shadow-2xs">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={studentProfile.logoKampusBase64}
+                            alt="Logo Kampus"
+                            className="w-full h-full object-contain"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleRemoveLogo}
+                          className="text-xs text-rose-600 hover:text-rose-800 font-semibold underline cursor-pointer"
+                        >
+                          Hapus Logo
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => logoInputRef.current?.click()}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold text-xs shadow-2xs cursor-pointer"
+                      >
+                        <ImagePlus className="w-3.5 h-3.5 text-indigo-600" />
+                        <span>Upload Logo Kampus</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
@@ -2988,6 +3219,31 @@ export default function HomePage() {
         onClose={() => setIsLicenseModalOpen(false)}
         onActivated={handleLicenseActivated}
         currentLicense={licenseDetails}
+      />
+
+      {/* Modal Smart Ingestion (GitHub Commit Sync & Agenda Kalender) */}
+      <SmartIngestionModal
+        isOpen={isSmartIngestionOpen}
+        onClose={() => setIsSmartIngestionOpen(false)}
+        onApplyNote={(note, suggestedRole) => {
+          if (mode === "daily") {
+            setCatatan((prev) => (prev.trim() ? `${prev.trim()}\n${note}` : note));
+          } else {
+            setRingkasanMingguan((prev) => (prev.trim() ? `${prev.trim()}\n${note}` : note));
+          }
+          if (suggestedRole && !peran.trim()) {
+            setPeran(suggestedRole);
+          }
+        }}
+        currentPeran={peran}
+        currentTipeKegiatan={tipeKegiatan}
+      />
+
+      {/* Modal Multi-Device Workspace Sync & Backup */}
+      <WorkspaceSyncModal
+        isOpen={isWorkspaceSyncOpen}
+        onClose={() => setIsWorkspaceSyncOpen(false)}
+        onDataRestored={handleRefreshWorkspaceFromSync}
       />
 
       {/* Footer */}

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LogMagang Auto-Fill</title>
+  <title>LogMagang Auto-Fill Pro</title>
   <style>
     :root {
       --primary: #4f46e5;
@@ -14,6 +14,7 @@
       --muted: #64748b;
       --border: #e2e8f0;
       --success: #059669;
+      --warning: #d97706;
     }
 
     * {
@@ -85,7 +86,7 @@
       border: 1px solid var(--border);
       border-radius: 12px;
       padding: 12px;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
       box-shadow: 0 1px 2px rgba(0,0,0,0.04);
     }
 
@@ -98,14 +99,64 @@
       justify-content: space-between;
     }
 
+    select {
+      width: 100%;
+      padding: 7px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      font-size: 12px;
+      background-color: #fff;
+      color: var(--text);
+      font-weight: 600;
+      margin-bottom: 8px;
+      outline: none;
+    }
+
+    select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.15);
+    }
+
+    .queue-navigator {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #f1f5f9;
+      padding: 5px 8px;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      font-size: 11px;
+    }
+
+    .queue-btn {
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 2px 7px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 700;
+      color: #334155;
+    }
+
+    .queue-btn:hover:not(:disabled) {
+      background: #e2e8f0;
+    }
+
+    .queue-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
     .logbook-preview {
       font-size: 11px;
-      background: #f1f5f9;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
       border-radius: 8px;
       padding: 8px 10px;
       margin-bottom: 8px;
       color: #334155;
-      max-height: 120px;
+      max-height: 115px;
       overflow-y: auto;
     }
 
@@ -118,9 +169,32 @@
       color: #1e293b;
     }
 
+    .word-counter-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 7px;
+      border-radius: 6px;
+      font-size: 10.5px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .word-valid {
+      background: #dcfce7;
+      color: #166534;
+      border: 1px solid #bbf7d0;
+    }
+
+    .word-invalid {
+      background: #fef3c7;
+      color: #92400e;
+      border: 1px solid #fde68a;
+    }
+
     textarea {
       width: 100%;
-      height: 70px;
+      height: 60px;
       border: 1px solid var(--border);
       border-radius: 8px;
       padding: 8px;
@@ -142,7 +216,7 @@
       justify-content: center;
       gap: 6px;
       width: 100%;
-      padding: 9px 12px;
+      padding: 8px 12px;
       border-radius: 8px;
       font-size: 12px;
       font-weight: 700;
@@ -176,7 +250,7 @@
       color: var(--primary);
       border: 1px dashed var(--primary);
       font-size: 11px;
-      padding: 6px 10px;
+      padding: 5px 8px;
       margin-bottom: 6px;
     }
 
@@ -188,7 +262,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-top: 10px;
+      margin-top: 8px;
       font-size: 11px;
       color: var(--muted);
     }
@@ -232,7 +306,7 @@
       <div class="logo-badge">LM</div>
       <div>
         <div class="brand-title">LogMagang Auto-Fill</div>
-        <div class="brand-subtitle">Asisten Form Portal Kampus</div>
+        <div class="brand-subtitle">Multi-Portal Preset & Batch Queue</div>
       </div>
     </div>
     <span class="status-badge" id="storage-status">Ready</span>
@@ -240,15 +314,42 @@
 
   <div id="toast" class="toast"></div>
 
-  <!-- Kartu Data Logbook Aktif -->
+  <!-- Target Portal Selection -->
+  <div class="card" style="padding: 10px 12px; margin-bottom: 8px;">
+    <label style="font-size: 11px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">
+      🏫 Target Portal Kampus:
+    </label>
+    <select id="portal-preset">
+      <option value="kemdikbud">1. Portal Kampus Merdeka / MSIB Pusat</option>
+      <option value="ipb">2. Student Portal IPB (AktivitasKampusMerdeka)</option>
+      <option value="ugm">3. Simaster UGM / Cybercampus</option>
+      <option value="siakad">4. SIAKAD / Neo Feeder Generic</option>
+      <option value="custom">5. Custom Selector Mode (Klik Elemen Layar)</option>
+    </select>
+  </div>
+
+  <!-- Kartu Data Logbook Aktif & Batch Queue -->
   <div class="card">
     <div class="card-title">
-      <span>Data Logbook Tersimpan</span>
+      <span>Data Logbook Aktif</span>
       <span style="font-size: 10px; color: var(--muted);" id="date-label">-</span>
+    </div>
+
+    <!-- Batch Queue Navigator (Tampil jika data berupa array/mingguan) -->
+    <div id="queue-box" class="queue-navigator" style="display: none;">
+      <button id="btn-queue-prev" class="queue-btn">◀ Prev</button>
+      <span id="queue-info" style="font-weight: 700; color: #1e1b4b;">Hari 1 dari 5</span>
+      <button id="btn-queue-next" class="queue-btn">Next ▶</button>
     </div>
 
     <div class="logbook-preview" id="preview-box">
       <em>Belum ada data logbook. Tempelkan (paste) JSON hasil LogMagang di bawah.</em>
+    </div>
+
+    <!-- Word Counter Validation Indicator -->
+    <div id="word-counter-badge" class="word-counter-badge word-valid" style="display: none;">
+      <span>📝</span>
+      <span id="word-count-text">0 kata</span>
     </div>
 
     <button id="btn-autofill-active" class="btn btn-primary">
@@ -275,12 +376,12 @@
     </div>
 
     <button id="btn-sample-data" class="btn btn-outline">
-      ✨ Gunakan Contoh Data Logbook
+      ✨ Gunakan Contoh Data 1 Pekan (Batch)
     </button>
   </div>
 
   <div class="footer-links">
-    <span>v1.0.0 (Manifest V3)</span>
+    <span>v2.0.0 (Enterprise)</span>
     <a href="http://localhost:3000" target="_blank" id="btn-open-web">Buka Web LogMagang ↗</a>
   </div>
 
