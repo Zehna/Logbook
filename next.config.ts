@@ -2,7 +2,12 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  webpack: (config, { isServer, webpack }) => {
+  webpack: (config, { isServer, webpack, dev }) => {
+    // Matikan cache saat dev mode untuk mencegah RAM leak / allocation error di Windows
+    if (dev) {
+      config.cache = false;
+    }
+
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,

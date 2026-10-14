@@ -46,6 +46,11 @@ import {
   GitBranch,
   ArrowRightLeft,
   ImagePlus,
+  ClipboardCheck,
+  Trash2,
+  BarChart3,
+  Search,
+  FileCheck,
 } from "lucide-react";
 import {
   TipeKegiatan,
@@ -57,9 +62,8 @@ import {
   KampusPreset,
   KAMPUS_PRESETS,
 } from "@/src/lib/exporters/types";
-import { exportLogbookToExcel } from "@/src/lib/exporters/exportExcel";
-import { exportLogbookToWord } from "@/src/lib/exporters/exportWord";
-import { exportLogbookToPowerPoint } from "@/src/lib/exporters/exportPowerPoint";
+import { AttendanceTracker } from "@/src/components/AttendanceTracker";
+import { AdminDocsTab } from "@/src/components/AdminDocsTab";
 import { SksConversionTab } from "@/src/components/SksConversionTab";
 import { AtsResumeTab } from "@/src/components/AtsResumeTab";
 import { DplSimulatorTab } from "@/src/components/DplSimulatorTab";
@@ -272,7 +276,7 @@ const SECTIONS_CONFIG: {
 
 export default function HomePage() {
   const [mainTab, setMainTab] = useState<
-    "generator" | "sks" | "resume" | "simulator" | "kkn"
+    "generator" | "sks" | "resume" | "simulator" | "kkn" | "admin"
   >("generator");
   const [mode, setMode] = useState<"daily" | "weekly">("daily");
   const [tone, setTone] = useState<ToneType>("alami");
@@ -281,12 +285,20 @@ export default function HomePage() {
   const [peran, setPeran] = useState<string>("");
 
   // State Mode Harian & Vision
+  const [tanggalHarian, setTanggalHarian] = useState<string>(() => {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, "0");
+    const dd = String(today.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  });
   const [catatan, setCatatan] = useState<string>("");
   const [result, setResult] = useState<LogbookResult | null>(null);
   const [fotoBase64, setFotoBase64] = useState<string | null>(null);
   const [fotoMimeType, setFotoMimeType] = useState<string>("image/jpeg");
   const [fotoFileName, setFotoFileName] = useState<string | null>(null);
   const [resultPhoto, setResultPhoto] = useState<string | null>(null);
+  const [historySearchQuery, setHistorySearchQuery] = useState<string>("");
 
   // State Mode Borongan (1 Pekan)
   const defaultWeek = getCurrentWeekMondayAndFriday();
@@ -614,14 +626,24 @@ export default function HomePage() {
       setResult(generatedData);
       setResultPhoto(fotoBase64);
 
+      const selectedDateObj = new Date(tanggalHarian + "T12:00:00");
+      const formattedEntryDate = !isNaN(selectedDateObj.getTime())
+        ? selectedDateObj.toLocaleDateString("id-ID", {
+            weekday: "long",
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+          })
+        : new Date().toLocaleDateString("id-ID", {
+            weekday: "long",
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+          });
+
       const newEntry: LogbookEntry = {
         id: `${Date.now()}`,
-        tanggal: new Date().toLocaleDateString("id-ID", {
-          weekday: "long",
-          day: "numeric",
-          month: "long",
-          year: "numeric",
-        }),
+        tanggal: formattedEntryDate,
         tipeKegiatan,
         peran: peran.trim(),
         catatanAsli: catatan.trim(),
@@ -839,6 +861,7 @@ export default function HomePage() {
     if (entries.length === 0) return;
     setExportingType("excel");
     try {
+      const { exportLogbookToExcel } = await import("@/src/lib/exporters/exportExcel");
       await exportLogbookToExcel(entries, studentProfile);
       triggerToast(
         `Berhasil mengunduh Rekap Excel (.xlsx) berisi ${entries.length} entri logbook!`
@@ -856,6 +879,7 @@ export default function HomePage() {
     if (entries.length === 0) return;
     setExportingType("word");
     try {
+      const { exportLogbookToWord } = await import("@/src/lib/exporters/exportWord");
       await exportLogbookToWord(entries, studentProfile, selectedPreset);
       const presetObj = KAMPUS_PRESETS.find((p) => p.value === selectedPreset);
       triggerToast(
@@ -874,6 +898,7 @@ export default function HomePage() {
     if (entries.length === 0) return;
     setExportingType("pptx");
     try {
+      const { exportLogbookToPowerPoint } = await import("@/src/lib/exporters/exportPowerPoint");
       await exportLogbookToPowerPoint(entries, studentProfile);
       triggerToast(
         "Berhasil mengunduh Slide Presentasi Sidang Akhir (.pptx)!"
@@ -885,6 +910,88 @@ export default function HomePage() {
       );
     } finally {
       setExportingType(null);
+    }
+  };
+
+  // Audit Kualitas & Anti-Duplikasi Logbook Helpers
+  const getWordList = (text: string): string[] => {
+    return text
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/gi, " ")
+      .split(/\s+/)
+      .filter((w) => w.length > 2);
+  };
+
+  const getWordSet = (text: string): Set<string> => {
+    return new Set(getWordList(text));
+  };
+
+  const computeJaccardSimilarity = (textA: string, textB: string): number => {
+    const setA = getWordSet(textA);
+    const setB = getWordSet(textB);
+    if (setA.size === 0 || setB.size === 0) return 0;
+    let intersection = 0;
+    setA.forEach((w) => {
+      if (setB.has(w)) intersection++;
+    });
+    const union = new Set([...setA, ...setB]).size;
+    return union === 0 ? 0 : Math.round((intersection / union) * 100);
+  };
+
+  const computeOverallUniqueness = (entriesList: LogbookEntry[]): number => {
+    if (entriesList.length === 0) return 100;
+    const allWords = entriesList.flatMap((e) =>
+      getWordList(e.deskripsiKegiatan || "")
+    );
+    if (allWords.length === 0) return 100;
+    const uniqueCount = new Set(allWords).size;
+    return Math.round((uniqueCount / allWords.length) * 100);
+  };
+
+  const handleDeleteHistoryEntry = (id: string) => {
+    if (!confirm("Hapus entri logbook ini dari riwayat tersimpan?")) return;
+    const updated = history.filter((e) => e.id !== id);
+    setHistory(updated);
+    try {
+      localStorage.setItem(STORAGE_HISTORY_KEY, JSON.stringify(updated));
+    } catch {
+      // ignore
+    }
+    triggerToast("Entri logbook berhasil dihapus dari riwayat.");
+  };
+
+  const handleClearAllHistory = () => {
+    if (
+      !confirm(
+        "Apakah Anda yakin ingin menghapus SELURUH riwayat logbook tersimpan? Tindakan ini tidak dapat dibatalkan."
+      )
+    )
+      return;
+    setHistory([]);
+    try {
+      localStorage.removeItem(STORAGE_HISTORY_KEY);
+    } catch {
+      // ignore
+    }
+    triggerToast("Seluruh riwayat logbook telah dibersihkan.");
+  };
+
+  const handleLoadHistoryEntry = (entry: LogbookEntry) => {
+    setTipeKegiatan(entry.tipeKegiatan as TipeKegiatan);
+    setPeran(entry.peran || "");
+    setCatatan(entry.catatanAsli || "");
+    setResult({
+      deskripsiKegiatan: entry.deskripsiKegiatan,
+      kompetensiDikembangkan: entry.kompetensiDikembangkan,
+      kendalaDihadapi: entry.kendalaDihadapi,
+      solusiTindakan: entry.solusiTindakan,
+      refleksiPembelajaran: entry.refleksiPembelajaran,
+    });
+    setResultPhoto(entry.fotoBase64 || null);
+    setMode("daily");
+    triggerToast(`Entri tanggal ${entry.tanggal} dimuat ke pratinjau!`);
+    if (resultRef.current) {
+      resultRef.current.scrollIntoView({ behavior: "smooth" });
     }
   };
 
@@ -1302,33 +1409,33 @@ export default function HomePage() {
           )}
         </div>
 
-        {/* 5 Tabs Navigation Bar */}
+        {/* 6 Tabs Navigation Bar */}
         <div className="border-t border-slate-100 bg-slate-50/80">
           <div className="max-w-5xl mx-auto px-4 flex items-center gap-1.5 overflow-x-auto py-2 no-scrollbar">
             <button
               type="button"
               onClick={() => setMainTab("generator")}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+              className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
                 mainTab === "generator"
                   ? "bg-indigo-600 text-white shadow-sm shadow-indigo-500/25"
                   : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
               }`}
             >
               <FileText className="w-4 h-4" />
-              <span>📝 Generator & Dokumen</span>
+              <span>Generator & Dokumen</span>
             </button>
 
             <button
               type="button"
               onClick={() => setMainTab("sks")}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+              className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
                 mainTab === "sks"
                   ? "bg-amber-600 text-white shadow-sm shadow-amber-500/25"
                   : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
               }`}
             >
               <GraduationCap className="w-4 h-4" />
-              <span>🎓 Konversi 20 SKS</span>
+              <span>Konversi 20 SKS</span>
               <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-100 text-amber-800">
                 OBE
               </span>
@@ -1337,14 +1444,14 @@ export default function HomePage() {
             <button
               type="button"
               onClick={() => setMainTab("resume")}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+              className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
                 mainTab === "resume"
                   ? "bg-blue-600 text-white shadow-sm shadow-blue-500/25"
                   : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
               }`}
             >
               <Briefcase className="w-4 h-4" />
-              <span>💼 CV ATS & LinkedIn</span>
+              <span>CV ATS & LinkedIn</span>
               <span className="text-[10px] px-1.5 py-0.2 rounded bg-blue-100 text-blue-800">
                 STAR
               </span>
@@ -1353,14 +1460,14 @@ export default function HomePage() {
             <button
               type="button"
               onClick={() => setMainTab("simulator")}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+              className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
                 mainTab === "simulator"
                   ? "bg-rose-600 text-white shadow-sm shadow-rose-500/25"
                   : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
               }`}
             >
               <Mic className="w-4 h-4" />
-              <span>🎙️ Simulasi Sidang DPL</span>
+              <span>Simulasi Sidang DPL</span>
               <span className="text-[10px] px-1.5 py-0.2 rounded bg-rose-100 text-rose-800">
                 Skeptis
               </span>
@@ -1369,14 +1476,30 @@ export default function HomePage() {
             <button
               type="button"
               onClick={() => setMainTab("kkn")}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+              className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
                 mainTab === "kkn"
                   ? "bg-emerald-600 text-white shadow-sm shadow-emerald-500/25"
                   : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
               }`}
             >
               <Tent className="w-4 h-4" />
-              <span>🏕️ Tim KKN Desa</span>
+              <span>Tim KKN Desa</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setMainTab("admin")}
+              className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                mainTab === "admin"
+                  ? "bg-teal-600 text-white shadow-sm shadow-teal-500/25"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+              }`}
+            >
+              <ClipboardCheck className="w-4 h-4" />
+              <span>Berkas & Penilaian</span>
+              <span className="text-[10px] px-1.5 py-0.2 rounded bg-teal-100 text-teal-800">
+                Docx
+              </span>
             </button>
           </div>
         </div>
@@ -1623,8 +1746,22 @@ export default function HomePage() {
           </section>
         )}
 
+        {/* Heatmap Kehadiran 30 Hari Kerja & Kalkulator 900 Jam MBKM */}
+        <AttendanceTracker
+          history={history}
+          onSelectDateToBackfill={(isoDate, displayDate) => {
+            setMode("daily");
+            setTanggalHarian(isoDate);
+            triggerToast(`Form disetel untuk mengisi logbook tanggal ${displayDate}`);
+            const formElem = document.getElementById("daily-form-card");
+            if (formElem) {
+              formElem.scrollIntoView({ behavior: "smooth" });
+            }
+          }}
+        />
+
         {/* Form Input Card dengan Tab Switcher di Bagian Atas */}
-        <section className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/90 shadow-xs space-y-5">
+        <section id="daily-form-card" className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/90 shadow-xs space-y-5">
           {/* Tab Switcher: Mode Harian vs Mode Borongan (1 Pekan) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-1.5 rounded-2xl bg-slate-100 border border-slate-200/80">
             <button
@@ -1762,12 +1899,35 @@ export default function HomePage() {
             {/* KONDISIONAL: MODE HARIAN (DENGAN AREA UNGGAH FOTO VISION) */}
             {mode === "daily" ? (
               <div className="space-y-4">
+                {/* Tanggal Kegiatan Harian */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-slate-50 border border-slate-200/80 rounded-xl">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-indigo-600" />
+                    <div>
+                      <label htmlFor="input-tanggal-harian" className="text-xs font-bold text-slate-800 block">
+                        Tanggal Kegiatan Harian
+                      </label>
+                      <span className="text-[11px] text-slate-500">
+                        Pilih tanggal kegiatan (klik tanggal kosong di kalender atas untuk mengisi hari terlewat)
+                      </span>
+                    </div>
+                  </div>
+                  <input
+                    id="input-tanggal-harian"
+                    type="date"
+                    value={tanggalHarian}
+                    onChange={(e) => setTanggalHarian(e.target.value)}
+                    disabled={isLoading}
+                    className="text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+
                 {/* Area Unggah Foto Dokumentasi (Vision-to-Logbook) */}
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="block text-xs sm:text-sm font-bold text-slate-800 flex items-center gap-1.5">
                       <Camera className="w-4 h-4 text-indigo-600" />
-                      <span>3. Foto Bukti Dokumentasi Kegiatan (Vision AI)</span>
+                      <span>Foto Bukti Dokumentasi Kegiatan (Vision AI)</span>
                     </label>
                     {fotoBase64 && (
                       <button
@@ -2935,6 +3095,355 @@ export default function HomePage() {
             </div>
           </section>
         )}
+
+        {/* PANEL RIWAYAT LOGBOOK & AUDIT KUALITAS ANTI-DUPLIKASI */}
+        <section className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/90 shadow-xs space-y-6">
+          {/* Header Panel */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-200">
+            <div>
+              <div className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-full mb-1.5">
+                <BarChart3 className="w-3.5 h-3.5" />
+                <span>Audit Kualitas & Anti-Duplikasi Logbook</span>
+              </div>
+              <h2 className="text-base sm:text-lg font-extrabold text-slate-900">
+                Riwayat Logbook Tersimpan ({history.length} Hari)
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Analisis keunikan kosakata, deteksi repetisi/copas antar-hari (&gt;70%), dan validasi kelengkapan narasi (&gt;20 kata).
+              </p>
+            </div>
+
+            {history.length > 0 && (
+              <button
+                type="button"
+                onClick={handleClearAllHistory}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-xl transition cursor-pointer self-start sm:self-auto"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Hapus Semua Riwayat</span>
+              </button>
+            )}
+          </div>
+
+          {history.length === 0 ? (
+            <div className="text-center py-8 px-4 rounded-xl border border-dashed border-slate-200 bg-slate-50/60 text-slate-500 space-y-2">
+              <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-400">
+                <History className="w-5 h-5" />
+              </div>
+              <p className="text-xs sm:text-sm font-bold text-slate-700">
+                Belum ada logbook yang tersimpan di riwayat
+              </p>
+              <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                Setiap logbook harian atau mingguan yang Anda generate akan otomatis tersimpan di sini lengkap dengan audit skor keunikan kosakata dan deteksi kemiripan.
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* Summary Metric Cards */}
+              {(() => {
+                const uniquenessScore = computeOverallUniqueness(history);
+                const shortEntriesCount = history.filter(
+                  (e) => getWordList(e.deskripsiKegiatan || "").length < 20
+                ).length;
+
+                let repetitiveEntriesCount = 0;
+                for (let i = 0; i < history.length; i++) {
+                  const cur = history[i];
+                  const others = history.filter((_, idx) => idx !== i);
+                  const maxSim = Math.max(
+                    0,
+                    ...others.map((o) =>
+                      computeJaccardSimilarity(
+                        cur.deskripsiKegiatan || "",
+                        o.deskripsiKegiatan || ""
+                      )
+                    )
+                  );
+                  if (maxSim > 70) {
+                    repetitiveEntriesCount++;
+                  }
+                }
+
+                return (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                    {/* 1. Skor Keunikan Kosakata */}
+                    <div className="p-4 rounded-xl bg-gradient-to-br from-indigo-50 to-white border border-indigo-100 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-indigo-900">
+                          Skor Keunikan Kosakata
+                        </span>
+                        <span className="text-sm font-extrabold text-indigo-700">
+                          {uniquenessScore}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                        <div
+                          className={`h-2 rounded-full transition-all duration-500 ${
+                            uniquenessScore >= 70
+                              ? "bg-emerald-500"
+                              : uniquenessScore >= 50
+                              ? "bg-indigo-500"
+                              : "bg-amber-500"
+                          }`}
+                          style={{
+                            width: `${Math.min(
+                              100,
+                              Math.max(10, uniquenessScore)
+                            )}%`,
+                          }}
+                        />
+                      </div>
+                      <p className="text-[11px] text-slate-500">
+                        {uniquenessScore >= 70
+                          ? "✅ Kosakata sangat variatif & profesional"
+                          : uniquenessScore >= 50
+                          ? "ℹ️ Cukup variatif, hindari repetisi kalimat"
+                          : "⚠️ Cenderung monoton, gunakan variasi istilah"}
+                      </p>
+                    </div>
+
+                    {/* 2. Kelayakan Panjang Narasi */}
+                    <div className="p-4 rounded-xl bg-gradient-to-br from-teal-50 to-white border border-teal-100 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-teal-900">
+                          Standar Panjang Narasi
+                        </span>
+                        <span className="text-sm font-extrabold text-teal-700">
+                          {history.length - shortEntriesCount}/{history.length}{" "}
+                          Lolos
+                        </span>
+                      </div>
+                      <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                        <div
+                          className="h-2 rounded-full bg-teal-500 transition-all duration-500"
+                          style={{
+                            width: `${
+                              history.length > 0
+                                ? Math.round(
+                                    ((history.length - shortEntriesCount) /
+                                      history.length) *
+                                      100
+                                  )
+                                : 100
+                            }%`,
+                          }}
+                        />
+                      </div>
+                      <p className="text-[11px] text-slate-500">
+                        {shortEntriesCount === 0
+                          ? "✅ Semua entri memenuhi standar (>20 kata)"
+                          : `⚠️ ${shortEntriesCount} entri terlalu ringkas (<20 kata)`}
+                      </p>
+                    </div>
+
+                    {/* 3. Anti-Duplikasi / Kemiripan Antar Hari */}
+                    <div className="p-4 rounded-xl bg-gradient-to-br from-amber-50 to-white border border-amber-100 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-amber-900">
+                          Status Anti-Duplikasi
+                        </span>
+                        <span className="text-xs font-extrabold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                          {repetitiveEntriesCount === 0 ? "Aman" : "Peringatan"}
+                        </span>
+                      </div>
+                      <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                        <div
+                          className={`h-2 rounded-full transition-all duration-500 ${
+                            repetitiveEntriesCount === 0
+                              ? "bg-emerald-500"
+                              : "bg-rose-500"
+                          }`}
+                          style={{
+                            width: `${
+                              history.length > 0
+                                ? Math.round(
+                                    ((history.length -
+                                      repetitiveEntriesCount) /
+                                      history.length) *
+                                      100
+                                  )
+                                : 100
+                            }%`,
+                          }}
+                        />
+                      </div>
+                      <p className="text-[11px] text-slate-500">
+                        {repetitiveEntriesCount === 0
+                          ? "✅ Tidak ditemukan indikasi copas antar-hari"
+                          : `⚠️ ${repetitiveEntriesCount} entri memiliki kemiripan >70%`}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Search Bar Riwayat */}
+              <div className="relative">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={historySearchQuery}
+                  onChange={(e) => setHistorySearchQuery(e.target.value)}
+                  placeholder="Cari riwayat berdasarkan tanggal, kata kunci kegiatan, peran, atau kendala..."
+                  className="w-full text-xs pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/70 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition"
+                />
+              </div>
+
+              {/* Daftar Entri Riwayat */}
+              <div className="space-y-3 max-h-[550px] overflow-y-auto pr-1">
+                {history
+                  .filter((entry) => {
+                    if (!historySearchQuery.trim()) return true;
+                    const q = historySearchQuery.toLowerCase();
+                    return (
+                      entry.tanggal?.toLowerCase().includes(q) ||
+                      entry.peran?.toLowerCase().includes(q) ||
+                      entry.tipeKegiatan?.toLowerCase().includes(q) ||
+                      entry.deskripsiKegiatan?.toLowerCase().includes(q) ||
+                      entry.kendalaDihadapi?.toLowerCase().includes(q) ||
+                      entry.solusiTindakan?.toLowerCase().includes(q)
+                    );
+                  })
+                  .map((entry, idx) => {
+                    const words = getWordList(entry.deskripsiKegiatan || "");
+                    const wordCount = words.length;
+                    const isShort = wordCount < 20;
+
+                    const others = history.filter(
+                      (other) => other.id !== entry.id
+                    );
+                    let maxSimilarity = 0;
+                    let matchedDate = "";
+                    for (const other of others) {
+                      const sim = computeJaccardSimilarity(
+                        entry.deskripsiKegiatan || "",
+                        other.deskripsiKegiatan || ""
+                      );
+                      if (sim > maxSimilarity) {
+                        maxSimilarity = sim;
+                        matchedDate = other.tanggal;
+                      }
+                    }
+                    const isRepetitive = maxSimilarity > 70;
+
+                    return (
+                      <div
+                        key={entry.id || idx}
+                        className={`p-4 rounded-xl border transition space-y-3 ${
+                          isRepetitive
+                            ? "bg-rose-50/40 border-rose-200"
+                            : isShort
+                            ? "bg-amber-50/30 border-amber-200"
+                            : "bg-white border-slate-200/90 hover:border-indigo-300"
+                        }`}
+                      >
+                        {/* Entry Top Header */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                              <Calendar className="w-3.5 h-3.5 text-indigo-600" />
+                              <span>{entry.tanggal}</span>
+                            </span>
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
+                              {entry.tipeKegiatan}
+                            </span>
+                            <span className="text-[10px] text-slate-500 font-medium truncate max-w-[150px]">
+                              • {entry.peran}
+                            </span>
+                          </div>
+
+                          {/* Quality Badges */}
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {isShort && (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1">
+                                <AlertTriangle className="w-3 h-3 text-amber-600" />
+                                <span>
+                                  Terlalu Singkat ({wordCount} kata &lt; 20)
+                                </span>
+                              </span>
+                            )}
+                            {isRepetitive ? (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300 flex items-center gap-1">
+                                <AlertTriangle className="w-3 h-3 text-rose-600" />
+                                <span>
+                                  Repetisi {maxSimilarity}% (mirip {matchedDate})
+                                </span>
+                              </span>
+                            ) : (
+                              !isShort && (
+                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
+                                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                  <span>Optimal ({wordCount} kata)</span>
+                                </span>
+                              )
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Entry Content Preview with optional photo thumbnail */}
+                        <div className="flex items-start gap-3">
+                          {entry.fotoBase64 && (
+                            <div className="w-16 h-16 rounded-lg overflow-hidden border border-slate-200 shrink-0 bg-slate-100">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={entry.fotoBase64}
+                                alt="Foto dokumentasi"
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0 space-y-1">
+                            <p className="text-xs text-slate-800 line-clamp-2 leading-relaxed">
+                              <strong>Deskripsi:</strong>{" "}
+                              {entry.deskripsiKegiatan}
+                            </p>
+                            <p className="text-[11px] text-slate-500 line-clamp-1">
+                              <strong>Kompetensi:</strong>{" "}
+                              {entry.kompetensiDikembangkan}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Actions bar for this entry */}
+                        <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 text-xs">
+                          <button
+                            type="button"
+                            onClick={() => handleLoadHistoryEntry(entry)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold transition cursor-pointer"
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                            <span>Muat ke Editor</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const text = `LOGBOOK ${entry.tipeKegiatan} - ${entry.tanggal}\nPeran: ${entry.peran}\n\n1. Deskripsi: ${entry.deskripsiKegiatan}\n2. Kompetensi: ${entry.kompetensiDikembangkan}\n3. Kendala: ${entry.kendalaDihadapi}\n4. Solusi: ${entry.solusiTindakan}\n5. Refleksi: ${entry.refleksiPembelajaran}`;
+                              await navigator.clipboard.writeText(text);
+                              triggerToast(
+                                `Logbook tanggal ${entry.tanggal} disalin ke clipboard!`
+                              );
+                            }}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition cursor-pointer"
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                            <span>Salin</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteHistoryEntry(entry.id)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white hover:bg-rose-50 text-rose-600 border border-slate-200 hover:border-rose-200 transition cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Hapus</span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </>
+          )}
+        </section>
           </>
         )}
 
@@ -2968,6 +3477,14 @@ export default function HomePage() {
         {/* TAB 5: TIM KKN DESA */}
         {mainTab === "kkn" && (
           <KknTeamTab />
+        )}
+
+        {/* TAB 6: BERKAS & PENILAIAN MENTOR */}
+        {mainTab === "admin" && (
+          <AdminDocsTab
+            profile={studentProfile}
+            onUpdateProfile={setStudentProfile}
+          />
         )}
       </main>
 

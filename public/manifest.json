@@ -1,0 +1,40 @@
+{
+  "short_name": "LogMagang OS",
+  "name": "LogMagang OS — Platform Asisten Logbook, Konversi SKS & MBKM",
+  "description": "Platform Asisten Terpadu Penyusunan Logbook Harian & Mingguan Berbasis Taksonomi Bloom, Konversi 20 SKS, CV ATS, dan Ekspor Dokumen Resmi.",
+  "icons": [
+    {
+      "src": "/icons/icon48.png",
+      "type": "image/png",
+      "sizes": "48x48"
+    },
+    {
+      "src": "/icons/icon128.png",
+      "type": "image/png",
+      "sizes": "128x128"
+    },
+    {
+      "src": "/icons/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#ffffff",
+  "theme_color": "#4f46e5",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "scope": "/"
+}

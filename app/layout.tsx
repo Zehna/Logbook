@@ -9,9 +9,19 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "LogMagang — Generator Logbook Harian Magang MBKM, MSIB & KKN",
+  title: "LogMagang OS — Platform Terpadu Asisten Logbook & MBKM",
   description:
-    "Ubah catatan harian santai menjadi laporan logbook resmi berstandar akademik berbasis Taksonomi Bloom dalam hitungan detik.",
+    "Ubah catatan harian santai menjadi laporan logbook resmi berstandar akademik berbasis Taksonomi Bloom, konversi 20 SKS, CV ATS, dan administrasi mentor.",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "LogMagang OS",
+  },
+  icons: {
+    icon: "/icons/icon-192.png",
+    apple: "/icons/icon-192.png",
+  },
 };
 
 export const viewport: Viewport = {
