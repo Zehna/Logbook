@@ -1,0 +1,37 @@
+{
+  "manifest_version": 3,
+  "name": "LogMagang Auto-Fill Portal Kampus",
+  "version": "1.0.0",
+  "description": "Pengisi Otomatis Logbook Harian Kampus Merdeka, MSIB & KKN berbasis Taksonomi Bloom ke berbagai portal kampus universitas.",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "*://*.kampusmerdeka.kemdikbud.go.id/*",
+    "*://*/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "LogMagang Auto-Fill Portal",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
