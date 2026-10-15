@@ -16,11 +16,14 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { SksMappingResponse, MatriksSksItem } from "@/src/lib/types/modules";
+import { MentorAdminData } from "@/src/lib/exporters/exportAdminDocs";
 
 interface SksConversionTabProps {
   tipeKegiatan: string;
   peran: string;
   riwayatLogbookText: string;
+  mentorAdminData?: MentorAdminData | null;
+  onSksMatrixGenerated?: (matriks: MatriksSksItem[], rawCourses: string) => void;
 }
 
 const TEMPLATE_MATKUL_PRESETS: { label: string; courses: string }[] = [
@@ -59,6 +62,8 @@ export const SksConversionTab: React.FC<SksConversionTabProps> = ({
   tipeKegiatan,
   peran,
   riwayatLogbookText,
+  mentorAdminData,
+  onSksMatrixGenerated,
 }) => {
   const [coursesText, setCoursesText] = useState(TEMPLATE_MATKUL_PRESETS[0].courses);
   const [activityContext, setActivityContext] = useState(riwayatLogbookText);
@@ -84,6 +89,14 @@ export const SksConversionTab: React.FC<SksConversionTabProps> = ({
     setErrorMsg(null);
 
     try {
+      let enrichedActivity = activityContext;
+      if (mentorAdminData && mentorAdminData.scores && mentorAdminData.scores.length > 0) {
+        const totalWeighted = Math.round(
+          mentorAdminData.scores.reduce((acc, curr) => acc + (curr.nilai * curr.bobot) / 100, 0) * 10
+        ) / 10;
+        enrichedActivity += `\n\n[EVALUASI MENTOR INDUSTRI LAPANGAN]\nNilai Akhir Pembimbing: ${totalWeighted}/100 (${mentorAdminData.predikat})\nCatatan Pembimbing: "${mentorAdminData.catatanEvaluasi}"`;
+      }
+
       const res = await fetch("/api/map-sks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -91,7 +104,7 @@ export const SksConversionTab: React.FC<SksConversionTabProps> = ({
           tipeKegiatan,
           peran,
           daftarMatkul: coursesText,
-          riwayatKegiatan: activityContext,
+          riwayatKegiatan: enrichedActivity,
         }),
       });
 
@@ -101,6 +114,9 @@ export const SksConversionTab: React.FC<SksConversionTabProps> = ({
       }
 
       setResult(data.data);
+      if (onSksMatrixGenerated && data.data?.matriks) {
+        onSksMatrixGenerated(data.data.matriks, coursesText);
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Terjadi kesalahan.";
       setErrorMsg(msg);
@@ -175,6 +191,30 @@ ${result.rekomendasiUntukDosen}`;
           </p>
         </div>
       </div>
+
+      {/* Integrated Mentor Evaluation Badge */}
+      {mentorAdminData && mentorAdminData.scores && mentorAdminData.scores.length > 0 && (
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-950">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-700 font-black shrink-0">
+              🏅
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-extrabold text-xs text-emerald-900">
+                  Evaluasi Kinerja Mentor Terintegrasi
+                </span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-200 text-emerald-900">
+                  {mentorAdminData.predikat}
+                </span>
+              </div>
+              <p className="text-xs text-emerald-700 mt-0.5">
+                Skor Akhir: <strong>{Math.round(mentorAdminData.scores.reduce((a, c) => a + (c.nilai * c.bobot) / 100, 0) * 10) / 10}/100</strong> oleh {mentorAdminData.namaMentor} ({mentorAdminData.jabatanMentor}). Nilai ini otomatis memperkuat rekomendasi nilai dan justifikasi CPL akademis Anda.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Form Box */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 sm:p-6 space-y-5">

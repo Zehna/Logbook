@@ -704,5 +704,39 @@
     });
   }
 
+  // Listener Message dari Web App LogMagang (Direct Zero-Click Bridge)
+  window.addEventListener("message", (event) => {
+    if (event.source !== window) return;
+    if (event.data && event.data.source === "LOGMAGANG_WEB_APP" && event.data.type === "SYNC_TO_EXTENSION") {
+      const payload = event.data.payload;
+      if (!payload) return;
+
+      const items = Array.isArray(payload) ? payload : (payload.history || (payload.item ? [payload.item] : []));
+      if (items.length > 0) {
+        logbookList = items;
+        currentIdx = 0;
+        if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
+          chrome.storage.local.set({
+            logmagang_queue: items,
+            logmagang_queue_index: 0,
+            logmagang_last_sync: new Date().toISOString()
+          }, () => {
+            showPanelToast(`⚡ Berhasil disinkronkan (${items.length} entri) dari Web LogMagang!`, true);
+            updatePreviewUI();
+            // Kirim konfirmasi balik ke Web App
+            window.postMessage({
+              source: "LOGMAGANG_EXTENSION_ACK",
+              success: true,
+              count: items.length
+            }, "*");
+          });
+        } else {
+          showPanelToast(`⚡ Berhasil menerima ${items.length} entri!`, true);
+          updatePreviewUI();
+        }
+      }
+    }
+  });
+
   loadStoredData();
 })();

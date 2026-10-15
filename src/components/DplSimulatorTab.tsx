@@ -23,12 +23,14 @@ interface DplSimulatorTabProps {
   tipeKegiatan: string;
   peran: string;
   riwayatLogbookText: string;
+  konteksMatkulSks?: string;
 }
 
 export const DplSimulatorTab: React.FC<DplSimulatorTabProps> = ({
   tipeKegiatan,
   peran,
   riwayatLogbookText,
+  konteksMatkulSks,
 }) => {
   const [judulLaporan, setJudulLaporan] = useState(
     `Laporan Akhir Pelaksanaan ${tipeKegiatan}: Kontribusi Operasional dan Peningkatan Kinerja`
@@ -68,6 +70,7 @@ export const DplSimulatorTab: React.FC<DplSimulatorTabProps> = ({
           judulLaporan,
           mitraPerusahaan,
           riwayatKegiatan: activityContext,
+          konteksMatkulSks: konteksMatkulSks || undefined,
         }),
       });
 
@@ -177,6 +180,15 @@ Draf Jawaban Lisan:
             />
           </div>
         </div>
+
+        {konteksMatkulSks && (
+          <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-50/90 border border-amber-200 text-amber-900 text-xs">
+            <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
+            <div>
+              <span className="font-bold">Konteks Konversi 20 SKS Terintegrasi:</span> Dosen penguji akan secara otomatis menguji kesesuaian logbook kerja dengan capaian mata kuliah yang Anda ajukan.
+            </div>
+          </div>
+        )}
 
         <div>
           <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">

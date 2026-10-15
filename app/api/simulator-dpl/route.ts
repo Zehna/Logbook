@@ -8,6 +8,7 @@ export interface DplSimulatorPayload {
   riwayatKegiatan?: string;
   judulLaporan?: string;
   mitraPerusahaan?: string;
+  konteksMatkulSks?: string;
 }
 
 const DPL_DEFENSE_SCHEMA = {
@@ -96,6 +97,7 @@ export async function POST(request: NextRequest) {
     const judulLaporan = body.judulLaporan?.trim() || `Laporan Akhir ${tipeKegiatan}`;
     const mitraPerusahaan = body.mitraPerusahaan?.trim() || "Mitra / Lokasi Kegiatan";
     const riwayatKegiatan = body.riwayatKegiatan?.trim() || "";
+    const konteksMatkulSks = body.konteksMatkulSks?.trim() || "";
 
     if (!riwayatKegiatan) {
       return NextResponse.json(
@@ -113,12 +115,17 @@ export async function POST(request: NextRequest) {
 1. Sangat kritis, analitis, skeptis, dan berpengalaman puluhan tahun menguji sidang mahasiswa.
 2. Anda alergi terhadap klaim kosong tanpa bukti angka atau laporan yang terkesan 'dilebih-lebihkan oleh AI'.
 3. Anda ingin memastikan mahasiswa benar-benar bekerja, memahami korelasi teori keilmuan perguruan tinggi dengan kenyataan lapangan, dan mampu menyelesaikan masalah nyata (problem solving).
+${
+  konteksMatkulSks
+    ? "4. Mahasiswa juga mengajukan konversi 20 SKS untuk mata kuliah tertentu. Salah satu pertanyaan Anda HARUS secara tajam menguji apakah aktivitas kerja dan luaran mahasiswa benar-benar memenuhi Capaian Pembelajaran Lulusan (CPL) dan bobot SKS mata kuliah yang diajukan, bukan sekadar klaim administratif!"
+    : ""
+}
 
 Tugas Anda:
 1. Analisis riwayat kegiatan mahasiswa (${tipeKegiatan} sebagai ${peran} di ${mitraPerusahaan}).
 2. Susun 5 PERTANYAAN PALING KRITIS & MEMATIKAN yang sering menjatuhkan mahasiswa saat sidang:
    - Pertanyaan 1: Kontribusi Individual (membedakan pekerjaan mahasiswa vs tim).
-   - Pertanyaan 2: Integrasi Teori vs Praktik Lapangan (menantang mahasiswa menjelaskan teori apa yang dipakai).
+   - Pertanyaan 2: Integrasi Teori vs Praktik Lapangan (menantang mahasiswa menjelaskan teori apa yang dipakai${konteksMatkulSks ? " serta relevansinya terhadap mata kuliah konversi SKS" : ""}).
    - Pertanyaan 3: Penanganan Krisis & Hambatan Nyata (menguji kejujuran atas kendala yang dialami).
    - Pertanyaan 4: Metodologi & Validitas Pekerjaan (bagaimana mahasiswa memastikan hasil kerjanya tidak keliru).
    - Pertanyaan 5: Dampak Jangka Panjang & Keberlanjutan (apa legasi atau nilai tambah yang ditinggalkan untuk mitra/desa).
@@ -130,6 +137,11 @@ Tugas Anda:
 - Posisi / Peran: ${peran}
 - Lokasi / Mitra: ${mitraPerusahaan}
 - Judul Laporan: ${judulLaporan}
+${
+  konteksMatkulSks
+    ? `- Daftar Mata Kuliah Konversi 20 SKS yang Diajukan Mahasiswa:\n${konteksMatkulSks}\n`
+    : ""
+}
 - Riwayat Aktivitas & Catatan Mahasiswa:
 ${riwayatKegiatan}
 

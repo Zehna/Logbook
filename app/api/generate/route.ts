@@ -10,6 +10,7 @@ export interface LogbookInputPayload {
   fotoBase64?: string;
   fotoMimeType?: string;
   tone?: ToneType;
+  instruksiKhusus?: string;
 }
 
 export interface LogbookOutput {
@@ -79,6 +80,7 @@ export async function POST(request: NextRequest) {
     const fotoBase64 = body.fotoBase64?.trim();
     const fotoMimeType = body.fotoMimeType?.trim() || "image/jpeg";
     const tone: ToneType = body.tone || "alami";
+    const instruksiKhusus = body.instruksiKhusus?.trim();
 
     if (!catatan && !fotoBase64) {
       return NextResponse.json(
@@ -141,6 +143,11 @@ ${
 ${
   hasPhoto
     ? "- Bukti Foto Dokumentasi: Terlampir. Silakan analisis objek, software, konteks kerja, dan aktivitas yang terlihat pada foto ini untuk menyusun narasi 5 bagian logbook."
+    : ""
+}
+${
+  instruksiKhusus
+    ? `- INSTRUKSI KHUSUS / PERBAIKAN AUDIT: ${instruksiKhusus}`
     : ""
 }
 

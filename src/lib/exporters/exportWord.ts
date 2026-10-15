@@ -21,6 +21,7 @@ import {
   DEFAULT_STUDENT_PROFILE,
   KampusPreset,
 } from "./types";
+import { MentorAdminData } from "./exportAdminDocs";
 
 const FONT_FAMILY = "Times New Roman";
 const SIZE_12PT = 24; // 24 half-points = 12pt
@@ -155,7 +156,8 @@ function createBioRow(label: string, value: string): TableRow {
 export async function exportLogbookToWord(
   entries: LogbookEntry[],
   profile: Partial<StudentProfile> = {},
-  selectedPreset?: KampusPreset
+  selectedPreset?: KampusPreset,
+  mentorAdminData?: Partial<MentorAdminData>
 ): Promise<void> {
   const student: StudentProfile = { ...DEFAULT_STUDENT_PROFILE, ...profile };
   const preset: KampusPreset = selectedPreset || student.kampusPreset || "dikti";
@@ -758,6 +760,93 @@ export async function exportLogbookToWord(
         bold: true,
         alignment: AlignmentType.RIGHT,
       })
+    );
+  }
+
+  // ==================== LAMPIRAN NILAI & CATATAN MENTOR INDUSTRI ====================
+  if (mentorAdminData && mentorAdminData.scores && mentorAdminData.scores.length > 0) {
+    const totalWeighted = Math.round(
+      mentorAdminData.scores.reduce((acc, curr) => acc + (curr.nilai * curr.bobot) / 100, 0) * 10
+    ) / 10;
+    const mentorName = mentorAdminData.namaMentor || student.namaPembimbing || "Mentor Mitra";
+    const mentorRole = mentorAdminData.jabatanMentor || "Supervisor / Pembimbing Lapangan";
+
+    docChildren.push(
+      new Paragraph({ children: [new PageBreak()] }),
+      createAcademicParagraph("LAMPIRAN: LEMBAR EVALUASI KINERJA OLEH MENTOR LAPANGAN", {
+        bold: true,
+        size: SIZE_14PT,
+        alignment: AlignmentType.CENTER,
+        before: 200,
+        after: 200,
+      }),
+      createAcademicParagraph(
+        `Berikut adalah hasil penilaian evaluasi kinerja mahasiswa selama melaksanakan program di ${student.namaMitra}:`,
+        { after: 200 }
+      ),
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: [
+          new TableRow({
+            tableHeader: true,
+            children: [
+              new TableCell({
+                width: { size: 8, type: WidthType.PERCENTAGE },
+                shading: { fill: "F1F5F9", type: ShadingType.CLEAR, color: "auto" },
+                children: [createAcademicParagraph("No", { bold: true, alignment: AlignmentType.CENTER })],
+              }),
+              new TableCell({
+                width: { size: 52, type: WidthType.PERCENTAGE },
+                shading: { fill: "F1F5F9", type: ShadingType.CLEAR, color: "auto" },
+                children: [createAcademicParagraph("Aspek Penilaian Evaluasi", { bold: true })],
+              }),
+              new TableCell({
+                width: { size: 15, type: WidthType.PERCENTAGE },
+                shading: { fill: "F1F5F9", type: ShadingType.CLEAR, color: "auto" },
+                children: [createAcademicParagraph("Bobot", { bold: true, alignment: AlignmentType.CENTER })],
+              }),
+              new TableCell({
+                width: { size: 25, type: WidthType.PERCENTAGE },
+                shading: { fill: "F1F5F9", type: ShadingType.CLEAR, color: "auto" },
+                children: [createAcademicParagraph("Nilai (0-100)", { bold: true, alignment: AlignmentType.CENTER })],
+              }),
+            ],
+          }),
+          ...mentorAdminData.scores.map(
+            (sc, sIdx) =>
+              new TableRow({
+                children: [
+                  new TableCell({ children: [createAcademicParagraph(String(sIdx + 1), { alignment: AlignmentType.CENTER })] }),
+                  new TableCell({ children: [createAcademicParagraph(sc.aspek, { bold: true }), createAcademicParagraph(sc.keterangan, { italics: true, size: 20 })] }),
+                  new TableCell({ children: [createAcademicParagraph(`${sc.bobot}%`, { alignment: AlignmentType.CENTER })] }),
+                  new TableCell({ children: [createAcademicParagraph(String(sc.nilai), { bold: true, alignment: AlignmentType.CENTER })] }),
+                ],
+              })
+          ),
+          new TableRow({
+            children: [
+              new TableCell({
+                columnSpan: 2,
+                shading: { fill: "E2E8F0", type: ShadingType.CLEAR, color: "auto" },
+                children: [createAcademicParagraph("NILAI AKHIR TERBOBOT (SKALA 100)", { bold: true, alignment: AlignmentType.RIGHT })],
+              }),
+              new TableCell({
+                shading: { fill: "E2E8F0", type: ShadingType.CLEAR, color: "auto" },
+                children: [createAcademicParagraph("100%", { bold: true, alignment: AlignmentType.CENTER })],
+              }),
+              new TableCell({
+                shading: { fill: "E2E8F0", type: ShadingType.CLEAR, color: "auto" },
+                children: [createAcademicParagraph(`${totalWeighted} (${mentorAdminData.predikat || (totalWeighted >= 85 ? "A" : "B")})`, { bold: true, alignment: AlignmentType.CENTER })],
+              }),
+            ],
+          }),
+        ],
+      }),
+      createAcademicParagraph("Catatan Kualitatif Mentor:", { bold: true, before: 240, after: 60 }),
+      createAcademicParagraph(mentorAdminData.catatanEvaluasi || "Mahasiswa menunjukkan dedikasi dan performa yang sangat baik.", { italics: true, after: 360 }),
+      createAcademicParagraph("Disahkan oleh Mentor Lapangan,", { alignment: AlignmentType.RIGHT, after: 60 }),
+      createAcademicParagraph(`( ${mentorName} )`, { bold: true, alignment: AlignmentType.RIGHT, before: 700 }),
+      createAcademicParagraph(mentorRole, { italics: true, alignment: AlignmentType.RIGHT })
     );
   }
 

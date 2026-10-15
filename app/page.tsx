@@ -68,11 +68,26 @@ import { SksConversionTab } from "@/src/components/SksConversionTab";
 import { AtsResumeTab } from "@/src/components/AtsResumeTab";
 import { DplSimulatorTab } from "@/src/components/DplSimulatorTab";
 import { KknTeamTab } from "@/src/components/KknTeamTab";
-import { ToneType, TONE_OPTIONS, LicenseInfo } from "@/src/lib/types/modules";
+import { ToneType, TONE_OPTIONS, LicenseInfo, KknProkerItem } from "@/src/lib/types/modules";
 import { LicenseModal } from "@/src/components/LicenseModal";
 import { VoiceDictationButton } from "@/src/components/VoiceDictationButton";
 import { SmartIngestionModal } from "@/src/components/SmartIngestionModal";
 import { WorkspaceSyncModal } from "@/src/components/WorkspaceSyncModal";
+import { AuditHistoryPanel } from "@/src/components/AuditHistoryPanel";
+import { MentorAdminData } from "@/src/lib/exporters/exportAdminDocs";
+import {
+  autoMigrateFromLocalStorage,
+  getStorageUsageEstimate,
+  getStoredHistory,
+  saveStoredHistory,
+  getStoredProfile,
+  saveStoredProfile,
+  getStoredMentorData,
+  saveStoredMentorData,
+  getStoredSksCourses,
+  saveStoredSksCourses,
+  StorageEstimateInfo,
+} from "@/src/lib/storage/indexedDbStore";
 
 const MAX_FREE_QUOTA = 3;
 const STORAGE_QUOTA_KEY = "logmagang_free_usage_count";
@@ -360,12 +375,21 @@ export default function HomePage() {
   const [isWorkspaceSyncOpen, setIsWorkspaceSyncOpen] = useState<boolean>(false);
   const [selectedPreset, setSelectedPreset] = useState<KampusPreset>("dikti");
 
+  // Tahap 4: Unified Cross-Tab Data Pipeline & IndexedDB States
+  const [mentorAdminData, setMentorAdminData] = useState<MentorAdminData | null>(null);
+  const [sksCoursesContext, setSksCoursesContext] = useState<string>("");
+  const [fixingEntryId, setFixingEntryId] = useState<string | null>(null);
+  const [storageInfo, setStorageInfo] = useState<StorageEstimateInfo | null>(null);
+  const [extensionSyncAck, setExtensionSyncAck] = useState<boolean>(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
   const resultRef = useRef<HTMLDivElement>(null);
   const paywallRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    let isMounted = true;
+
     try {
       const savedQuota = localStorage.getItem(STORAGE_QUOTA_KEY);
       const savedPro = localStorage.getItem(STORAGE_PRO_KEY);
@@ -391,18 +415,26 @@ export default function HomePage() {
         }
       }
       if (savedHistory) {
-        const parsedHistory = JSON.parse(savedHistory);
-        if (Array.isArray(parsedHistory)) {
-          setHistory(parsedHistory);
+        try {
+          const parsedHistory = JSON.parse(savedHistory);
+          if (Array.isArray(parsedHistory)) {
+            setHistory(parsedHistory);
+          }
+        } catch {
+          // ignore
         }
       }
       if (savedProfile) {
-        const parsedProfile = JSON.parse(savedProfile);
-        if (parsedProfile && typeof parsedProfile === "object") {
-          setStudentProfile((prev) => ({ ...prev, ...parsedProfile }));
-          if (parsedProfile.kampusPreset) {
-            setSelectedPreset(parsedProfile.kampusPreset);
+        try {
+          const parsedProfile = JSON.parse(savedProfile);
+          if (parsedProfile && typeof parsedProfile === "object") {
+            setStudentProfile((prev) => ({ ...prev, ...parsedProfile }));
+            if (parsedProfile.kampusPreset) {
+              setSelectedPreset(parsedProfile.kampusPreset);
+            }
           }
+        } catch {
+          // ignore
         }
       }
     } catch {
@@ -410,6 +442,61 @@ export default function HomePage() {
     } finally {
       setIsHydrated(true);
     }
+
+    // Inisialisasi & Auto-Migrasi ke IndexedDB Native Engine
+    (async () => {
+      try {
+        await autoMigrateFromLocalStorage();
+        const [idbHistory, idbProfile, idbMentor, idbCourses] = await Promise.all([
+          getStoredHistory(),
+          getStoredProfile(),
+          getStoredMentorData(),
+          getStoredSksCourses(),
+        ]);
+
+        if (!isMounted) return;
+
+        if (idbHistory && idbHistory.length > 0) {
+          setHistory(idbHistory);
+        }
+        if (idbProfile) {
+          setStudentProfile((prev) => ({ ...prev, ...idbProfile }));
+          if (idbProfile.kampusPreset) {
+            setSelectedPreset(idbProfile.kampusPreset);
+          }
+        }
+        if (idbMentor) {
+          setMentorAdminData(idbMentor);
+        }
+        if (idbCourses) {
+          setSksCoursesContext(idbCourses);
+        }
+
+        const est = await getStorageUsageEstimate();
+        if (isMounted) {
+          setStorageInfo(est);
+        }
+      } catch (err) {
+        console.warn("IndexedDB bootstrap warning:", err);
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Listener Konfirmasi Live Bridge Ekstensi Chrome
+  useEffect(() => {
+    const handleExtensionAck = (event: MessageEvent) => {
+      if (event.data && event.data.source === "LOGMAGANG_EXTENSION_ACK") {
+        setExtensionSyncAck(true);
+        triggerToast(`⚡ Ekstensi berhasil menerima ${event.data.count || 0} entri secara live!`);
+        setTimeout(() => setExtensionSyncAck(false), 3000);
+      }
+    };
+    window.addEventListener("message", handleExtensionAck);
+    return () => window.removeEventListener("message", handleExtensionAck);
   }, []);
 
   const remainingQuota = Math.max(0, MAX_FREE_QUOTA - usedQuota);
@@ -427,6 +514,7 @@ export default function HomePage() {
       } catch {
         // Abaikan
       }
+      saveStoredProfile(updated).catch(console.error);
       return updated;
     });
   };
@@ -451,6 +539,7 @@ export default function HomePage() {
         } catch {
           // ignore
         }
+        saveStoredProfile(updated).catch(console.error);
         return updated;
       });
       triggerToast("Logo kampus berhasil diunggah dan disimpan!");
@@ -468,6 +557,7 @@ export default function HomePage() {
       } catch {
         // ignore
       }
+      saveStoredProfile(updated).catch(console.error);
       return updated;
     });
     if (logoInputRef.current) logoInputRef.current.value = "";
@@ -662,6 +752,8 @@ export default function HomePage() {
       } catch {
         // Abaikan
       }
+      saveStoredHistory(updatedHistory).catch(console.error);
+      getStorageUsageEstimate().then(setStorageInfo).catch(() => {});
 
       if (!isPro) {
         const nextQuota = usedQuota + 1;
@@ -780,6 +872,8 @@ export default function HomePage() {
       } catch {
         // Abaikan
       }
+      saveStoredHistory(updatedHistory).catch(console.error);
+      getStorageUsageEstimate().then(setStorageInfo).catch(() => {});
 
       if (!isPro) {
         const nextQuota = usedQuota + 1;
@@ -880,7 +974,12 @@ export default function HomePage() {
     setExportingType("word");
     try {
       const { exportLogbookToWord } = await import("@/src/lib/exporters/exportWord");
-      await exportLogbookToWord(entries, studentProfile, selectedPreset);
+      await exportLogbookToWord(
+        entries,
+        studentProfile,
+        selectedPreset,
+        mentorAdminData || undefined
+      );
       const presetObj = KAMPUS_PRESETS.find((p) => p.value === selectedPreset);
       triggerToast(
         `Berhasil mengunduh Laporan Resmi [${presetObj?.label}] (.docx) berisi ${entries.length} entri!`
@@ -899,7 +998,11 @@ export default function HomePage() {
     setExportingType("pptx");
     try {
       const { exportLogbookToPowerPoint } = await import("@/src/lib/exporters/exportPowerPoint");
-      await exportLogbookToPowerPoint(entries, studentProfile);
+      await exportLogbookToPowerPoint(
+        entries,
+        studentProfile,
+        mentorAdminData || undefined
+      );
       triggerToast(
         "Berhasil mengunduh Slide Presentasi Sidang Akhir (.pptx)!"
       );
@@ -948,7 +1051,7 @@ export default function HomePage() {
     return Math.round((uniqueCount / allWords.length) * 100);
   };
 
-  const handleDeleteHistoryEntry = (id: string) => {
+  const handleDeleteHistoryEntry = async (id: string) => {
     if (!confirm("Hapus entri logbook ini dari riwayat tersimpan?")) return;
     const updated = history.filter((e) => e.id !== id);
     setHistory(updated);
@@ -957,10 +1060,13 @@ export default function HomePage() {
     } catch {
       // ignore
     }
+    await saveStoredHistory(updated);
+    const est = await getStorageUsageEstimate();
+    setStorageInfo(est);
     triggerToast("Entri logbook berhasil dihapus dari riwayat.");
   };
 
-  const handleClearAllHistory = () => {
+  const handleClearAllHistory = async () => {
     if (
       !confirm(
         "Apakah Anda yakin ingin menghapus SELURUH riwayat logbook tersimpan? Tindakan ini tidak dapat dibatalkan."
@@ -973,7 +1079,102 @@ export default function HomePage() {
     } catch {
       // ignore
     }
+    await saveStoredHistory([]);
+    const est = await getStorageUsageEstimate();
+    setStorageInfo(est);
     triggerToast("Seluruh riwayat logbook telah dibersihkan.");
+  };
+
+  // Tahap 4: 1-Click AI Auto-Fix untuk Audit Entri Repetitif/Singkat
+  const handleAutoFixEntry = async (entry: LogbookEntry) => {
+    setFixingEntryId(entry.id);
+    try {
+      const response = await fetch("/api/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          catatan: entry.catatanAsli || entry.deskripsiKegiatan,
+          tipeKegiatan: entry.tipeKegiatan as TipeKegiatan,
+          peran: entry.peran,
+          fotoBase64: entry.fotoBase64 || undefined,
+          fotoMimeType: entry.fotoMimeType || undefined,
+          tone: "profesional",
+          instruksiKhusus:
+            "Tulis ulang entri logbook ini dengan kosakata yang segar, kaya variasi verba Taksonomi Bloom (C3-C6), pertegas tantangan operasional dan tindakan problem-solving terukur, serta pastikan panjang deskripsi melebihi 35 kata.",
+        }),
+      });
+
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload?.error || "Gagal memperbaiki entri logbook.");
+      }
+
+      const regenerated: LogbookResult = payload.data;
+      const updatedHistory = history.map((item) =>
+        item.id === entry.id
+          ? {
+              ...item,
+              ...regenerated,
+            }
+          : item
+      );
+
+      setHistory(updatedHistory);
+      try {
+        localStorage.setItem(STORAGE_HISTORY_KEY, JSON.stringify(updatedHistory));
+      } catch {
+        // ignore
+      }
+      await saveStoredHistory(updatedHistory);
+      const est = await getStorageUsageEstimate();
+      setStorageInfo(est);
+      triggerToast(`✨ Entri logbook ${entry.tanggal} berhasil diperbaiki & divariasikan!`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Gagal memperbaiki logbook.";
+      setErrorMsg(msg);
+    } finally {
+      setFixingEntryId(null);
+    }
+  };
+
+  // Tahap 4: Konversi Proker Tim KKN Langsung ke Logbook Harian
+  const handleConvertToDailyLogbook = (
+    proker: KknProkerItem,
+    villageInfo: { namaDesa: string; unit: string }
+  ) => {
+    setMainTab("generator");
+    setMode("daily");
+    setTipeKegiatan("KKN");
+    setPeran(
+      `Tim KKN ${villageInfo.namaDesa ? villageInfo.namaDesa.split(",")[0] : "Desa"} - Divisi ${proker.divisi}`
+    );
+    setCatatan(
+      `Program Kerja: ${proker.namaProker}\nDivisi: ${proker.divisi}\nSasaran Kegiatan: ${proker.sasaranWarga}\nStatus Progres: ${proker.status}\nRealisasi & Capaian: ${proker.capaianDanOutput}\nPenanggung Jawab: ${proker.penanggungJawab}`
+    );
+    triggerToast(`Proker "${proker.namaProker}" berhasil dimuat ke Form Logbook Harian!`);
+    setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }, 100);
+  };
+
+  // Tahap 4: Zero-Click Extension Bridge ke Chrome Extension
+  const handleSyncDirectToExtension = () => {
+    const entries = getEntriesForExport();
+    if (entries.length === 0) {
+      setErrorMsg("Belum ada data logbook untuk dikirim ke ekstensi.");
+      return;
+    }
+    window.postMessage(
+      {
+        source: "LOGMAGANG_WEB_APP",
+        type: "SYNC_TO_EXTENSION",
+        payload: { history: entries },
+      },
+      "*"
+    );
+    triggerToast(`⚡ Mengirimkan ${entries.length} entri langsung ke Ekstensi Browser...`);
   };
 
   const handleLoadHistoryEntry = (entry: LogbookEntry) => {
@@ -3062,18 +3263,28 @@ export default function HomePage() {
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
-                {/* 1. Unduh Ekstensi Auto-Fill */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+                {/* 1. Sync Langsung ke Ekstensi (Zero-Click Bridge) */}
+                <button
+                  type="button"
+                  onClick={handleSyncDirectToExtension}
+                  className="flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-bold text-xs transition shadow-xs cursor-pointer"
+                >
+                  <Zap className="w-4 h-4 text-amber-200" />
+                  <span>⚡ Kirim ke Ekstensi (1-Click Sync)</span>
+                </button>
+
+                {/* 2. Unduh Ekstensi Auto-Fill */}
                 <button
                   type="button"
                   onClick={handleDownloadExtension}
                   className="flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-slate-950 font-bold text-xs transition shadow-xs cursor-pointer"
                 >
                   <Download className="w-4 h-4" />
-                  <span>🧩 Unduh Ekstensi Auto-Fill (.zip)</span>
+                  <span>🧩 Unduh Ekstensi (.zip)</span>
                 </button>
 
-                {/* 2. Salin Data untuk Ekstensi */}
+                {/* 3. Salin Data untuk Ekstensi */}
                 <button
                   type="button"
                   onClick={handleCopyExtensionJson}
@@ -3087,7 +3298,7 @@ export default function HomePage() {
                   ) : (
                     <>
                       <FileJson className="w-4 h-4 text-indigo-300" />
-                      <span>📋 Salin Data untuk Ekstensi</span>
+                      <span>📋 Salin Data Manual</span>
                     </>
                   )}
                 </button>
@@ -3096,354 +3307,19 @@ export default function HomePage() {
           </section>
         )}
 
-        {/* PANEL RIWAYAT LOGBOOK & AUDIT KUALITAS ANTI-DUPLIKASI */}
-        <section className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/90 shadow-xs space-y-6">
-          {/* Header Panel */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-200">
-            <div>
-              <div className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-full mb-1.5">
-                <BarChart3 className="w-3.5 h-3.5" />
-                <span>Audit Kualitas & Anti-Duplikasi Logbook</span>
-              </div>
-              <h2 className="text-base sm:text-lg font-extrabold text-slate-900">
-                Riwayat Logbook Tersimpan ({history.length} Hari)
-              </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Analisis keunikan kosakata, deteksi repetisi/copas antar-hari (&gt;70%), dan validasi kelengkapan narasi (&gt;20 kata).
-              </p>
-            </div>
+        {/* PANEL RIWAYAT LOGBOOK & AUDIT KUALITAS (MODULAR COMPONENT DENGAN 1-CLICK AI AUTO-FIX) */}
+        <AuditHistoryPanel
+          history={history}
+          onClearAllHistory={handleClearAllHistory}
+          onDeleteEntry={handleDeleteHistoryEntry}
+          onLoadEntry={handleLoadHistoryEntry}
+          onAutoFixEntry={handleAutoFixEntry}
+          fixingEntryId={fixingEntryId}
+          searchQuery={historySearchQuery}
+          onSearchChange={setHistorySearchQuery}
+          onToast={triggerToast}
+        />
 
-            {history.length > 0 && (
-              <button
-                type="button"
-                onClick={handleClearAllHistory}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-xl transition cursor-pointer self-start sm:self-auto"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>Hapus Semua Riwayat</span>
-              </button>
-            )}
-          </div>
-
-          {history.length === 0 ? (
-            <div className="text-center py-8 px-4 rounded-xl border border-dashed border-slate-200 bg-slate-50/60 text-slate-500 space-y-2">
-              <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-400">
-                <History className="w-5 h-5" />
-              </div>
-              <p className="text-xs sm:text-sm font-bold text-slate-700">
-                Belum ada logbook yang tersimpan di riwayat
-              </p>
-              <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                Setiap logbook harian atau mingguan yang Anda generate akan otomatis tersimpan di sini lengkap dengan audit skor keunikan kosakata dan deteksi kemiripan.
-              </p>
-            </div>
-          ) : (
-            <>
-              {/* Summary Metric Cards */}
-              {(() => {
-                const uniquenessScore = computeOverallUniqueness(history);
-                const shortEntriesCount = history.filter(
-                  (e) => getWordList(e.deskripsiKegiatan || "").length < 20
-                ).length;
-
-                let repetitiveEntriesCount = 0;
-                for (let i = 0; i < history.length; i++) {
-                  const cur = history[i];
-                  const others = history.filter((_, idx) => idx !== i);
-                  const maxSim = Math.max(
-                    0,
-                    ...others.map((o) =>
-                      computeJaccardSimilarity(
-                        cur.deskripsiKegiatan || "",
-                        o.deskripsiKegiatan || ""
-                      )
-                    )
-                  );
-                  if (maxSim > 70) {
-                    repetitiveEntriesCount++;
-                  }
-                }
-
-                return (
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-                    {/* 1. Skor Keunikan Kosakata */}
-                    <div className="p-4 rounded-xl bg-gradient-to-br from-indigo-50 to-white border border-indigo-100 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-indigo-900">
-                          Skor Keunikan Kosakata
-                        </span>
-                        <span className="text-sm font-extrabold text-indigo-700">
-                          {uniquenessScore}%
-                        </span>
-                      </div>
-                      <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
-                        <div
-                          className={`h-2 rounded-full transition-all duration-500 ${
-                            uniquenessScore >= 70
-                              ? "bg-emerald-500"
-                              : uniquenessScore >= 50
-                              ? "bg-indigo-500"
-                              : "bg-amber-500"
-                          }`}
-                          style={{
-                            width: `${Math.min(
-                              100,
-                              Math.max(10, uniquenessScore)
-                            )}%`,
-                          }}
-                        />
-                      </div>
-                      <p className="text-[11px] text-slate-500">
-                        {uniquenessScore >= 70
-                          ? "✅ Kosakata sangat variatif & profesional"
-                          : uniquenessScore >= 50
-                          ? "ℹ️ Cukup variatif, hindari repetisi kalimat"
-                          : "⚠️ Cenderung monoton, gunakan variasi istilah"}
-                      </p>
-                    </div>
-
-                    {/* 2. Kelayakan Panjang Narasi */}
-                    <div className="p-4 rounded-xl bg-gradient-to-br from-teal-50 to-white border border-teal-100 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-teal-900">
-                          Standar Panjang Narasi
-                        </span>
-                        <span className="text-sm font-extrabold text-teal-700">
-                          {history.length - shortEntriesCount}/{history.length}{" "}
-                          Lolos
-                        </span>
-                      </div>
-                      <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
-                        <div
-                          className="h-2 rounded-full bg-teal-500 transition-all duration-500"
-                          style={{
-                            width: `${
-                              history.length > 0
-                                ? Math.round(
-                                    ((history.length - shortEntriesCount) /
-                                      history.length) *
-                                      100
-                                  )
-                                : 100
-                            }%`,
-                          }}
-                        />
-                      </div>
-                      <p className="text-[11px] text-slate-500">
-                        {shortEntriesCount === 0
-                          ? "✅ Semua entri memenuhi standar (>20 kata)"
-                          : `⚠️ ${shortEntriesCount} entri terlalu ringkas (<20 kata)`}
-                      </p>
-                    </div>
-
-                    {/* 3. Anti-Duplikasi / Kemiripan Antar Hari */}
-                    <div className="p-4 rounded-xl bg-gradient-to-br from-amber-50 to-white border border-amber-100 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-amber-900">
-                          Status Anti-Duplikasi
-                        </span>
-                        <span className="text-xs font-extrabold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
-                          {repetitiveEntriesCount === 0 ? "Aman" : "Peringatan"}
-                        </span>
-                      </div>
-                      <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
-                        <div
-                          className={`h-2 rounded-full transition-all duration-500 ${
-                            repetitiveEntriesCount === 0
-                              ? "bg-emerald-500"
-                              : "bg-rose-500"
-                          }`}
-                          style={{
-                            width: `${
-                              history.length > 0
-                                ? Math.round(
-                                    ((history.length -
-                                      repetitiveEntriesCount) /
-                                      history.length) *
-                                      100
-                                  )
-                                : 100
-                            }%`,
-                          }}
-                        />
-                      </div>
-                      <p className="text-[11px] text-slate-500">
-                        {repetitiveEntriesCount === 0
-                          ? "✅ Tidak ditemukan indikasi copas antar-hari"
-                          : `⚠️ ${repetitiveEntriesCount} entri memiliki kemiripan >70%`}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {/* Search Bar Riwayat */}
-              <div className="relative">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  value={historySearchQuery}
-                  onChange={(e) => setHistorySearchQuery(e.target.value)}
-                  placeholder="Cari riwayat berdasarkan tanggal, kata kunci kegiatan, peran, atau kendala..."
-                  className="w-full text-xs pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/70 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition"
-                />
-              </div>
-
-              {/* Daftar Entri Riwayat */}
-              <div className="space-y-3 max-h-[550px] overflow-y-auto pr-1">
-                {history
-                  .filter((entry) => {
-                    if (!historySearchQuery.trim()) return true;
-                    const q = historySearchQuery.toLowerCase();
-                    return (
-                      entry.tanggal?.toLowerCase().includes(q) ||
-                      entry.peran?.toLowerCase().includes(q) ||
-                      entry.tipeKegiatan?.toLowerCase().includes(q) ||
-                      entry.deskripsiKegiatan?.toLowerCase().includes(q) ||
-                      entry.kendalaDihadapi?.toLowerCase().includes(q) ||
-                      entry.solusiTindakan?.toLowerCase().includes(q)
-                    );
-                  })
-                  .map((entry, idx) => {
-                    const words = getWordList(entry.deskripsiKegiatan || "");
-                    const wordCount = words.length;
-                    const isShort = wordCount < 20;
-
-                    const others = history.filter(
-                      (other) => other.id !== entry.id
-                    );
-                    let maxSimilarity = 0;
-                    let matchedDate = "";
-                    for (const other of others) {
-                      const sim = computeJaccardSimilarity(
-                        entry.deskripsiKegiatan || "",
-                        other.deskripsiKegiatan || ""
-                      );
-                      if (sim > maxSimilarity) {
-                        maxSimilarity = sim;
-                        matchedDate = other.tanggal;
-                      }
-                    }
-                    const isRepetitive = maxSimilarity > 70;
-
-                    return (
-                      <div
-                        key={entry.id || idx}
-                        className={`p-4 rounded-xl border transition space-y-3 ${
-                          isRepetitive
-                            ? "bg-rose-50/40 border-rose-200"
-                            : isShort
-                            ? "bg-amber-50/30 border-amber-200"
-                            : "bg-white border-slate-200/90 hover:border-indigo-300"
-                        }`}
-                      >
-                        {/* Entry Top Header */}
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                              <Calendar className="w-3.5 h-3.5 text-indigo-600" />
-                              <span>{entry.tanggal}</span>
-                            </span>
-                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
-                              {entry.tipeKegiatan}
-                            </span>
-                            <span className="text-[10px] text-slate-500 font-medium truncate max-w-[150px]">
-                              • {entry.peran}
-                            </span>
-                          </div>
-
-                          {/* Quality Badges */}
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            {isShort && (
-                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1">
-                                <AlertTriangle className="w-3 h-3 text-amber-600" />
-                                <span>
-                                  Terlalu Singkat ({wordCount} kata &lt; 20)
-                                </span>
-                              </span>
-                            )}
-                            {isRepetitive ? (
-                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300 flex items-center gap-1">
-                                <AlertTriangle className="w-3 h-3 text-rose-600" />
-                                <span>
-                                  Repetisi {maxSimilarity}% (mirip {matchedDate})
-                                </span>
-                              </span>
-                            ) : (
-                              !isShort && (
-                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
-                                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                                  <span>Optimal ({wordCount} kata)</span>
-                                </span>
-                              )
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Entry Content Preview with optional photo thumbnail */}
-                        <div className="flex items-start gap-3">
-                          {entry.fotoBase64 && (
-                            <div className="w-16 h-16 rounded-lg overflow-hidden border border-slate-200 shrink-0 bg-slate-100">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={entry.fotoBase64}
-                                alt="Foto dokumentasi"
-                                className="w-full h-full object-cover"
-                              />
-                            </div>
-                          )}
-                          <div className="flex-1 min-w-0 space-y-1">
-                            <p className="text-xs text-slate-800 line-clamp-2 leading-relaxed">
-                              <strong>Deskripsi:</strong>{" "}
-                              {entry.deskripsiKegiatan}
-                            </p>
-                            <p className="text-[11px] text-slate-500 line-clamp-1">
-                              <strong>Kompetensi:</strong>{" "}
-                              {entry.kompetensiDikembangkan}
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Actions bar for this entry */}
-                        <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 text-xs">
-                          <button
-                            type="button"
-                            onClick={() => handleLoadHistoryEntry(entry)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold transition cursor-pointer"
-                          >
-                            <FileText className="w-3.5 h-3.5" />
-                            <span>Muat ke Editor</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              const text = `LOGBOOK ${entry.tipeKegiatan} - ${entry.tanggal}\nPeran: ${entry.peran}\n\n1. Deskripsi: ${entry.deskripsiKegiatan}\n2. Kompetensi: ${entry.kompetensiDikembangkan}\n3. Kendala: ${entry.kendalaDihadapi}\n4. Solusi: ${entry.solusiTindakan}\n5. Refleksi: ${entry.refleksiPembelajaran}`;
-                              await navigator.clipboard.writeText(text);
-                              triggerToast(
-                                `Logbook tanggal ${entry.tanggal} disalin ke clipboard!`
-                              );
-                            }}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition cursor-pointer"
-                          >
-                            <Copy className="w-3.5 h-3.5" />
-                            <span>Salin</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteHistoryEntry(entry.id)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white hover:bg-rose-50 text-rose-600 border border-slate-200 hover:border-rose-200 transition cursor-pointer"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                            <span>Hapus</span>
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-              </div>
-            </>
-          )}
-        </section>
           </>
         )}
 
@@ -3453,6 +3329,11 @@ export default function HomePage() {
             tipeKegiatan={tipeKegiatan}
             peran={peran || "Mahasiswa Peserta"}
             riwayatLogbookText={getCombinedLogbookText()}
+            mentorAdminData={mentorAdminData}
+            onSksMatrixGenerated={(matriks, rawCourses) => {
+              setSksCoursesContext(rawCourses);
+              saveStoredSksCourses(rawCourses).catch(console.error);
+            }}
           />
         )}
 
@@ -3471,19 +3352,30 @@ export default function HomePage() {
             tipeKegiatan={tipeKegiatan}
             peran={peran || "Mahasiswa Peserta"}
             riwayatLogbookText={getCombinedLogbookText()}
+            konteksMatkulSks={sksCoursesContext}
           />
         )}
 
         {/* TAB 5: TIM KKN DESA */}
         {mainTab === "kkn" && (
-          <KknTeamTab />
+          <KknTeamTab
+            onConvertToDailyLogbook={handleConvertToDailyLogbook}
+          />
         )}
 
         {/* TAB 6: BERKAS & PENILAIAN MENTOR */}
         {mainTab === "admin" && (
           <AdminDocsTab
             profile={studentProfile}
-            onUpdateProfile={setStudentProfile}
+            initialData={mentorAdminData}
+            onUpdateProfile={(p) => {
+              setStudentProfile(p);
+              saveStoredProfile(p).catch(console.error);
+            }}
+            onUpdateMentorData={(data) => {
+              setMentorAdminData(data);
+              saveStoredMentorData(data).catch(console.error);
+            }}
           />
         )}
       </main>
@@ -3766,10 +3658,21 @@ export default function HomePage() {
       {/* Footer */}
       <footer className="border-t border-slate-200/80 bg-white/70 py-4 px-4 text-center text-xs text-slate-500">
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
-          <p className="font-medium text-slate-600">
-            © {new Date().getFullYear()} LogMagang — Vision & Export Hub MBKM,
-            MSIB & KKN
-          </p>
+          <div className="flex flex-col sm:flex-row items-center gap-2">
+            <p className="font-medium text-slate-600">
+              © {new Date().getFullYear()} LogMagang OS — Ekosistem Terpadu MBKM, MSIB & KKN
+            </p>
+            <span className="hidden sm:inline text-slate-300">•</span>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+              <span>{storageInfo?.statusLabel || "💾 IndexedDB Engine Aktif • Bebas Limit 5MB"}</span>
+              {storageInfo?.isSupported && (
+                <span className="text-[10px] text-emerald-600 font-mono">
+                  ({storageInfo.usedFormatted} terpakai)
+                </span>
+              )}
+            </span>
+          </div>
           {isHydrated && (usedQuota > 0 || isPro) && (
             <button
               type="button"

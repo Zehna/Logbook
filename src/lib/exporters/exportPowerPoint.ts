@@ -3,6 +3,7 @@ import {
   StudentProfile,
   DEFAULT_STUDENT_PROFILE,
 } from "./types";
+import { MentorAdminData } from "./exportAdminDocs";
 
 function truncateText(text: string, maxLength: number): string {
   if (!text) return "-";
@@ -17,7 +18,8 @@ function normalizeBase64DataUrl(raw: string, mimeType = "image/jpeg"): string {
 
 export async function exportLogbookToPowerPoint(
   entries: LogbookEntry[],
-  profile: Partial<StudentProfile> = {}
+  profile: Partial<StudentProfile> = {},
+  mentorAdminData?: Partial<MentorAdminData>
 ): Promise<void> {
   // Dynamic import agar aman di sisi client browser Next.js
   const PptxGenJSModule = await import("pptxgenjs");
@@ -660,6 +662,131 @@ export async function exportLogbookToPowerPoint(
     valign: "top",
     lineSpacingMultiple: 1.3,
   });
+
+  // =========================================================================
+  // SLIDE OPSIONAL: EVALUASI & PENILAIAN MENTOR INDUSTRI
+  // =========================================================================
+  if (mentorAdminData && mentorAdminData.scores && mentorAdminData.scores.length > 0) {
+    const totalWeighted = Math.round(
+      mentorAdminData.scores.reduce((acc, curr) => acc + (curr.nilai * curr.bobot) / 100, 0) * 10
+    ) / 10;
+    const mentorName = mentorAdminData.namaMentor || student.namaPembimbing || "Mentor Mitra";
+    const mentorRole = mentorAdminData.jabatanMentor || "Supervisor Industri";
+
+    const slideMentor = pptx.addSlide();
+    slideMentor.background = { color: COLOR_LIGHT_BG };
+    addHeaderBanner(slideMentor, "07", "EVALUASI MENTOR", "Penilaian Kinerja oleh Pembimbing Lapangan");
+
+    // Kartu Skor Terbobot
+    slideMentor.addShape(pptx.ShapeType.roundRect, {
+      x: 0.8,
+      y: 1.5,
+      w: 3.8,
+      h: 3.5,
+      fill: { color: COLOR_CARD_BG },
+      line: { color: COLOR_BORDER, width: 1 },
+      rectRadius: 0.08,
+    });
+
+    slideMentor.addText("PREDIKAT KINERJA MENTOR", {
+      x: 1.0,
+      y: 1.7,
+      w: 3.4,
+      h: 0.3,
+      fontSize: 10,
+      bold: true,
+      color: COLOR_PRIMARY,
+      fontFace: "Arial",
+    });
+
+    slideMentor.addText(`${totalWeighted} / 100`, {
+      x: 1.0,
+      y: 2.05,
+      w: 3.4,
+      h: 0.6,
+      fontSize: 32,
+      bold: true,
+      color: COLOR_EMERALD,
+      fontFace: "Arial",
+    });
+
+    slideMentor.addText(`Predikat: ${mentorAdminData.predikat || (totalWeighted >= 85 ? "Sangat Memuaskan (A)" : "Memuaskan (B)")}`, {
+      x: 1.0,
+      y: 2.7,
+      w: 3.4,
+      h: 0.35,
+      fontSize: 11,
+      bold: true,
+      color: COLOR_TEXT_MAIN,
+      fontFace: "Arial",
+    });
+
+    slideMentor.addText(
+      `Mentor: ${mentorName}\nJabatan: ${mentorRole}\nMitra: ${student.namaMitra}`,
+      {
+        x: 1.0,
+        y: 3.1,
+        w: 3.4,
+        h: 0.75,
+        fontSize: 10,
+        color: COLOR_TEXT_MUTED,
+        fontFace: "Arial",
+        lineSpacingMultiple: 1.2,
+      }
+    );
+
+    slideMentor.addText(
+      `"${truncateText(mentorAdminData.catatanEvaluasi || "Mahasiswa menunjukkan performa profesional dan dedikasi luar biasa.", 140)}"`,
+      {
+        x: 1.0,
+        y: 3.9,
+        w: 3.4,
+        h: 0.9,
+        fontSize: 9.5,
+        italic: true,
+        color: COLOR_TEXT_MUTED,
+        fontFace: "Arial",
+        lineSpacingMultiple: 1.2,
+      }
+    );
+
+    // Kartu Rubrik 5 Aspek
+    slideMentor.addShape(pptx.ShapeType.roundRect, {
+      x: 4.8,
+      y: 1.5,
+      w: 4.4,
+      h: 3.5,
+      fill: { color: COLOR_CARD_BG },
+      line: { color: COLOR_BORDER, width: 1 },
+      rectRadius: 0.08,
+    });
+
+    slideMentor.addText("RINCIAN 5 ASPEK PENILAIAN", {
+      x: 5.0,
+      y: 1.7,
+      w: 4.0,
+      h: 0.3,
+      fontSize: 10,
+      bold: true,
+      color: COLOR_PRIMARY,
+      fontFace: "Arial",
+    });
+
+    const rubricLines = mentorAdminData.scores.map(
+      (sc, idx) => `${idx + 1}. ${truncateText(sc.aspek, 36)} (${sc.bobot}%): ${sc.nilai}/100`
+    ).join("\n\n");
+
+    slideMentor.addText(rubricLines, {
+      x: 5.0,
+      y: 2.1,
+      w: 4.0,
+      h: 2.7,
+      fontSize: 10,
+      color: COLOR_TEXT_MAIN,
+      fontFace: "Arial",
+      lineSpacingMultiple: 1.2,
+    });
+  }
 
   // =========================================================================
   // SLIDE PENUTUP: TERIMA KASIH

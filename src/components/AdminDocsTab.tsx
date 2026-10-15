@@ -29,28 +29,44 @@ import {
 
 interface AdminDocsTabProps {
   profile: StudentProfile;
+  initialData?: MentorAdminData | null;
   onUpdateProfile?: (profile: StudentProfile) => void;
+  onUpdateMentorData?: (data: MentorAdminData) => void;
 }
 
 export const AdminDocsTab: React.FC<AdminDocsTabProps> = ({
   profile,
+  initialData,
   onUpdateProfile,
+  onUpdateMentorData,
 }) => {
-  const [adminData, setAdminData] = useState<MentorAdminData>({
-    namaMentor: profile.namaPembimbing || "Ir. Budi Santoso, M.Kom.",
-    jabatanMentor: "Engineering Manager / Lead Mentor",
-    divisi: "Digital Technology & Product Division",
-    nomorSurat: `SKSM/${profile.namaMitra ? profile.namaMitra.slice(0, 3).toUpperCase() : "MIT"}/${new Date().getFullYear()}/042`,
-    tanggalSurat: new Date().toLocaleDateString("id-ID", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    }),
-    scores: [...DEFAULT_EVALUATION_SCORES],
-    catatanEvaluasi:
-      "Mahasiswa menunjukkan dedikasi, inisiatif, dan etos kerja yang luar biasa. Mampu menyelesaikan target pekerjaan tepat waktu dengan kualitas industri serta proaktif berkolaborasi dalam tim.",
-    predikat: "Sangat Memuaskan (A)",
+  const [adminData, setAdminData] = useState<MentorAdminData>(() => {
+    if (initialData && initialData.scores && initialData.scores.length > 0) {
+      return initialData;
+    }
+    return {
+      namaMentor: profile.namaPembimbing || "Ir. Budi Santoso, M.Kom.",
+      jabatanMentor: "Engineering Manager / Lead Mentor",
+      divisi: "Digital Technology & Product Division",
+      nomorSurat: `SKSM/${profile.namaMitra ? profile.namaMitra.slice(0, 3).toUpperCase() : "MIT"}/${new Date().getFullYear()}/042`,
+      tanggalSurat: new Date().toLocaleDateString("id-ID", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      }),
+      scores: [...DEFAULT_EVALUATION_SCORES],
+      catatanEvaluasi:
+        "Mahasiswa menunjukkan dedikasi, inisiatif, dan etos kerja yang luar biasa. Mampu menyelesaikan target pekerjaan tepat waktu dengan kualitas industri serta proaktif berkolaborasi dalam tim.",
+      predikat: "Sangat Memuaskan (A)",
+    };
   });
+
+  const updateAdminDataState = (newData: MentorAdminData) => {
+    setAdminData(newData);
+    if (onUpdateMentorData) {
+      onUpdateMentorData(newData);
+    }
+  };
 
   const [downloading, setDownloading] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -74,7 +90,7 @@ export const AdminDocsTab: React.FC<AdminDocsTabProps> = ({
       Math.round(
         updated.reduce((acc, curr) => acc + (curr.nilai * curr.bobot) / 100, 0) * 10
       ) / 10;
-    setAdminData({
+    updateAdminDataState({
       ...adminData,
       scores: updated,
       predikat: getPredikat(newTotal),
@@ -84,7 +100,7 @@ export const AdminDocsTab: React.FC<AdminDocsTabProps> = ({
   const handleKeteranganChange = (index: number, newKet: string) => {
     const updated = [...adminData.scores];
     updated[index] = { ...updated[index], keterangan: newKet };
-    setAdminData({ ...adminData, scores: updated });
+    updateAdminDataState({ ...adminData, scores: updated });
   };
 
   const notifySuccess = (title: string) => {
@@ -263,7 +279,7 @@ export const AdminDocsTab: React.FC<AdminDocsTabProps> = ({
               <input
                 type="text"
                 value={adminData.namaMentor}
-                onChange={(e) => setAdminData({ ...adminData, namaMentor: e.target.value })}
+                onChange={(e) => updateAdminDataState({ ...adminData, namaMentor: e.target.value })}
                 placeholder="e.g. Ir. Budi Santoso, M.Kom."
                 className="w-full text-xs px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
@@ -276,7 +292,7 @@ export const AdminDocsTab: React.FC<AdminDocsTabProps> = ({
               <input
                 type="text"
                 value={adminData.jabatanMentor}
-                onChange={(e) => setAdminData({ ...adminData, jabatanMentor: e.target.value })}
+                onChange={(e) => updateAdminDataState({ ...adminData, jabatanMentor: e.target.value })}
                 placeholder="e.g. Lead Software Engineer / Head of HR"
                 className="w-full text-xs px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
@@ -289,7 +305,7 @@ export const AdminDocsTab: React.FC<AdminDocsTabProps> = ({
               <input
                 type="text"
                 value={adminData.divisi}
-                onChange={(e) => setAdminData({ ...adminData, divisi: e.target.value })}
+                onChange={(e) => updateAdminDataState({ ...adminData, divisi: e.target.value })}
                 placeholder="e.g. Technology & Product Development"
                 className="w-full text-xs px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
@@ -302,7 +318,7 @@ export const AdminDocsTab: React.FC<AdminDocsTabProps> = ({
               <input
                 type="text"
                 value={adminData.nomorSurat}
-                onChange={(e) => setAdminData({ ...adminData, nomorSurat: e.target.value })}
+                onChange={(e) => updateAdminDataState({ ...adminData, nomorSurat: e.target.value })}
                 placeholder="e.g. SKSM/HRD/2026/089"
                 className="w-full text-xs px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
@@ -315,7 +331,7 @@ export const AdminDocsTab: React.FC<AdminDocsTabProps> = ({
               <input
                 type="text"
                 value={adminData.tanggalSurat}
-                onChange={(e) => setAdminData({ ...adminData, tanggalSurat: e.target.value })}
+                onChange={(e) => updateAdminDataState({ ...adminData, tanggalSurat: e.target.value })}
                 placeholder="e.g. 14 Oktober 2026"
                 className="w-full text-xs px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
@@ -338,7 +354,7 @@ export const AdminDocsTab: React.FC<AdminDocsTabProps> = ({
             <textarea
               rows={4}
               value={adminData.catatanEvaluasi}
-              onChange={(e) => setAdminData({ ...adminData, catatanEvaluasi: e.target.value })}
+              onChange={(e) => updateAdminDataState({ ...adminData, catatanEvaluasi: e.target.value })}
               className="w-full text-xs p-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none leading-relaxed"
             />
           </div>
