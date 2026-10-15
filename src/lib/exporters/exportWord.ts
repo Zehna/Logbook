@@ -22,12 +22,35 @@ import {
   KampusPreset,
 } from "./types";
 import { MentorAdminData } from "./exportAdminDocs";
+import { SynthesizedReportChapters } from "../types/modules";
 
 const FONT_FAMILY = "Times New Roman";
 const SIZE_12PT = 24; // 24 half-points = 12pt
 const SIZE_14PT = 28; // 14pt
 const SIZE_16PT = 32; // 16pt
 const LINE_SPACING_1_5 = 360; // 240 * 1.5 = 360 twips
+
+function renderMultiParagraph(text: string): Paragraph[] {
+  if (!text) return [];
+  return text
+    .split(/\n+/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .map(
+      (p) =>
+        new Paragraph({
+          alignment: AlignmentType.JUSTIFIED,
+          spacing: { line: LINE_SPACING_1_5, before: 0, after: 120 },
+          children: [
+            new TextRun({
+              text: p,
+              font: FONT_FAMILY,
+              size: SIZE_12PT,
+            }),
+          ],
+        })
+    );
+}
 
 function createAcademicParagraph(
   text: string,
@@ -157,7 +180,8 @@ export async function exportLogbookToWord(
   entries: LogbookEntry[],
   profile: Partial<StudentProfile> = {},
   selectedPreset?: KampusPreset,
-  mentorAdminData?: Partial<MentorAdminData>
+  mentorAdminData?: Partial<MentorAdminData>,
+  synthesizedChapters?: SynthesizedReportChapters
 ): Promise<void> {
   const student: StudentProfile = { ...DEFAULT_STUDENT_PROFILE, ...profile };
   const preset: KampusPreset = selectedPreset || student.kampusPreset || "dikti";
@@ -580,17 +604,57 @@ export async function exportLogbookToWord(
   // ==================== STRUKTUR BAB ====================
   if (preset === "its") {
     // FORMAT BUKU KP ITS: Bab I - Bab V
-    docChildren.push(
-      // BAB I
+    const bab1Children: (Paragraph | Table)[] = [
       createAcademicParagraph("BAB I: PENDAHULUAN & PROFIL INSTANSI", {
         bold: true,
         size: SIZE_14PT,
         alignment: AlignmentType.LEFT,
         after: 160,
       }),
+    ];
+
+    if (synthesizedChapters?.bab1_latar_belakang) {
+      bab1Children.push(
+        createAcademicParagraph("1.1 Latar Belakang & Urgensi Pelaksanaan Program", {
+          bold: true,
+          size: SIZE_12PT,
+          alignment: AlignmentType.LEFT,
+          after: 80,
+        }),
+        ...renderMultiParagraph(synthesizedChapters.bab1_latar_belakang)
+      );
+    } else {
+      bab1Children.push(
+        createAcademicParagraph(
+          `Kerja Praktik dilaksanakan di ${student.namaMitra} sebagai bagian dari pemenuhan kurikulum akademik program studi ${student.programStudi}, ${student.perguruanTinggi}. Mahasiswa berperan aktif sebagai ${roleName} pada periode ${student.periodeKegiatan}.`,
+          { after: 200 }
+        )
+      );
+    }
+
+    if (synthesizedChapters?.bab1_rumusan_dan_tujuan) {
+      bab1Children.push(
+        createAcademicParagraph("1.2 Rumusan Masalah & Tujuan Praktik", {
+          bold: true,
+          size: SIZE_12PT,
+          alignment: AlignmentType.LEFT,
+          before: 160,
+          after: 80,
+        }),
+        ...renderMultiParagraph(synthesizedChapters.bab1_rumusan_dan_tujuan)
+      );
+    }
+
+    bab1Children.push(
       createAcademicParagraph(
-        `Kerja Praktik dilaksanakan di ${student.namaMitra} sebagai bagian dari pemenuhan kurikulum akademik program studi ${student.programStudi}, ${student.perguruanTinggi}. Mahasiswa berperan aktif sebagai ${roleName} pada periode ${student.periodeKegiatan}.`,
-        { after: 200 }
+        synthesizedChapters ? "1.3 Identitas Mahasiswa & Pembimbing" : "Identitas Mahasiswa & Pembimbing",
+        {
+          bold: true,
+          size: SIZE_12PT,
+          alignment: AlignmentType.LEFT,
+          before: 160,
+          after: 100,
+        }
       ),
       new Table({
         width: { size: 100, type: WidthType.PERCENTAGE },
@@ -602,20 +666,83 @@ export async function exportLogbookToWord(
           createBioRow("Perusahaan / Mitra", student.namaMitra),
           createBioRow("Dosen Pembimbing", student.namaPembimbing),
         ],
-      }),
-      // BAB II
-      createAcademicParagraph("BAB II: LINGKUP PENUGASAN & RENCANA KERJA", {
+      })
+    );
+
+    const bab2Children: Paragraph[] = [
+      createAcademicParagraph("BAB II: LINGKUP PENUGASAN & TINJAUAN TEORI", {
         bold: true,
         size: SIZE_14PT,
         alignment: AlignmentType.LEFT,
         before: 300,
         after: 160,
       }),
-      createAcademicParagraph(
-        `Lingkup penugasan difokuskan pada perancangan, eksekusi teknis, dan verifikasi alur kerja operasional. Mahasiswa mengintegrasikan kompetensi teoritis perkuliahan dengan praktik standar industri di lapangan.`,
-        { after: 240 }
-      ),
-      // BAB III
+    ];
+
+    if (synthesizedChapters?.bab2_profil_dan_tinjauan_teori) {
+      bab2Children.push(...renderMultiParagraph(synthesizedChapters.bab2_profil_dan_tinjauan_teori));
+    } else {
+      bab2Children.push(
+        createAcademicParagraph(
+          `Lingkup penugasan difokuskan pada perancangan, eksekusi teknis, dan verifikasi alur kerja operasional. Mahasiswa mengintegrasikan kompetensi teoritis perkuliahan dengan praktik standar industri di lapangan.`,
+          { after: 240 }
+        )
+      );
+    }
+
+    const bab4Children: Paragraph[] = [
+      createAcademicParagraph("BAB IV: ANALISIS MASALAH, PROBLEM SOLVING & CAPAIAN", {
+        bold: true,
+        size: SIZE_14PT,
+        alignment: AlignmentType.LEFT,
+        before: 360,
+        after: 160,
+      }),
+    ];
+
+    if (synthesizedChapters?.bab4_pembahasan_komprehensif) {
+      bab4Children.push(
+        createAcademicParagraph("4.1 Pembahasan Sintesis Aktivitas & Problem Solving", {
+          bold: true,
+          size: SIZE_12PT,
+          alignment: AlignmentType.LEFT,
+          after: 100,
+        }),
+        ...renderMultiParagraph(synthesizedChapters.bab4_pembahasan_komprehensif),
+        createAcademicParagraph("4.2 Rekapitulasi Rinci Kegiatan Harian & Bukti Dokumentasi", {
+          bold: true,
+          size: SIZE_12PT,
+          alignment: AlignmentType.LEFT,
+          before: 200,
+          after: 120,
+        })
+      );
+    }
+
+    const bab5Children: Paragraph[] = [
+      createAcademicParagraph("BAB V: KESIMPULAN & REKOMENDASI PEMBELAJARAN", {
+        bold: true,
+        size: SIZE_14PT,
+        alignment: AlignmentType.LEFT,
+        before: 360,
+        after: 160,
+      }),
+    ];
+
+    if (synthesizedChapters?.bab5_kesimpulan_dan_saran) {
+      bab5Children.push(...renderMultiParagraph(synthesizedChapters.bab5_kesimpulan_dan_saran));
+    } else {
+      bab5Children.push(
+        createAcademicParagraph(
+          `Berdasarkan pelaksanaan Kerja Praktik yang telah diselesaikan, disimpulkan bahwa target penugasan operasional telah tercapai dengan baik. Mahasiswa berhasil mengasah kemampuan problem solving, adaptasi budaya kerja profesional, dan penguasaan perkakas teknis secara menyeluruh.`,
+          { after: 200 }
+        )
+      );
+    }
+
+    docChildren.push(
+      ...bab1Children,
+      ...bab2Children,
       createAcademicParagraph("BAB III: REKAPITULASI BUKU HARIAN KERJA PRAKTIK (LOGBOOK)", {
         bold: true,
         size: SIZE_14PT,
@@ -627,45 +754,51 @@ export async function exportLogbookToWord(
         width: { size: 100, type: WidthType.PERCENTAGE },
         rows: [logbookTableHeader, ...logbookTableRows],
       }),
-      // BAB IV
-      createAcademicParagraph("BAB IV: ANALISIS MASALAH, PROBLEM SOLVING & CAPAIAN", {
-        bold: true,
-        size: SIZE_14PT,
-        alignment: AlignmentType.LEFT,
-        before: 360,
-        after: 160,
-      }),
+      ...bab4Children,
       ...detailedNarrativeParagraphs,
-      // BAB V
-      createAcademicParagraph("BAB V: KESIMPULAN & REKOMENDASI PEMBELAJARAN", {
-        bold: true,
-        size: SIZE_14PT,
-        alignment: AlignmentType.LEFT,
-        before: 360,
-        after: 160,
-      }),
-      createAcademicParagraph(
-        `Berdasarkan pelaksanaan Kerja Praktik yang telah diselesaikan, disimpulkan bahwa target penugasan operasional telah tercapai dengan baik. Mahasiswa berhasil mengasah kemampuan problem solving, adaptasi budaya kerja profesional, dan penguasaan perkakas teknis secara menyeluruh.`,
-        { after: 200 }
-      )
+      ...bab5Children
     );
   } else if (preset === "ui_ugm_ipb") {
     // FORMAT EKSEKUTIF UI / UGM / IPB
-    docChildren.push(
+    const execChildren: (Paragraph | Table)[] = [
       createAcademicParagraph("EXECUTIVE SUMMARY (RINGKASAN EKSEKUTIF)", {
         bold: true,
         size: SIZE_14PT,
         alignment: AlignmentType.LEFT,
         after: 140,
       }),
-      createAcademicParagraph(
-        `Laporan ini merangkum ketercapaian program ${programName} oleh ${student.namaMahasiswa} (${student.nim}) di ${student.namaMitra}. Program ini dirancang untuk mengonversi hingga 20 SKS melalui pemenuhan Capaian Pembelajaran Lulusan (CPL) berbasis Taksonomi Bloom ranah C3–C6.`,
-        { after: 200 }
-      ),
+    ];
+
+    if (synthesizedChapters?.bab1_latar_belakang) {
+      execChildren.push(...renderMultiParagraph(synthesizedChapters.bab1_latar_belakang));
+    } else {
+      execChildren.push(
+        createAcademicParagraph(
+          `Laporan ini merangkum ketercapaian program ${programName} oleh ${student.namaMahasiswa} (${student.nim}) di ${student.namaMitra}. Program ini dirancang untuk mengonversi hingga 20 SKS melalui pemenuhan Capaian Pembelajaran Lulusan (CPL) berbasis Taksonomi Bloom ranah C3–C6.`,
+          { after: 200 }
+        )
+      );
+    }
+
+    if (synthesizedChapters?.bab1_rumusan_dan_tujuan) {
+      execChildren.push(
+        createAcademicParagraph("SASARAN STRATEGIS & TUJUAN CAPAIAN", {
+          bold: true,
+          size: SIZE_12PT,
+          alignment: AlignmentType.LEFT,
+          before: 160,
+          after: 80,
+        }),
+        ...renderMultiParagraph(synthesizedChapters.bab1_rumusan_dan_tujuan)
+      );
+    }
+
+    execChildren.push(
       createAcademicParagraph("MATRIKS IDENTITAS MAHASISWA & MITRA", {
         bold: true,
         size: SIZE_12PT,
         alignment: AlignmentType.LEFT,
+        before: 160,
         after: 120,
       }),
       new Table({
@@ -677,7 +810,47 @@ export async function exportLogbookToWord(
           createBioRow("Mitra Kolaborasi", student.namaMitra),
           createBioRow("Pembimbing Akademik", student.namaPembimbing),
         ],
+      })
+    );
+
+    const discussionChildren: Paragraph[] = [
+      createAcademicParagraph("DOKUMENTASI CAPAIAN & ANALISIS REFLEKSI BERKALA", {
+        bold: true,
+        size: SIZE_14PT,
+        alignment: AlignmentType.LEFT,
+        before: 360,
+        after: 160,
       }),
+    ];
+
+    if (synthesizedChapters?.bab4_pembahasan_komprehensif) {
+      discussionChildren.push(
+        createAcademicParagraph("Sintesis Pembahasan Kinerja & Problem Solving:", {
+          bold: true,
+          size: SIZE_12PT,
+          alignment: AlignmentType.LEFT,
+          after: 80,
+        }),
+        ...renderMultiParagraph(synthesizedChapters.bab4_pembahasan_komprehensif)
+      );
+    }
+
+    const conclusionChildren: Paragraph[] = [];
+    if (synthesizedChapters?.bab5_kesimpulan_dan_saran) {
+      conclusionChildren.push(
+        createAcademicParagraph("KESIMPULAN EKSEKUTIF & REKOMENDASI STRATEGIS", {
+          bold: true,
+          size: SIZE_14PT,
+          alignment: AlignmentType.LEFT,
+          before: 360,
+          after: 140,
+        }),
+        ...renderMultiParagraph(synthesizedChapters.bab5_kesimpulan_dan_saran)
+      );
+    }
+
+    docChildren.push(
+      ...execChildren,
       createAcademicParagraph("TABEL LOGBOOK HARIAN & MATRIKS CAPAIAN KOMPETENSI", {
         bold: true,
         size: SIZE_14PT,
@@ -689,18 +862,13 @@ export async function exportLogbookToWord(
         width: { size: 100, type: WidthType.PERCENTAGE },
         rows: [logbookTableHeader, ...logbookTableRows],
       }),
-      createAcademicParagraph("DOKUMENTASI CAPAIAN & ANALISIS REFLEKSI BERKALA", {
-        bold: true,
-        size: SIZE_14PT,
-        alignment: AlignmentType.LEFT,
-        before: 360,
-        after: 160,
-      }),
-      ...detailedNarrativeParagraphs
+      ...discussionChildren,
+      ...detailedNarrativeParagraphs,
+      ...conclusionChildren
     );
   } else {
     // STANDAR NASIONAL DIKTI / UMUM
-    docChildren.push(
+    const introSectionChildren: (Paragraph | Table)[] = [
       createAcademicParagraph("I. IDENTITAS MAHASISWA & MITRA KEGIATAN", {
         bold: true,
         size: SIZE_14PT,
@@ -721,31 +889,105 @@ export async function exportLogbookToWord(
           createBioRow("Periode Pelaksanaan", student.periodeKegiatan),
         ],
       }),
-      createAcademicParagraph(
-        "II. REKAPITULASI TABEL LOGBOOK HARIAN (BERBASIS TAKSONOMI BLOOM)",
-        {
+    ];
+
+    if (synthesizedChapters) {
+      introSectionChildren.push(
+        createAcademicParagraph("II. LATAR BELAKANG, RUMUSAN & TUJUAN KEGIATAN", {
           bold: true,
           size: SIZE_14PT,
           alignment: AlignmentType.LEFT,
           before: 360,
-          after: 200,
-        }
-      ),
+          after: 160,
+        }),
+        createAcademicParagraph("A. Latar Belakang & Urgensi Program", {
+          bold: true,
+          size: SIZE_12PT,
+          after: 80,
+        }),
+        ...renderMultiParagraph(synthesizedChapters.bab1_latar_belakang),
+        createAcademicParagraph("B. Rumusan Masalah Operasional & Sasaran Tujuan", {
+          bold: true,
+          size: SIZE_12PT,
+          before: 160,
+          after: 80,
+        }),
+        ...renderMultiParagraph(synthesizedChapters.bab1_rumusan_dan_tujuan),
+        createAcademicParagraph("C. Profil Mitra & Landasan Teori Keilmuan", {
+          bold: true,
+          size: SIZE_12PT,
+          before: 160,
+          after: 80,
+        }),
+        ...renderMultiParagraph(synthesizedChapters.bab2_profil_dan_tinjauan_teori)
+      );
+    }
+
+    const tableHeading = synthesizedChapters
+      ? "III. REKAPITULASI TABEL LOGBOOK HARIAN (BERBASIS TAKSONOMI BLOOM)"
+      : "II. REKAPITULASI TABEL LOGBOOK HARIAN (BERBASIS TAKSONOMI BLOOM)";
+
+    const narrativeHeading = synthesizedChapters
+      ? "IV. PEMBAHASAN AKTIVITAS, PROBLEM SOLVING & DOKUMENTASI RINCI"
+      : "III. URAIAN RINCI KEGIATAN & LAMPIRAN DOKUMENTASI";
+
+    const narrativeChildren: Paragraph[] = [
+      createAcademicParagraph(narrativeHeading, {
+        bold: true,
+        size: SIZE_14PT,
+        alignment: AlignmentType.LEFT,
+        before: 400,
+        after: 160,
+      }),
+    ];
+
+    if (synthesizedChapters?.bab4_pembahasan_komprehensif) {
+      narrativeChildren.push(
+        createAcademicParagraph("A. Sintesis Pembahasan & Solusi Pemecahan Masalah", {
+          bold: true,
+          size: SIZE_12PT,
+          after: 80,
+        }),
+        ...renderMultiParagraph(synthesizedChapters.bab4_pembahasan_komprehensif),
+        createAcademicParagraph("B. Catatan Harian Logbook & Dokumentasi Pelaksanaan", {
+          bold: true,
+          size: SIZE_12PT,
+          before: 160,
+          after: 100,
+        })
+      );
+    }
+
+    const conclusionChildren: Paragraph[] = [];
+    if (synthesizedChapters?.bab5_kesimpulan_dan_saran) {
+      conclusionChildren.push(
+        createAcademicParagraph("V. KESIMPULAN & SARAN STRATEGIS", {
+          bold: true,
+          size: SIZE_14PT,
+          alignment: AlignmentType.LEFT,
+          before: 360,
+          after: 160,
+        }),
+        ...renderMultiParagraph(synthesizedChapters.bab5_kesimpulan_dan_saran)
+      );
+    }
+
+    docChildren.push(
+      ...introSectionChildren,
+      createAcademicParagraph(tableHeading, {
+        bold: true,
+        size: SIZE_14PT,
+        alignment: AlignmentType.LEFT,
+        before: 360,
+        after: 200,
+      }),
       new Table({
         width: { size: 100, type: WidthType.PERCENTAGE },
         rows: [logbookTableHeader, ...logbookTableRows],
       }),
-      createAcademicParagraph(
-        "III. URAIAN RINCI KEGIATAN & LAMPIRAN DOKUMENTASI",
-        {
-          bold: true,
-          size: SIZE_14PT,
-          alignment: AlignmentType.LEFT,
-          before: 400,
-          after: 160,
-        }
-      ),
+      ...narrativeChildren,
       ...detailedNarrativeParagraphs,
+      ...conclusionChildren,
       createAcademicParagraph("Mengetahui dan Menyetujui,", {
         alignment: AlignmentType.RIGHT,
         before: 480,

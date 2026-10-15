@@ -6,7 +6,7 @@
 
 import { LogbookEntry, StudentProfile } from "../exporters/types";
 import { MentorAdminData } from "../exporters/exportAdminDocs";
-import { MatriksSksItem, KknTeamData } from "../types/modules";
+import { MatriksSksItem, KknTeamData, SynthesizedReportChapters, DefenseEvaluationResult } from "../types/modules";
 
 const DB_NAME = "logmagang_db";
 const DB_VERSION = 1;
@@ -21,6 +21,8 @@ export const IDB_KEYS = {
   SKS_COURSES: "logmagang_sks_courses_raw",
   ATS_RESUME: "logmagang_ats_resume_data",
   KKN_TEAM: "logmagang_kkn_team_data",
+  SYNTHESIZED_REPORT: "logmagang_synthesized_report",
+  DEFENSE_EVALUATIONS: "logmagang_defense_evaluations",
   MIGRATION_FLAG: "logmagang_idb_migrated_v1",
 } as const;
 
@@ -170,6 +172,22 @@ export async function getStoredSksCourses(): Promise<string | null> {
 
 export async function saveStoredSksCourses(coursesText: string): Promise<void> {
   await setIdbItem(IDB_KEYS.SKS_COURSES, coursesText);
+}
+
+export async function getStoredSynthesizedReport(): Promise<SynthesizedReportChapters | null> {
+  return await getIdbItem<SynthesizedReportChapters>(IDB_KEYS.SYNTHESIZED_REPORT);
+}
+
+export async function saveStoredSynthesizedReport(report: SynthesizedReportChapters): Promise<void> {
+  await setIdbItem(IDB_KEYS.SYNTHESIZED_REPORT, report);
+}
+
+export async function getStoredDefenseEvaluations(): Promise<Record<number, DefenseEvaluationResult> | null> {
+  return await getIdbItem<Record<number, DefenseEvaluationResult>>(IDB_KEYS.DEFENSE_EVALUATIONS);
+}
+
+export async function saveStoredDefenseEvaluations(evals: Record<number, DefenseEvaluationResult>): Promise<void> {
+  await setIdbItem(IDB_KEYS.DEFENSE_EVALUATIONS, evals);
 }
 
 // ==========================================

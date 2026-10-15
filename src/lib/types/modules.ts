@@ -154,3 +154,48 @@ export interface VerifyLicensePayload {
   code: string;
 }
 
+// ==========================================
+// 7. SINTESIS LAPORAN AKADEMIK BAB I - V
+// ==========================================
+export interface SynthesizedReportChapters {
+  bab1_latar_belakang: string;
+  bab1_rumusan_dan_tujuan: string;
+  bab2_profil_dan_tinjauan_teori: string;
+  bab4_pembahasan_komprehensif: string;
+  bab5_kesimpulan_dan_saran: string;
+  synthesizedAt?: string;
+  totalKata?: number;
+}
+
+export interface SynthesizedReportResponse {
+  success: boolean;
+  data: SynthesizedReportChapters;
+  meta: {
+    model: string;
+    tipeKegiatan: string;
+    peran: string;
+    namaMahasiswa: string;
+  };
+}
+
+// ==========================================
+// 8. INTERACTIVE TWO-WAY DEFENSE EVALUATION
+// ==========================================
+export interface DefenseEvaluationResult {
+  skorJawaban: number; // 0 - 100
+  tingkatKualitas: "Istimewa (A)" | "Sangat Baik (A- / B+)" | "Cukup (B)" | "Perlu Revisi Signifikan";
+  umpanBalikDosen: string;
+  poinYangTerlewat: string[];
+  jawabanRevisiIdeal: string;
+}
+
+export interface DefenseEvaluationPayload {
+  pertanyaan: string;
+  jawabanMahasiswa: string;
+  kategori?: string;
+  alasanPenguji?: string;
+  tipeKegiatan?: string;
+  peran?: string;
+  riwayatKegiatan?: string;
+}
+

@@ -51,6 +51,7 @@ import {
   BarChart3,
   Search,
   FileCheck,
+  RefreshCw,
 } from "lucide-react";
 import {
   TipeKegiatan,
@@ -313,6 +314,14 @@ export default function HomePage() {
   const [fotoMimeType, setFotoMimeType] = useState<string>("image/jpeg");
   const [fotoFileName, setFotoFileName] = useState<string | null>(null);
   const [resultPhoto, setResultPhoto] = useState<string | null>(null);
+  const [enableWatermark, setEnableWatermark] = useState<boolean>(true);
+  const [detectedPhotoDate, setDetectedPhotoDate] = useState<{
+    iso: string;
+    formatted: string;
+  } | null>(null);
+  const [rawUploadedFile, setRawUploadedFile] = useState<File | null>(null);
+  const [isCompressingPhoto, setIsCompressingPhoto] = useState<boolean>(false);
+  const [isSynthesizingReport, setIsSynthesizingReport] = useState<boolean>(false);
   const [historySearchQuery, setHistorySearchQuery] = useState<string>("");
 
   // State Mode Borongan (1 Pekan)
@@ -610,8 +619,8 @@ export default function HomePage() {
     setErrorMsg(null);
   };
 
-  // Handler Upload Foto Vision (File Reader to Base64)
-  const processImageFile = (file: File) => {
+  // Handler Upload Foto Vision (Canvas Smart Compressor & Official Watermark)
+  const processImageFile = async (file: File, watermarkToggle?: boolean) => {
     if (!file) return;
 
     if (!file.type.startsWith("image/")) {
@@ -619,23 +628,58 @@ export default function HomePage() {
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      setErrorMsg("Ukuran foto maksimal 5MB. Silakan pilih foto yang lebih kecil.");
-      return;
-    }
-
+    setRawUploadedFile(file);
+    setIsCompressingPhoto(true);
     setErrorMsg(null);
-    const reader = new FileReader();
-    reader.onload = () => {
-      const resultStr = reader.result as string;
-      setFotoBase64(resultStr);
-      setFotoMimeType(file.type || "image/jpeg");
+
+    try {
+      const shouldUseWatermark =
+        watermarkToggle !== undefined ? watermarkToggle : enableWatermark;
+
+      const { compressAndWatermarkImage } = await import(
+        "@/src/lib/media/imageProcessor"
+      );
+
+      const processed = await compressAndWatermarkImage(file, {
+        enableWatermark: shouldUseWatermark,
+        identitasText: `${studentProfile.namaMahasiswa || "Mahasiswa"} • NIM: ${
+          studentProfile.nim || "-"
+        }`,
+        instansiText: `${tipeKegiatan} • ${
+          studentProfile.namaMitra || "Mitra Industri/Desa"
+        }`,
+      });
+
+      setFotoBase64(processed.base64);
+      setFotoMimeType(processed.mimeType);
       setFotoFileName(file.name);
-    };
-    reader.onerror = () => {
-      setErrorMsg("Gagal membaca file gambar. Silakan coba lagi.");
-    };
-    reader.readAsDataURL(file);
+      setDetectedPhotoDate({
+        iso: processed.originalDateIso,
+        formatted: processed.originalDateFormatted,
+      });
+    } catch (err) {
+      console.warn("Gagal memproses gambar dengan canvas:", err);
+      // Fallback klasik FileReader jika canvas gagal
+      const reader = new FileReader();
+      reader.onload = () => {
+        setFotoBase64(reader.result as string);
+        setFotoMimeType(file.type || "image/jpeg");
+        setFotoFileName(file.name);
+      };
+      reader.onerror = () => {
+        setErrorMsg("Gagal membaca file gambar. Silakan coba lagi.");
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      setIsCompressingPhoto(false);
+    }
+  };
+
+  const handleToggleWatermark = (newVal: boolean) => {
+    setEnableWatermark(newVal);
+    if (rawUploadedFile) {
+      processImageFile(rawUploadedFile, newVal);
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -656,6 +700,8 @@ export default function HomePage() {
   const handleRemovePhoto = () => {
     setFotoBase64(null);
     setFotoFileName(null);
+    setRawUploadedFile(null);
+    setDetectedPhotoDate(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -989,6 +1035,63 @@ export default function HomePage() {
       setErrorMsg("Gagal mengekspor dokumen Word (.docx). Silakan coba lagi.");
     } finally {
       setExportingType(null);
+    }
+  };
+
+  const handleSynthesizeAndExportWord = async () => {
+    const entries = getEntriesForExport();
+    if (entries.length === 0) {
+      alert("Belum ada entri logbook untuk disintesis. Silakan tambahkan atau generate logbook terlebih dahulu.");
+      return;
+    }
+
+    setIsSynthesizingReport(true);
+    try {
+      // 1. Panggil API Sintesis Bab I - V
+      const res = await fetch("/api/synthesize-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          studentProfile,
+          tipeKegiatan,
+          peran,
+          preset: selectedPreset,
+          logbookEntries: entries,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Gagal menyintesis bab laporan akademik.");
+      }
+
+      const synthesizedChapters = data.data;
+
+      // 2. Simpan ke IndexedDB
+      const { saveStoredSynthesizedReport } = await import("@/src/lib/storage/indexedDbStore");
+      await saveStoredSynthesizedReport(synthesizedChapters);
+
+      // 3. Ekspor ke Word (.docx) lengkap dengan bab sintesis
+      const { exportLogbookToWord } = await import("@/src/lib/exporters/exportWord");
+      await exportLogbookToWord(
+        entries,
+        studentProfile,
+        selectedPreset,
+        mentorAdminData || undefined,
+        synthesizedChapters
+      );
+
+      const presetObj = KAMPUS_PRESETS.find((p) => p.value === selectedPreset);
+      triggerToast(
+        `🧠 Sukses! Bab I–V berhasil disintesis oleh AI & Laporan Lengkap (.docx) telah diunduh!`
+      );
+    } catch (err: unknown) {
+      console.error("Gagal sintesis laporan Word:", err);
+      const msg = err instanceof Error ? err.message : "Gagal menyintesis naskah laporan akademik.";
+      setErrorMsg(msg);
+      alert(msg);
+    } finally {
+      setIsSynthesizingReport(false);
     }
   };
 
@@ -2176,35 +2279,82 @@ export default function HomePage() {
                       </p>
                     </div>
                   ) : (
-                    <div className="rounded-2xl border border-indigo-200 bg-indigo-50/40 p-3 sm:p-4 flex items-center gap-3.5">
-                      <div className="relative w-20 h-20 rounded-xl overflow-hidden border border-indigo-200 bg-slate-100 shrink-0 shadow-xs">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={fotoBase64}
-                          alt="Pratinjau Foto Kegiatan"
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                          <span className="text-xs font-bold text-slate-900 truncate">
-                            {fotoFileName || "Foto Kegiatan Terlampir"}
-                          </span>
+                    <div className="space-y-2.5">
+                      <div className="rounded-2xl border border-indigo-200 bg-indigo-50/40 p-3 sm:p-4 flex items-center gap-3.5">
+                        <div className="relative w-24 h-24 rounded-xl overflow-hidden border border-indigo-200 bg-slate-100 shrink-0 shadow-xs">
+                          {isCompressingPhoto ? (
+                            <div className="w-full h-full flex flex-col items-center justify-center p-2 bg-indigo-50 text-indigo-700 text-center">
+                              <Loader2 className="w-5 h-5 animate-spin mb-1" />
+                              <span className="text-[10px] font-bold">Mengompres...</span>
+                            </div>
+                          ) : (
+                            /* eslint-disable-next-line @next/next/no-img-element */
+                            <img
+                              src={fotoBase64}
+                              alt="Pratinjau Foto Kegiatan"
+                              className="w-full h-full object-cover"
+                            />
+                          )}
                         </div>
-                        <p className="text-[11px] text-indigo-700 font-medium mt-0.5">
-                          Multimodal Vision Aktif: Objek & software pada foto
-                          akan dianalisis otomatis oleh AI.
-                        </p>
-                        <button
-                          type="button"
-                          onClick={handleRemovePhoto}
-                          className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-semibold text-rose-600 hover:text-rose-700 underline cursor-pointer"
-                        >
-                          <X className="w-3 h-3" />
-                          <span>Ganti / Hapus Foto</span>
-                        </button>
+                        <div className="flex-1 min-w-0 space-y-1.5">
+                          <div className="flex items-center gap-1.5">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                            <span className="text-xs font-bold text-slate-900 truncate">
+                              {fotoFileName || "Foto Kegiatan Terlampir"}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-indigo-700 font-medium">
+                            Kompresi Canvas Aktif (Maks 1280px) • Multimodal Vision AI siap menganalisis foto.
+                          </p>
+
+                          {/* Watermark Toggle */}
+                          <label className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-700 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={enableWatermark}
+                              onChange={(e) => handleToggleWatermark(e.target.checked)}
+                              className="rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                            />
+                            <span>📍 Bubuhkan Watermark Timestamp & Identitas Resmi (Standar MBKM/KKN)</span>
+                          </label>
+
+                          <div>
+                            <button
+                              type="button"
+                              onClick={handleRemovePhoto}
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-600 hover:text-rose-700 underline cursor-pointer"
+                            >
+                              <X className="w-3 h-3" />
+                              <span>Ganti / Hapus Foto</span>
+                            </button>
+                          </div>
+                        </div>
                       </div>
+
+                      {/* Banner Deteksi Tanggal Foto & Sinkronisasi */}
+                      {detectedPhotoDate && detectedPhotoDate.iso !== tanggalHarian && (
+                        <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-2xs">
+                          <div className="flex items-center gap-2">
+                            <Calendar className="w-4 h-4 text-amber-600 shrink-0" />
+                            <span>
+                              Tanggal foto terdeteksi: <strong>{detectedPhotoDate.formatted}</strong>
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setTanggalHarian(detectedPhotoDate.iso);
+                              triggerToast(
+                                `Tanggal logbook berhasil diselaraskan ke tanggal foto: ${detectedPhotoDate.iso}`
+                              );
+                            }}
+                            className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-bold shadow-xs transition cursor-pointer shrink-0"
+                          >
+                            <RefreshCw className="w-3 h-3" />
+                            <span>Samakan Tanggal ({detectedPhotoDate.iso})</span>
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -3083,6 +3233,41 @@ export default function HomePage() {
               </div>
             )}
 
+            {/* Tombol Utama: Sintesis AI Bab I-V Laporan Lengkap */}
+            <button
+              type="button"
+              onClick={handleSynthesizeAndExportWord}
+              disabled={isSynthesizingReport || exportingType !== null}
+              className="w-full flex items-center justify-between p-4 rounded-2xl bg-gradient-to-r from-indigo-700 via-purple-700 to-pink-700 hover:from-indigo-800 hover:to-pink-800 text-white font-bold text-left transition shadow-md disabled:opacity-60 cursor-pointer"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center shrink-0">
+                  {isSynthesizingReport ? (
+                    <Loader2 className="w-5 h-5 animate-spin text-amber-300" />
+                  ) : (
+                    <Sparkles className="w-5 h-5 text-amber-300" />
+                  )}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs sm:text-sm font-extrabold">
+                      🧠 Sintesis AI Bab I–V + Unduh Laporan Lengkap (.docx)
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-400 text-slate-950 uppercase">
+                      Full Academic
+                    </span>
+                  </div>
+                  <p className="text-[11px] font-normal text-purple-100 mt-0.5">
+                    AI menyusun Bab I (Latar Belakang), Bab II (Teori), Bab IV (Pembahasan & Masalah), dan Bab V (Saran) langsung ke dokumen Word.
+                  </p>
+                </div>
+              </div>
+              <div className="hidden sm:flex items-center gap-1.5 text-xs font-semibold bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg border border-white/20">
+                <Download className="w-3.5 h-3.5" />
+                <span>Sintesis & Unduh</span>
+              </div>
+            </button>
+
             {/* Grid Tombol Unduh Dokumen (.xlsx, .docx, .pptx) */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               <button
@@ -3343,6 +3528,7 @@ export default function HomePage() {
             tipeKegiatan={tipeKegiatan}
             peran={peran || "Mahasiswa Peserta"}
             riwayatLogbookText={getCombinedLogbookText()}
+            studentProfile={studentProfile}
           />
         )}
 
