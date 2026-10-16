@@ -7,6 +7,7 @@ import {
   Award,
   Download,
   Building,
+  Building2,
   UserCheck,
   Calendar,
   Sparkles,
@@ -16,6 +17,9 @@ import {
   Sliders,
   AlertCircle,
   HelpCircle,
+  UploadCloud,
+  Image as ImageIcon,
+  Trash2,
 } from "lucide-react";
 import { StudentProfile } from "@/src/lib/exporters/types";
 import {
@@ -25,6 +29,7 @@ import {
   exportLembarPenilaianMentor,
   exportSuratKeteranganSelesaiMagang,
   exportSuratRekomendasiKerja,
+  KopSuratMitra,
 } from "@/src/lib/exporters/exportAdminDocs";
 
 interface AdminDocsTabProps {
@@ -42,7 +47,17 @@ export const AdminDocsTab: React.FC<AdminDocsTabProps> = ({
 }) => {
   const [adminData, setAdminData] = useState<MentorAdminData>(() => {
     if (initialData && initialData.scores && initialData.scores.length > 0) {
-      return initialData;
+      return {
+        ...initialData,
+        kopSurat: initialData.kopSurat || {
+          namaInstansi: profile.namaMitra || "PT Inovasi Teknologi Indonesia",
+          alamatKantor:
+            "Gedung Cyber 2 Lantai 18, Jl. H.R. Rasuna Said Blok X-5 Kav. 13, Jakarta Selatan 12950",
+          kontakWebsiteEmail:
+            "Website: https://mitra.co.id | Email: hr@mitra.co.id | Telp: (021) 5299-1000",
+          logoMitraBase64: "",
+        },
+      };
     }
     return {
       namaMentor: profile.namaPembimbing || "Ir. Budi Santoso, M.Kom.",
@@ -58,8 +73,47 @@ export const AdminDocsTab: React.FC<AdminDocsTabProps> = ({
       catatanEvaluasi:
         "Mahasiswa menunjukkan dedikasi, inisiatif, dan etos kerja yang luar biasa. Mampu menyelesaikan target pekerjaan tepat waktu dengan kualitas industri serta proaktif berkolaborasi dalam tim.",
       predikat: "Sangat Memuaskan (A)",
+      kopSurat: {
+        namaInstansi: profile.namaMitra || "PT Inovasi Teknologi Indonesia",
+        alamatKantor:
+          "Gedung Cyber 2 Lantai 18, Jl. H.R. Rasuna Said Blok X-5 Kav. 13, Jakarta Selatan 12950",
+        kontakWebsiteEmail:
+          "Website: https://mitra.co.id | Email: hr@mitra.co.id | Telp: (021) 5299-1000",
+        logoMitraBase64: "",
+      },
     };
   });
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      alert("Harap pilih file gambar (PNG / JPG)");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result as string;
+      updateAdminDataState({
+        ...adminData,
+        kopSurat: {
+          ...(adminData.kopSurat || {}),
+          logoMitraBase64: base64,
+        },
+      });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveLogo = () => {
+    updateAdminDataState({
+      ...adminData,
+      kopSurat: {
+        ...(adminData.kopSurat || {}),
+        logoMitraBase64: "",
+      },
+    });
+  };
 
   const updateAdminDataState = (newData: MentorAdminData) => {
     setAdminData(newData);
@@ -266,6 +320,136 @@ export const AdminDocsTab: React.FC<AdminDocsTabProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left Column: Info Pembimbing & Surat (1 col) */}
         <div className="lg:col-span-1 space-y-6">
+          {/* Card: Kop Surat Mitra & Logo Resmi */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <h4 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                Kop Surat Resmi Mitra
+              </h4>
+              <span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800">
+                Garis Ganda + QR Stamp
+              </span>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Nama Perusahaan / Instansi Mitra
+              </label>
+              <input
+                type="text"
+                value={adminData.kopSurat?.namaInstansi ?? ""}
+                onChange={(e) =>
+                  updateAdminDataState({
+                    ...adminData,
+                    kopSurat: {
+                      ...(adminData.kopSurat || {}),
+                      namaInstansi: e.target.value,
+                    },
+                  })
+                }
+                placeholder="e.g. PT Telekomunikasi Indonesia Tbk."
+                className="w-full text-xs px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Alamat Kantor Resmi Mitra
+              </label>
+              <input
+                type="text"
+                value={adminData.kopSurat?.alamatKantor ?? ""}
+                onChange={(e) =>
+                  updateAdminDataState({
+                    ...adminData,
+                    kopSurat: {
+                      ...(adminData.kopSurat || {}),
+                      alamatKantor: e.target.value,
+                    },
+                  })
+                }
+                placeholder="e.g. Telkom Landmark Tower Lt. 38, Jakarta 12710"
+                className="w-full text-xs px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Kontak, Email & Website Resmi
+              </label>
+              <input
+                type="text"
+                value={adminData.kopSurat?.kontakWebsiteEmail ?? ""}
+                onChange={(e) =>
+                  updateAdminDataState({
+                    ...adminData,
+                    kopSurat: {
+                      ...(adminData.kopSurat || {}),
+                      kontakWebsiteEmail: e.target.value,
+                    },
+                  })
+                }
+                placeholder="e.g. www.mitra.co.id | hr@mitra.co.id"
+                className="w-full text-xs px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+
+            {/* Upload Logo Perusahaan */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                Logo Perusahaan Mitra (PNG / JPG)
+              </label>
+              {adminData.kopSurat?.logoMitraBase64 ? (
+                <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700">
+                  <div className="w-14 h-14 rounded-lg bg-white p-1 border border-slate-200 flex items-center justify-center overflow-hidden flex-shrink-0">
+                    <img
+                      src={adminData.kopSurat.logoMitraBase64}
+                      alt="Logo Mitra"
+                      className="max-h-full max-w-full object-contain"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">
+                      Logo Terpasang di Kop Surat
+                    </p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Format PNG/JPG siap dicetak
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleRemoveLogo}
+                    className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition"
+                    title="Hapus Logo"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <label className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl hover:border-indigo-500 cursor-pointer transition bg-slate-50/50 dark:bg-slate-800/30">
+                  <UploadCloud className="w-6 h-6 text-indigo-500 mb-1" />
+                  <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    Unggah Logo Perusahaan
+                  </span>
+                  <span className="text-[10px] text-slate-400 mt-0.5">
+                    PNG transparan atau JPG (Maks. 2MB)
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    onChange={handleLogoUpload}
+                    className="hidden"
+                  />
+                </label>
+              )}
+            </div>
+
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">
+              🏛️ Dicetak otomatis sebagai kepala surat resmi bergaris ganda dan dilengkapi stempel QR keabsahan dokumen.
+            </p>
+          </div>
+
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm space-y-4">
             <h4 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
               <UserCheck className="w-4 h-4 text-emerald-600" />

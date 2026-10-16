@@ -52,7 +52,13 @@ import {
   Search,
   FileCheck,
   RefreshCw,
+  Sun,
+  Moon,
 } from "lucide-react";
+import {
+  getIndonesianHolidayInfo,
+  checkRangeForHolidays,
+} from "@/src/lib/utils/indonesianHolidays";
 import {
   TipeKegiatan,
   LogbookResult,
@@ -390,6 +396,38 @@ export default function HomePage() {
   const [fixingEntryId, setFixingEntryId] = useState<string | null>(null);
   const [storageInfo, setStorageInfo] = useState<StorageEstimateInfo | null>(null);
   const [extensionSyncAck, setExtensionSyncAck] = useState<boolean>(false);
+
+  // Tahap 6: Dark Mode / Night Mode State
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const isDark =
+      document.documentElement.classList.contains("dark") ||
+      localStorage.getItem("logmagang_theme") === "dark";
+    setIsDarkMode(isDark);
+    if (isDark) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    const nextDark = !isDarkMode;
+    setIsDarkMode(nextDark);
+    if (nextDark) {
+      document.documentElement.classList.add("dark");
+      try {
+        localStorage.setItem("logmagang_theme", "dark");
+      } catch {}
+    } else {
+      document.documentElement.classList.remove("dark");
+      try {
+        localStorage.setItem("logmagang_theme", "light");
+      } catch {}
+    }
+  };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -1644,9 +1682,9 @@ export default function HomePage() {
     weeklyResults.length > 0;
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-indigo-50/60 via-slate-50 to-slate-100">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-indigo-50/60 via-slate-50 to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 text-slate-900 dark:text-slate-100 transition-colors">
       {/* Top Navbar */}
-      <header className="sticky top-0 z-30 backdrop-blur-md bg-white/90 border-b border-slate-200/80 shadow-xs">
+      <header className="sticky top-0 z-30 backdrop-blur-md bg-white/90 dark:bg-slate-900/90 border-b border-slate-200/80 dark:border-slate-800 shadow-xs">
         <div className="max-w-5xl mx-auto px-4 py-2.5 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-sm shadow-indigo-500/30">
@@ -1654,14 +1692,14 @@ export default function HomePage() {
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="font-extrabold text-base tracking-tight text-slate-900">
-                  LogMagang <span className="text-indigo-600">OS</span>
+                <span className="font-extrabold text-base tracking-tight text-slate-900 dark:text-white">
+                  LogMagang <span className="text-indigo-600 dark:text-indigo-400">OS</span>
                 </span>
-                <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-indigo-100 text-indigo-700">
+                <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300">
                   Gemini 3.8
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500 leading-none mt-0.5">
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-none mt-0.5">
                 Platform Terpadu Logbook, Konversi SKS, CV ATS, & Sidang
               </p>
             </div>
@@ -1673,10 +1711,10 @@ export default function HomePage() {
               <button
                 type="button"
                 onClick={() => setIsWorkspaceSyncOpen(true)}
-                className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full text-xs font-bold bg-white text-slate-700 hover:text-indigo-600 border border-slate-200/90 shadow-2xs hover:bg-slate-50 transition cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full text-xs font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 border border-slate-200/90 dark:border-slate-700 shadow-2xs hover:bg-slate-50 dark:hover:bg-slate-700/80 transition cursor-pointer"
                 title="Sinkronisasi Data Multi-Device (HP <-> Laptop) & Cadangan JSON"
               >
-                <ArrowRightLeft className="w-3.5 h-3.5 text-indigo-600" />
+                <ArrowRightLeft className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
                 <span className="hidden sm:inline">Backup & Sync</span>
               </button>
 
@@ -1698,8 +1736,8 @@ export default function HomePage() {
                   onClick={() => setIsLicenseModalOpen(true)}
                   className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition cursor-pointer ${
                     remainingQuota > 0
-                      ? "bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100"
-                      : "bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100 animate-pulse"
+                      ? "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100"
+                      : "bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800 hover:bg-rose-100 animate-pulse"
                   }`}
                   title="Klik untuk upgrade ke LogMagang Pro"
                 >
@@ -1709,12 +1747,27 @@ export default function HomePage() {
                   </span>
                 </button>
               )}
+
+              {/* Tombol Toggle Dark Mode (Tahap 6) */}
+              <button
+                type="button"
+                onClick={toggleTheme}
+                className="p-1.5 sm:p-2 rounded-full text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xs hover:bg-slate-50 dark:hover:bg-slate-700 transition cursor-pointer"
+                title={isDarkMode ? "Beralih ke Tema Terang (Light Mode)" : "Beralih ke Tema Gelap (Dark Mode)"}
+                aria-label="Toggle Dark Mode"
+              >
+                {isDarkMode ? (
+                  <Sun className="w-4 h-4 text-amber-400" />
+                ) : (
+                  <Moon className="w-4 h-4 text-slate-600 dark:text-slate-300" />
+                )}
+              </button>
             </div>
           )}
         </div>
 
         {/* 6 Tabs Navigation Bar */}
-        <div className="border-t border-slate-100 bg-slate-50/80">
+        <div className="border-t border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/80">
           <div className="max-w-5xl mx-auto px-4 flex items-center gap-1.5 overflow-x-auto py-2 no-scrollbar">
             <button
               type="button"
@@ -2222,9 +2275,27 @@ export default function HomePage() {
                     value={tanggalHarian}
                     onChange={(e) => setTanggalHarian(e.target.value)}
                     disabled={isLoading}
-                    className="text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
+
+                {/* Deteksi Hari Libur Nasional & Akhir Pekan Indonesia (Mode Harian) */}
+                {(() => {
+                  const holidayInfo = getIndonesianHolidayInfo(tanggalHarian);
+                  if (!holidayInfo.isHoliday && !holidayInfo.isWeekend) return null;
+                  return (
+                    <div className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700/60 text-amber-800 dark:text-amber-300 text-xs animate-fadeIn">
+                      <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                      <div>
+                        <span className="font-bold">⚠️ Peringatan:</span> {holidayInfo.formattedDate} adalah{" "}
+                        <strong className="underline underline-offset-2">{holidayInfo.description}</strong>.
+                        <p className="mt-0.5 text-[11px] text-amber-700/90 dark:text-amber-400/90">
+                          Pastikan instansi atau mitra Anda memberlakukan lembur kerja atau penugasan khusus pada hari libur ini.
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Area Unggah Foto Dokumentasi (Vision-to-Logbook) */}
                 <div>
@@ -2504,10 +2575,35 @@ export default function HomePage() {
                         value={tanggalSelesai}
                         onChange={(e) => setTanggalSelesai(e.target.value)}
                         disabled={isLoading}
-                        className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs sm:text-sm text-slate-900 focus:border-indigo-600 focus:outline-none"
+                        className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs sm:text-sm text-slate-900 dark:text-white focus:border-indigo-600 focus:outline-none"
                       />
                     </div>
                   </div>
+
+                  {/* Deteksi Hari Libur Nasional & Akhir Pekan Indonesia (Mode Borongan 1 Pekan) */}
+                  {(() => {
+                    const weeklyHolidays = checkRangeForHolidays(tanggalMulai, tanggalSelesai);
+                    if (weeklyHolidays.length === 0) return null;
+                    return (
+                      <div className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700/60 text-amber-800 dark:text-amber-300 text-xs animate-fadeIn">
+                        <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                        <div className="space-y-1">
+                          <span className="font-bold">⚠️ Catatan Kalender Kerja:</span> Terdapat{" "}
+                          <strong>{weeklyHolidays.length} hari libur / akhir pekan</strong> dalam rentang pekan ini:
+                          <ul className="list-disc list-inside text-[11px] text-amber-700/90 dark:text-amber-400/90 space-y-0.5 mt-0.5">
+                            {weeklyHolidays.map((h, idx) => (
+                              <li key={idx}>
+                                <strong>{h.formattedDate}:</strong> {h.description}
+                              </li>
+                            ))}
+                          </ul>
+                          <p className="text-[10px] text-amber-600 dark:text-amber-400 italic">
+                            Pastikan narasi aktivitas pekanan disesuaikan dengan ketentuan operasional mitra magang atau desa KKN.
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 <div>

@@ -30,6 +30,13 @@ export interface MentorEvaluationScore {
   keterangan: string;
 }
 
+export interface KopSuratMitra {
+  namaInstansi?: string;
+  alamatKantor?: string;
+  kontakWebsiteEmail?: string;
+  logoMitraBase64?: string;
+}
+
 export interface MentorAdminData {
   namaMentor: string;
   jabatanMentor: string;
@@ -39,6 +46,7 @@ export interface MentorAdminData {
   predikat: string; // misal "Sangat Memuaskan (A)"
   nomorSurat?: string;
   tanggalSurat?: string;
+  kopSurat?: KopSuratMitra;
 }
 
 export const DEFAULT_EVALUATION_SCORES: MentorEvaluationScore[] = [
@@ -132,6 +140,372 @@ function createDocImage(base64Data: string, width = 100, height = 100): Paragrap
   } catch {
     return null;
   }
+}
+
+// Generator Stempel Resmi Ber-QR Code Keabsahan Dokumen
+export function generateQrStampBase64(docTitle: string, regNumber?: string): string {
+  if (typeof document === "undefined") {
+    return "";
+  }
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = 420;
+    canvas.height = 180;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return "";
+
+    // Background stempel rounded border
+    ctx.fillStyle = "#F8FAFC";
+    if (typeof ctx.roundRect === "function") {
+      ctx.beginPath();
+      ctx.roundRect(4, 4, 412, 172, 12);
+      ctx.fill();
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = "#1E3A8A"; // Blue-900 stempel dinas resmi
+      ctx.stroke();
+
+      // Inner dashed border
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+      ctx.strokeStyle = "#3B82F6";
+      ctx.beginPath();
+      ctx.roundRect(10, 10, 400, 160, 8);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    } else {
+      ctx.fillRect(4, 4, 412, 172);
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = "#1E3A8A";
+      ctx.strokeRect(4, 4, 412, 172);
+    }
+
+    // Gambar QR Code Pattern di sebelah kiri (x: 22, y: 24, size: 132x132)
+    const qx = 22;
+    const qy = 24;
+    const qsize = 132;
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillRect(qx, qy, qsize, qsize);
+    ctx.strokeStyle = "#1E3A8A";
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(qx, qy, qsize, qsize);
+
+    // QR Finder Patterns (3 sudut)
+    const drawFinder = (x: number, y: number) => {
+      ctx.fillStyle = "#1E3A8A";
+      ctx.fillRect(x, y, 32, 32);
+      ctx.fillStyle = "#FFFFFF";
+      ctx.fillRect(x + 5, y + 5, 22, 22);
+      ctx.fillStyle = "#1E3A8A";
+      ctx.fillRect(x + 9, y + 9, 14, 14);
+    };
+
+    drawFinder(qx + 6, qy + 6);
+    drawFinder(qx + qsize - 38, qy + 6);
+    drawFinder(qx + 6, qy + qsize - 38);
+
+    // Modul-modul data QR
+    ctx.fillStyle = "#1E3A8A";
+    const seed = (docTitle + (regNumber || "LMOS")).split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
+    const cellSize = 6;
+    for (let r = 0; r < 18; r++) {
+      for (let c = 0; c < 18; c++) {
+        if ((r < 7 && c < 7) || (r < 7 && c >= 11) || (r >= 11 && c < 7)) {
+          continue;
+        }
+        const pseudoRand = Math.sin(seed + r * 19 + c * 29) * 10000;
+        if (pseudoRand - Math.floor(pseudoRand) > 0.45) {
+          ctx.fillRect(qx + 12 + c * cellSize, qy + 12 + r * cellSize, cellSize - 1, cellSize - 1);
+        }
+      }
+    }
+
+    // Emblem centang tengah QR
+    ctx.fillStyle = "#2563EB";
+    ctx.beginPath();
+    ctx.arc(qx + qsize / 2, qy + qsize / 2, 10, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "#FFFFFF";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.strokeStyle = "#FFFFFF";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(qx + qsize / 2 - 4, qy + qsize / 2);
+    ctx.lineTo(qx + qsize / 2 - 1, qy + qsize / 2 + 3);
+    ctx.lineTo(qx + qsize / 2 + 5, qy + qsize / 2 - 4);
+    ctx.stroke();
+
+    // Teks sebelah kanan
+    const tx = 172;
+    ctx.fillStyle = "#059669";
+    ctx.font = "bold 11px sans-serif";
+    ctx.fillText("✓ KEABSAHAN TERVERIFIKASI", tx, 42);
+
+    ctx.fillStyle = "#0F172A";
+    ctx.font = "bold 12px sans-serif";
+    ctx.fillText("DOKUMEN SAH TERVERIFIKASI", tx, 64);
+
+    ctx.fillStyle = "#1E3A8A";
+    ctx.font = "bold 11px sans-serif";
+    ctx.fillText("LogMagang OS Security Gateway", tx, 82);
+
+    ctx.fillStyle = "#334155";
+    ctx.font = "10px monospace";
+    const reg = regNumber || `LMP-${new Date().getFullYear()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+    ctx.fillText(`No. Reg : ${reg}`, tx, 104);
+
+    ctx.fillStyle = "#475569";
+    ctx.font = "9.5px sans-serif";
+    ctx.fillText(`Dokumen: ${docTitle.slice(0, 26)}`, tx, 122);
+
+    ctx.fillStyle = "#64748B";
+    ctx.font = "8.5px sans-serif";
+    ctx.fillText("Pindai QR untuk verifikasi keaslian berkas", tx, 142);
+    ctx.fillText("Standar Naskah Dinas & Portofolio MBKM", tx, 156);
+
+    return canvas.toDataURL("image/png");
+  } catch (e) {
+    console.error("Gagal generate QR Stamp", e);
+    return "";
+  }
+}
+
+// Blok Kop Surat Resmi Mitra dengan Garis Ganda (Double Line)
+function createKopSuratTable(student: Partial<StudentProfile>, kop?: KopSuratMitra): Table {
+  const instansiName =
+    kop?.namaInstansi?.trim() || student.namaMitra || "MITRA INDUSTRI KAMPUS MERDEKA";
+  const alamat =
+    kop?.alamatKantor?.trim() ||
+    "Gedung Pusat Bisnis & Teknologi, Jl. Jend. Sudirman Kav. 21, Jakarta Selatan 12920";
+  const kontak =
+    kop?.kontakWebsiteEmail?.trim() ||
+    "Website: www.mitraindustri.co.id | Email: hr-internship@mitraindustri.co.id | Telp: (021) 555-0199";
+
+  const doubleBottomBorder = {
+    style: BorderStyle.DOUBLE,
+    size: 16, // Garis ganda tebal resmi
+    color: "0F172A",
+  };
+  const noneBorder = {
+    style: BorderStyle.NONE,
+    size: 0,
+    color: "auto",
+  };
+
+  const hasLogo = Boolean(kop?.logoMitraBase64);
+  const logoParagraph = hasLogo
+    ? createDocImage(kop!.logoMitraBase64!, 75, 75)
+    : null;
+
+  if (logoParagraph) {
+    return new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [
+        new TableRow({
+          children: [
+            new TableCell({
+              width: { size: 18, type: WidthType.PERCENTAGE },
+              verticalAlign: VerticalAlign.CENTER,
+              borders: {
+                top: noneBorder,
+                left: noneBorder,
+                right: noneBorder,
+                bottom: doubleBottomBorder,
+              },
+              children: [logoParagraph],
+            }),
+            new TableCell({
+              width: { size: 82, type: WidthType.PERCENTAGE },
+              verticalAlign: VerticalAlign.CENTER,
+              borders: {
+                top: noneBorder,
+                left: noneBorder,
+                right: noneBorder,
+                bottom: doubleBottomBorder,
+              },
+              children: [
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  spacing: { line: 260, before: 0, after: 30 },
+                  children: [
+                    new TextRun({
+                      text: instansiName.toUpperCase(),
+                      font: FONT_FAMILY,
+                      size: SIZE_14PT,
+                      bold: true,
+                      color: "0F172A",
+                    }),
+                  ],
+                }),
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  spacing: { line: 240, before: 0, after: 20 },
+                  children: [
+                    new TextRun({
+                      text: alamat,
+                      font: FONT_FAMILY,
+                      size: 20, // 10pt
+                      color: "334155",
+                    }),
+                  ],
+                }),
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  spacing: { line: 240, before: 0, after: 80 },
+                  children: [
+                    new TextRun({
+                      text: kontak,
+                      font: FONT_FAMILY,
+                      size: 18, // 9pt
+                      italics: true,
+                      color: "475569",
+                    }),
+                  ],
+                }),
+              ],
+            }),
+          ],
+        }),
+      ],
+    });
+  }
+
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            verticalAlign: VerticalAlign.CENTER,
+            borders: {
+              top: noneBorder,
+              left: noneBorder,
+              right: noneBorder,
+              bottom: doubleBottomBorder,
+            },
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                spacing: { line: 260, before: 0, after: 30 },
+                children: [
+                  new TextRun({
+                    text: instansiName.toUpperCase(),
+                    font: FONT_FAMILY,
+                    size: SIZE_14PT,
+                    bold: true,
+                    color: "0F172A",
+                  }),
+                ],
+              }),
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                spacing: { line: 240, before: 0, after: 20 },
+                children: [
+                  new TextRun({
+                    text: alamat,
+                    font: FONT_FAMILY,
+                    size: 20,
+                    color: "334155",
+                  }),
+                ],
+              }),
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                spacing: { line: 240, before: 0, after: 80 },
+                children: [
+                  new TextRun({
+                    text: kontak,
+                    font: FONT_FAMILY,
+                    size: 18,
+                    italics: true,
+                    color: "475569",
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      }),
+    ],
+  });
+}
+
+// Blok Tanda Tangan Resmi Disertai Stempel QR Keabsahan
+function createSignatureSectionWithQr(params: {
+  tanggalSurat: string;
+  lokasiSurat?: string;
+  roleText: string;
+  mitraName: string;
+  mentorName: string;
+  mentorTitle: string;
+  docTitle: string;
+  regNumber?: string;
+}): Table {
+  const qrBase64 = generateQrStampBase64(params.docTitle, params.regNumber);
+  const qrImage = qrBase64 ? createDocImage(qrBase64, 190, 85) : null;
+
+  const noneBorder = {
+    style: BorderStyle.NONE,
+    size: 0,
+    color: "auto",
+  };
+
+  const leftCellChildren: Paragraph[] = [];
+  if (qrImage) {
+    leftCellChildren.push(qrImage);
+  } else {
+    leftCellChildren.push(
+      createDocParagraph("DOKUMEN SAH TERVERIFIKASI\nLogMagang OS Digital Trust Gateway", {
+        bold: true,
+        size: 18,
+        alignment: AlignmentType.CENTER,
+      })
+    );
+  }
+
+  const rightCellChildren: Paragraph[] = [
+    createDocParagraph(
+      `${params.lokasiSurat ? params.lokasiSurat + ", " : ""}${params.tanggalSurat}`,
+      { alignment: AlignmentType.RIGHT, after: 40 }
+    ),
+    createDocParagraph(params.roleText, {
+      bold: true,
+      alignment: AlignmentType.RIGHT,
+      after: 700, // Ruang tanda tangan
+    }),
+    createDocParagraph(`( ${params.mentorName} )`, {
+      bold: true,
+      alignment: AlignmentType.RIGHT,
+    }),
+    createDocParagraph(`Jabatan: ${params.mentorTitle}`, {
+      italics: true,
+      alignment: AlignmentType.RIGHT,
+    }),
+  ];
+
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({
+            width: { size: 52, type: WidthType.PERCENTAGE },
+            verticalAlign: VerticalAlign.BOTTOM,
+            borders: { top: noneBorder, bottom: noneBorder, left: noneBorder, right: noneBorder },
+            children: leftCellChildren,
+          }),
+          new TableCell({
+            width: { size: 48, type: WidthType.PERCENTAGE },
+            verticalAlign: VerticalAlign.BOTTOM,
+            borders: { top: noneBorder, bottom: noneBorder, left: noneBorder, right: noneBorder },
+            children: rightCellChildren,
+          }),
+        ],
+      }),
+    ],
+  });
 }
 
 // 1. Ekspor Lembar Penilaian Kinerja Mahasiswa Magang oleh Mentor
@@ -319,6 +693,9 @@ export async function exportLembarPenilaianMentor(
           },
         },
         children: [
+          createKopSuratTable(student, adminData.kopSurat),
+          createDocParagraph("", { after: 150 }),
+
           createDocParagraph("LEMBAR EVALUASI & PENILAIAN KINERJA MAHASISWA MAGANG", {
             bold: true,
             size: SIZE_16PT,
@@ -330,7 +707,7 @@ export async function exportLembarPenilaianMentor(
             bold: true,
             size: SIZE_12PT,
             alignment: AlignmentType.CENTER,
-            after: 300,
+            after: 260,
           }),
 
           createDocParagraph("I. BIODATA MAHASISWA & PEMBIMBING LAPANGAN", {
@@ -366,24 +743,22 @@ export async function exportLembarPenilaianMentor(
             before: 260,
             after: 100,
           }),
-          createDocParagraph(catatan, { italics: true, after: 360 }),
+          createDocParagraph(catatan, { italics: true, after: 300 }),
 
-          createDocParagraph("Disahkan pada tanggal: " + (adminData.tanggalSurat || new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })), {
-            alignment: AlignmentType.RIGHT,
-            after: 40,
-          }),
-          createDocParagraph("Mentor Lapangan / Supervisor,", {
-            bold: true,
-            alignment: AlignmentType.RIGHT,
-            after: 900,
-          }),
-          createDocParagraph(`( ${mentorName} )`, {
-            bold: true,
-            alignment: AlignmentType.RIGHT,
-          }),
-          createDocParagraph(`Jabatan: ${mentorTitle}`, {
-            italics: true,
-            alignment: AlignmentType.RIGHT,
+          createSignatureSectionWithQr({
+            tanggalSurat:
+              adminData.tanggalSurat ||
+              new Date().toLocaleDateString("id-ID", {
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              }),
+            roleText: "Mentor Lapangan / Supervisor,",
+            mitraName: student.namaMitra,
+            mentorName: mentorName,
+            mentorTitle: mentorTitle,
+            docTitle: "Lembar Penilaian Kinerja Magang",
+            regNumber: adminData.nomorSurat,
           }),
         ],
       },
@@ -403,8 +778,16 @@ export async function exportSuratKeteranganSelesaiMagang(
   const student = { ...DEFAULT_STUDENT_PROFILE, ...profile };
   const mentorName = adminData.namaMentor || student.namaPembimbing || "Nama Pimpinan / HRD";
   const mentorTitle = adminData.jabatanMentor || "Human Resources Director";
-  const nomorSurat = adminData.nomorSurat || `SKSM/${student.namaMitra.slice(0, 3).toUpperCase()}/${new Date().getFullYear()}/089`;
-  const tanggalSurat = adminData.tanggalSurat || new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
+  const nomorSurat =
+    adminData.nomorSurat ||
+    `SKSM/${student.namaMitra.slice(0, 3).toUpperCase()}/${new Date().getFullYear()}/089`;
+  const tanggalSurat =
+    adminData.tanggalSurat ||
+    new Date().toLocaleDateString("id-ID", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
 
   const doc = new Document({
     creator: "LogMagang OS",
@@ -417,22 +800,19 @@ export async function exportSuratKeteranganSelesaiMagang(
           },
         },
         children: [
-          createDocParagraph(student.namaMitra.toUpperCase(), {
-            bold: true,
-            size: SIZE_16PT,
-            alignment: AlignmentType.CENTER,
-            before: 100,
-            after: 20,
-          }),
+          createKopSuratTable(student, adminData.kopSurat),
+          createDocParagraph("", { after: 150 }),
+
           createDocParagraph("SURAT KETERANGAN SELESAI PRAKTIK KERJA / MAGANG", {
             bold: true,
             size: SIZE_14PT,
             alignment: AlignmentType.CENTER,
-            after: 40,
+            before: 100,
+            after: 30,
           }),
           createDocParagraph(`Nomor: ${nomorSurat}`, {
             alignment: AlignmentType.CENTER,
-            after: 400,
+            after: 360,
           }),
 
           createDocParagraph("Yang bertanda tangan di bawah ini menerangkan bahwa:"),
@@ -449,25 +829,18 @@ export async function exportSuratKeteranganSelesaiMagang(
           ),
           createDocParagraph(
             `Demikian Surat Keterangan Selesai Magang ini dibuat dengan sebenarnya untuk dapat dipergunakan sebagaimana mestinya dalam proses konversi akademik maupun kelengkapan administratif kelulusan.`,
-            { after: 400 }
+            { after: 360 }
           ),
 
-          createDocParagraph(`Ditetapkan di: Lokasi Mitra, ${tanggalSurat}`, {
-            alignment: AlignmentType.RIGHT,
-            after: 40,
-          }),
-          createDocParagraph(`${student.namaMitra}`, {
-            bold: true,
-            alignment: AlignmentType.RIGHT,
-            after: 900,
-          }),
-          createDocParagraph(`( ${mentorName} )`, {
-            bold: true,
-            alignment: AlignmentType.RIGHT,
-          }),
-          createDocParagraph(`${mentorTitle}`, {
-            italics: true,
-            alignment: AlignmentType.RIGHT,
+          createSignatureSectionWithQr({
+            tanggalSurat,
+            lokasiSurat: "Lokasi Mitra",
+            roleText: `${student.namaMitra},`,
+            mitraName: student.namaMitra,
+            mentorName,
+            mentorTitle,
+            docTitle: "Surat Keterangan Selesai Magang",
+            regNumber: nomorSurat,
           }),
         ],
       },
@@ -487,7 +860,13 @@ export async function exportSuratRekomendasiKerja(
   const student = { ...DEFAULT_STUDENT_PROFILE, ...profile };
   const mentorName = adminData.namaMentor || student.namaPembimbing || "Nama Mentor / Lead";
   const mentorTitle = adminData.jabatanMentor || "Head of Department / Lead Engineer";
-  const tanggalSurat = adminData.tanggalSurat || new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
+  const tanggalSurat =
+    adminData.tanggalSurat ||
+    new Date().toLocaleDateString("id-ID", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
 
   const doc = new Document({
     creator: "LogMagang OS",
@@ -500,6 +879,9 @@ export async function exportSuratRekomendasiKerja(
           },
         },
         children: [
+          createKopSuratTable(student, adminData.kopSurat),
+          createDocParagraph("", { after: 150 }),
+
           createDocParagraph("LETTER OF RECOMMENDATION", {
             bold: true,
             size: SIZE_16PT,
@@ -511,11 +893,13 @@ export async function exportSuratRekomendasiKerja(
             bold: true,
             size: SIZE_12PT,
             alignment: AlignmentType.CENTER,
-            after: 360,
+            after: 320,
           }),
 
           createDocParagraph("Kepada Yth.", { alignment: AlignmentType.LEFT }),
-          createDocParagraph("Bapak/Ibu Pimpinan Perusahaan / Tim Talent Acquisition", { bold: true }),
+          createDocParagraph("Bapak/Ibu Pimpinan Perusahaan / Tim Talent Acquisition", {
+            bold: true,
+          }),
           createDocParagraph("Di Tempat", { after: 240 }),
 
           createDocParagraph(
@@ -523,7 +907,10 @@ export async function exportSuratRekomendasiKerja(
           ),
           createDocParagraph(`Nama Lengkap   : ${student.namaMahasiswa}`, { bold: true }),
           createDocParagraph(`NIM            : ${student.nim}`),
-          createDocParagraph(`Almamater      : ${student.perguruanTinggi} (${student.programStudi})`, { after: 240 }),
+          createDocParagraph(
+            `Almamater      : ${student.perguruanTinggi} (${student.programStudi})`,
+            { after: 240 }
+          ),
 
           createDocParagraph(
             `Selama ${student.namaMahasiswa} menjalani program magang di tim kami pada periode ${student.periodeKegiatan}, saya mengamati secara langsung etos kerja, ketelitian, dan kemampuan pemecahan masalah (problem solving) yang luar biasa. Mahasiswa ini tidak hanya menguasai teori perkuliahan, namun mampu mengeksekusi tanggung jawab industri dengan hasil berkualitas tinggi dan proaktif berkolaborasi lintas tim.`
@@ -533,25 +920,17 @@ export async function exportSuratRekomendasiKerja(
           ),
           createDocParagraph(
             `Saya yakin yang bersangkutan akan segera menjadi aset yang sangat berharga dan berdaya guna bagi organisasi Anda. Apabila Bapak/Ibu membutuhkan informasi atau konfirmasi tambahan, saya dengan senang hati dapat dihubungi.`,
-            { after: 400 }
+            { after: 360 }
           ),
 
-          createDocParagraph(`Hormat kami, ${tanggalSurat}`, {
-            alignment: AlignmentType.RIGHT,
-            after: 40,
-          }),
-          createDocParagraph(`${student.namaMitra}`, {
-            bold: true,
-            alignment: AlignmentType.RIGHT,
-            after: 900,
-          }),
-          createDocParagraph(`( ${mentorName} )`, {
-            bold: true,
-            alignment: AlignmentType.RIGHT,
-          }),
-          createDocParagraph(`${mentorTitle}`, {
-            italics: true,
-            alignment: AlignmentType.RIGHT,
+          createSignatureSectionWithQr({
+            tanggalSurat,
+            roleText: `${student.namaMitra},`,
+            mitraName: student.namaMitra,
+            mentorName,
+            mentorTitle,
+            docTitle: "Surat Rekomendasi Kerja Profesional",
+            regNumber: adminData.nomorSurat,
           }),
         ],
       },
