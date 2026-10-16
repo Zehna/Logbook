@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { toast } from "sonner";
 import {
   Sparkles,
   Copy,
@@ -1027,7 +1028,8 @@ export default function HomePage() {
     return [];
   };
 
-  const triggerToast = (msg: string) => {
+  const triggerToast = (msg: string, description?: string) => {
+    toast.success(msg, { description });
     setExportSuccessToast(msg);
     setTimeout(() => {
       setExportSuccessToast((prev) => (prev === msg ? null : prev));
@@ -1469,6 +1471,9 @@ export default function HomePage() {
     try {
       await navigator.clipboard.writeText(textToCopy);
       setCopiedSection(key);
+      toast.success(`${title} Berhasil Disalin!`, {
+        description: "Teks Taksonomi Bloom siap ditempelkan ke formulir logbook.",
+      });
       setTimeout(() => {
         setCopiedSection((prev) => (prev === key ? null : prev));
       }, 2000);
@@ -1508,6 +1513,9 @@ export default function HomePage() {
     try {
       await navigator.clipboard.writeText(formattedAll);
       setCopiedAll(true);
+      toast.success("Logbook Berhasil Disalin!", {
+        description: "Format 5 bagian Taksonomi Bloom siap ditempel ke portal.",
+      });
       setTimeout(() => setCopiedAll(false), 2500);
     } catch {
       // Fallback
@@ -1542,6 +1550,9 @@ export default function HomePage() {
     try {
       await navigator.clipboard.writeText(formattedDay);
       setCopiedDayIdx(index);
+      toast.success(`Logbook Hari ${day.hari} (${day.tanggal}) Disalin!`, {
+        description: "Format Taksonomi Bloom siap ditempel ke formulir portal.",
+      });
       setTimeout(() => {
         setCopiedDayIdx((prev) => (prev === index ? null : prev));
       }, 2200);
@@ -1576,6 +1587,9 @@ export default function HomePage() {
     try {
       await navigator.clipboard.writeText(fullMarkdown);
       setCopiedWeeklyAll(true);
+      toast.success("Rekap Mingguan Berhasil Disalin!", {
+        description: "Format Markdown 5 hari kerja lengkap dengan taksonomi Bloom tersalin.",
+      });
       setTimeout(() => setCopiedWeeklyAll(false), 2500);
     } catch {
       // Abaikan
@@ -1683,8 +1697,8 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-indigo-50/60 via-slate-50 to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 text-slate-900 dark:text-slate-100 transition-colors">
-      {/* Top Navbar */}
-      <header className="sticky top-0 z-30 backdrop-blur-md bg-white/90 dark:bg-slate-900/90 border-b border-slate-200/80 dark:border-slate-800 shadow-xs">
+      {/* Top Navbar & Sticky Glassmorphism Header */}
+      <header className="sticky top-0 z-40 backdrop-blur-md bg-white/80 dark:bg-slate-950/80 border-b border-slate-200/80 dark:border-slate-800/60 shadow-xs transition-colors">
         <div className="max-w-5xl mx-auto px-4 py-2.5 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-sm shadow-indigo-500/30">
@@ -1711,7 +1725,7 @@ export default function HomePage() {
               <button
                 type="button"
                 onClick={() => setIsWorkspaceSyncOpen(true)}
-                className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full text-xs font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 border border-slate-200/90 dark:border-slate-700 shadow-2xs hover:bg-slate-50 dark:hover:bg-slate-700/80 transition cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full text-xs font-bold bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 border border-slate-200/90 dark:border-slate-800 shadow-2xs hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
                 title="Sinkronisasi Data Multi-Device (HP <-> Laptop) & Cadangan JSON"
               >
                 <ArrowRightLeft className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
@@ -1752,7 +1766,7 @@ export default function HomePage() {
               <button
                 type="button"
                 onClick={toggleTheme}
-                className="p-1.5 sm:p-2 rounded-full text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xs hover:bg-slate-50 dark:hover:bg-slate-700 transition cursor-pointer"
+                className="p-1.5 sm:p-2 rounded-full text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
                 title={isDarkMode ? "Beralih ke Tema Terang (Light Mode)" : "Beralih ke Tema Gelap (Dark Mode)"}
                 aria-label="Toggle Dark Mode"
               >
@@ -1766,16 +1780,16 @@ export default function HomePage() {
           )}
         </div>
 
-        {/* 6 Tabs Navigation Bar */}
-        <div className="border-t border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/80">
+        {/* 6 Tabs Navigation Bar (shadcn/ui Minimalist Monochromatic Pill) */}
+        <div className="border-t border-slate-200/70 dark:border-slate-800/70 bg-slate-50/70 dark:bg-slate-950/60">
           <div className="max-w-5xl mx-auto px-4 flex items-center gap-1.5 overflow-x-auto py-2 no-scrollbar">
             <button
               type="button"
               onClick={() => setMainTab("generator")}
-              className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs md:text-sm font-medium transition-all duration-200 whitespace-nowrap cursor-pointer ${
                 mainTab === "generator"
-                  ? "bg-indigo-600 text-white shadow-sm shadow-indigo-500/25"
-                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+                  ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-950 shadow-xs font-semibold"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-200/60 dark:hover:bg-slate-800/60"
               }`}
             >
               <FileText className="w-4 h-4" />
@@ -1785,15 +1799,21 @@ export default function HomePage() {
             <button
               type="button"
               onClick={() => setMainTab("sks")}
-              className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs md:text-sm font-medium transition-all duration-200 whitespace-nowrap cursor-pointer ${
                 mainTab === "sks"
-                  ? "bg-amber-600 text-white shadow-sm shadow-amber-500/25"
-                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+                  ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-950 shadow-xs font-semibold"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-200/60 dark:hover:bg-slate-800/60"
               }`}
             >
               <GraduationCap className="w-4 h-4" />
               <span>Konversi 20 SKS</span>
-              <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-100 text-amber-800">
+              <span
+                className={`text-[10px] px-1.5 py-0.2 rounded font-bold ${
+                  mainTab === "sks"
+                    ? "bg-amber-400 text-slate-950"
+                    : "bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700"
+                }`}
+              >
                 OBE
               </span>
             </button>
@@ -1801,15 +1821,21 @@ export default function HomePage() {
             <button
               type="button"
               onClick={() => setMainTab("resume")}
-              className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs md:text-sm font-medium transition-all duration-200 whitespace-nowrap cursor-pointer ${
                 mainTab === "resume"
-                  ? "bg-blue-600 text-white shadow-sm shadow-blue-500/25"
-                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+                  ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-950 shadow-xs font-semibold"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-200/60 dark:hover:bg-slate-800/60"
               }`}
             >
               <Briefcase className="w-4 h-4" />
               <span>CV ATS & LinkedIn</span>
-              <span className="text-[10px] px-1.5 py-0.2 rounded bg-blue-100 text-blue-800">
+              <span
+                className={`text-[10px] px-1.5 py-0.2 rounded font-bold ${
+                  mainTab === "resume"
+                    ? "bg-blue-400 text-slate-950"
+                    : "bg-blue-100 dark:bg-blue-950/80 text-blue-800 dark:text-blue-300 border border-blue-300 dark:border-blue-700"
+                }`}
+              >
                 STAR
               </span>
             </button>
@@ -1817,26 +1843,32 @@ export default function HomePage() {
             <button
               type="button"
               onClick={() => setMainTab("simulator")}
-              className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs md:text-sm font-medium transition-all duration-200 whitespace-nowrap cursor-pointer ${
                 mainTab === "simulator"
-                  ? "bg-rose-600 text-white shadow-sm shadow-rose-500/25"
-                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+                  ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-950 shadow-xs font-semibold"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-200/60 dark:hover:bg-slate-800/60"
               }`}
             >
               <Mic className="w-4 h-4" />
               <span>Simulasi Sidang DPL</span>
-              <span className="text-[10px] px-1.5 py-0.2 rounded bg-rose-100 text-rose-800">
-                Skeptis
+              <span
+                className={`text-[10px] px-1.5 py-0.2 rounded font-bold ${
+                  mainTab === "simulator"
+                    ? "bg-rose-400 text-slate-950"
+                    : "bg-rose-100 dark:bg-rose-950/80 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-700"
+                }`}
+              >
+                Live Voice
               </span>
             </button>
 
             <button
               type="button"
               onClick={() => setMainTab("kkn")}
-              className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs md:text-sm font-medium transition-all duration-200 whitespace-nowrap cursor-pointer ${
                 mainTab === "kkn"
-                  ? "bg-emerald-600 text-white shadow-sm shadow-emerald-500/25"
-                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+                  ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-950 shadow-xs font-semibold"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-200/60 dark:hover:bg-slate-800/60"
               }`}
             >
               <Tent className="w-4 h-4" />
@@ -1846,15 +1878,21 @@ export default function HomePage() {
             <button
               type="button"
               onClick={() => setMainTab("admin")}
-              className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs md:text-sm font-medium transition-all duration-200 whitespace-nowrap cursor-pointer ${
                 mainTab === "admin"
-                  ? "bg-teal-600 text-white shadow-sm shadow-teal-500/25"
-                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+                  ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-950 shadow-xs font-semibold"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-200/60 dark:hover:bg-slate-800/60"
               }`}
             >
               <ClipboardCheck className="w-4 h-4" />
               <span>Berkas & Penilaian</span>
-              <span className="text-[10px] px-1.5 py-0.2 rounded bg-teal-100 text-teal-800">
+              <span
+                className={`text-[10px] px-1.5 py-0.2 rounded font-bold ${
+                  mainTab === "admin"
+                    ? "bg-teal-400 text-slate-950"
+                    : "bg-teal-100 dark:bg-teal-950/80 text-teal-800 dark:text-teal-300 border border-teal-300 dark:border-teal-700"
+                }`}
+              >
                 Docx
               </span>
             </button>
@@ -2103,13 +2141,24 @@ export default function HomePage() {
           </section>
         )}
 
-        {/* Heatmap Kehadiran 30 Hari Kerja & Kalkulator 900 Jam MBKM */}
+        {/* Bento Grid Dashboard & Heatmap Kehadiran 900 Jam MBKM */}
         <AttendanceTracker
           history={history}
+          isPro={isPro}
+          remainingQuota={remainingQuota}
+          maxFreeQuota={MAX_FREE_QUOTA}
+          planName={
+            licenseDetails?.tier === "sultan"
+              ? "Sultan Pro MBKM"
+              : licenseDetails?.plan || "Member Pro 3 Bulan"
+          }
+          onOpenUpgradeModal={() => setIsLicenseModalOpen(true)}
           onSelectDateToBackfill={(isoDate, displayDate) => {
             setMode("daily");
             setTanggalHarian(isoDate);
-            triggerToast(`Form disetel untuk mengisi logbook tanggal ${displayDate}`);
+            toast.info(`Form disetel untuk tanggal ${displayDate}`, {
+              description: "Silakan lengkapi catatan kegiatan atau unggah foto dokumentasi.",
+            });
             const formElem = document.getElementById("daily-form-card");
             if (formElem) {
               formElem.scrollIntoView({ behavior: "smooth" });
@@ -2680,18 +2729,18 @@ export default function HomePage() {
               </div>
             )}
 
-            {/* Tombol Submit */}
+            {/* Tombol Submit dengan Efek Shimmer Button */}
             <button
               type="submit"
               disabled={isLoading || isQuotaExhausted}
-              className={`w-full py-3.5 px-5 rounded-xl font-bold text-sm sm:text-base flex items-center justify-center gap-2.5 transition-all shadow-md cursor-pointer ${
+              className={`shimmer-button relative w-full py-3.5 px-5 rounded-xl font-bold text-sm sm:text-base flex items-center justify-center gap-2.5 transition-all shadow-md cursor-pointer ${
                 isQuotaExhausted
-                  ? "bg-slate-200 text-slate-500 cursor-not-allowed shadow-none"
+                  ? "bg-slate-200 dark:bg-slate-800 text-slate-500 cursor-not-allowed shadow-none"
                   : mode === "weekly"
-                    ? "bg-gradient-to-r from-indigo-600 via-indigo-700 to-violet-700 hover:from-indigo-700 hover:to-violet-800 active:scale-[0.99] text-white shadow-indigo-500/25"
+                    ? "bg-gradient-to-r from-indigo-600 via-indigo-700 to-violet-700 hover:from-indigo-700 hover:to-violet-800 active:scale-[0.99] text-white shadow-indigo-500/25 ring-1 ring-white/20"
                     : fotoBase64
-                      ? "bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 hover:from-indigo-700 hover:to-purple-700 active:scale-[0.99] text-white shadow-indigo-500/25"
-                      : "bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white shadow-indigo-500/25"
+                      ? "bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 hover:from-indigo-700 hover:to-purple-700 active:scale-[0.99] text-white shadow-indigo-500/25 ring-1 ring-white/20"
+                      : "bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white shadow-indigo-500/25 ring-1 ring-white/20"
               }`}
             >
               {isLoading ? (

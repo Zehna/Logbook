@@ -33,6 +33,48 @@
   animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
+/* Shimmer Button Effect */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.shimmer-button {
+  position: relative;
+  overflow: hidden;
+}
+
+.shimmer-button::after {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    60deg,
+    transparent 20%,
+    rgba(255, 255, 255, 0.22) 50%,
+    transparent 80%
+  );
+  transform: rotate(25deg) translateY(-100%);
+  animation: shimmer-slide 3.5s infinite ease-in-out;
+  pointer-events: none;
+}
+
+@keyframes shimmer-slide {
+  0% {
+    transform: rotate(25deg) translateY(-120%);
+  }
+  30%, 100% {
+    transform: rotate(25deg) translateY(120%);
+  }
+}
+
 /* Hide scrollbar for Chrome, Safari and Opera */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
