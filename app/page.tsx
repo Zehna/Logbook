@@ -2917,40 +2917,39 @@ export default function HomePage() {
 
         {/* PANEL AKSI: HUB EKSPOR & INTEGRASI DOKUMEN */}
         {hasAnyOutput && !isLoading && (
-          <section className="bg-gradient-to-br from-white via-indigo-50/40 to-slate-50 rounded-2xl p-5 sm:p-6 border border-indigo-200/80 shadow-sm space-y-5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-indigo-100">
+          <section className="bg-white dark:bg-zinc-900/60 rounded-xl p-5 sm:p-6 border border-zinc-200 dark:border-zinc-800 shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-zinc-100 dark:border-zinc-800">
               <div>
-                <div className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-700 bg-indigo-100/80 px-2.5 py-1 rounded-full mb-1.5">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>Dokumen & Export Hub</span>
+                <div className="inline-flex items-center gap-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 px-2.5 py-0.5 rounded-md mb-1">
+                  <FileText className="w-3.5 h-3.5 text-zinc-500" />
+                  <span>Hub Ekspor Dokumen</span>
                 </div>
-                <h2 className="text-base sm:text-lg font-extrabold text-slate-900">
-                  Hub Ekspor & Integrasi Dokumen
+                <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
+                  Ekspor & Integrasi Dokumen Resmi
                 </h2>
-                <p className="text-xs text-slate-600 mt-0.5">
-                  Unduh seluruh riwayat logbook ke dokumen resmi atau
-                  integrasikan langsung ke cloud.
+                <p className="text-xs text-zinc-500 mt-0.5">
+                  Unduh seluruh riwayat logbook ke format resmi kampus atau sinkronkan ke cloud.
                 </p>
               </div>
 
-              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-700 self-start sm:self-auto">
-                <History className="w-3.5 h-3.5 text-indigo-600" />
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 text-xs text-zinc-600 dark:text-zinc-300 self-start sm:self-auto">
+                <History className="w-3.5 h-3.5 text-zinc-400" />
                 <span>
-                  {getEntriesForExport().length} Entri Logbook Siap Diekspor
+                  {getEntriesForExport().length} Entri Siap Diekspor
                 </span>
               </div>
             </div>
 
             {/* Pilihan Preset Pedoman Kampus */}
-            <div className="rounded-xl bg-white border border-slate-200/90 p-4 space-y-2.5">
+            <div className="rounded-lg bg-zinc-50/50 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800 p-3.5 space-y-2">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
                 <div className="flex items-center gap-2">
-                  <BookOpen className="w-4 h-4 text-indigo-600" />
-                  <span className="text-xs sm:text-sm font-bold text-slate-800">
+                  <BookOpen className="w-3.5 h-3.5 text-zinc-500" />
+                  <span className="text-xs font-medium text-zinc-800 dark:text-zinc-200">
                     Preset Pedoman Kampus (.docx & .pptx)
                   </span>
                 </div>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 self-start sm:self-auto">
+                <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 self-start sm:self-auto">
                   {KAMPUS_PRESETS.find((p) => p.value === selectedPreset)?.badge}
                 </span>
               </div>
@@ -2962,21 +2961,21 @@ export default function HomePage() {
                     <div
                       key={preset.value}
                       onClick={() => handlePresetChange(preset.value)}
-                      className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
+                      className={`p-2.5 rounded-lg border text-left cursor-pointer transition-all ${
                         isSelected
-                          ? "bg-indigo-50/70 border-indigo-500 ring-2 ring-indigo-500/20 shadow-xs"
-                          : "bg-slate-50/60 border-slate-200 hover:bg-slate-100 hover:border-slate-300"
+                          ? "border-zinc-900 dark:border-zinc-100 bg-white dark:bg-zinc-800 shadow-2xs"
+                          : "border-zinc-200 dark:border-zinc-800 bg-transparent hover:border-zinc-300 dark:hover:border-zinc-700"
                       }`}
                     >
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-bold text-xs text-slate-900">
+                      <div className="flex items-center justify-between mb-0.5">
+                        <span className="font-medium text-xs text-zinc-900 dark:text-zinc-100">
                           {preset.label}
                         </span>
                         {isSelected && (
-                          <Check className="w-3.5 h-3.5 text-indigo-600" />
+                          <Check className="w-3.5 h-3.5 text-zinc-900 dark:text-zinc-100" />
                         )}
                       </div>
-                      <p className="text-[11px] text-slate-500 leading-tight">
+                      <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-tight">
                         {preset.description}
                       </p>
                     </div>
@@ -3154,33 +3153,33 @@ export default function HomePage() {
               type="button"
               onClick={handleSynthesizeAndExportWord}
               disabled={isSynthesizingReport || exportingType !== null}
-              className="w-full flex items-center justify-between p-4 rounded-2xl bg-gradient-to-r from-indigo-700 via-purple-700 to-pink-700 hover:from-indigo-800 hover:to-pink-800 text-white font-bold text-left transition shadow-md disabled:opacity-60 cursor-pointer"
+              className="w-full flex items-center justify-between p-3.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-zinc-100 dark:hover:bg-zinc-200 dark:text-zinc-900 font-medium text-left transition shadow-xs disabled:opacity-60 cursor-pointer"
             >
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center shrink-0">
+                <div className="w-8 h-8 rounded-md bg-zinc-800 dark:bg-zinc-200 flex items-center justify-center shrink-0">
                   {isSynthesizingReport ? (
-                    <Loader2 className="w-5 h-5 animate-spin text-amber-300" />
+                    <Loader2 className="w-4 h-4 animate-spin text-white dark:text-zinc-900" />
                   ) : (
-                    <Sparkles className="w-5 h-5 text-amber-300" />
+                    <Sparkles className="w-4 h-4 text-white dark:text-zinc-900" />
                   )}
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs sm:text-sm font-extrabold">
-                      🧠 Sintesis AI Bab I–V + Unduh Laporan Lengkap (.docx)
+                    <span className="text-xs sm:text-sm font-semibold">
+                      Sintesis Bab I–V + Unduh Laporan Lengkap (.docx)
                     </span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-400 text-slate-950 uppercase">
-                      Full Academic
+                    <span className="px-1.5 py-0.2 rounded text-[10px] font-medium bg-zinc-800 dark:bg-zinc-200 text-zinc-100 dark:text-zinc-900">
+                      Academic
                     </span>
                   </div>
-                  <p className="text-[11px] font-normal text-purple-100 mt-0.5">
-                    AI menyusun Bab I (Latar Belakang), Bab II (Teori), Bab IV (Pembahasan & Masalah), dan Bab V (Saran) langsung ke dokumen Word.
+                  <p className="text-[11px] text-zinc-400 dark:text-zinc-600 mt-0.5">
+                    Menyusun Bab I (Latar Belakang), Bab II (Teori), Bab IV (Pembahasan), dan Bab V (Saran) langsung ke Word.
                   </p>
                 </div>
               </div>
-              <div className="hidden sm:flex items-center gap-1.5 text-xs font-semibold bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg border border-white/20">
+              <div className="hidden sm:flex items-center gap-1.5 text-xs font-medium bg-zinc-800 dark:bg-zinc-200 text-white dark:text-zinc-900 px-2.5 py-1 rounded-md">
                 <Download className="w-3.5 h-3.5" />
-                <span>Sintesis & Unduh</span>
+                <span>Unduh</span>
               </div>
             </button>
 
@@ -3190,20 +3189,18 @@ export default function HomePage() {
                 type="button"
                 onClick={handleExportExcel}
                 disabled={exportingType !== null}
-                className="flex flex-col items-start justify-between p-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-left transition shadow-xs disabled:opacity-60 cursor-pointer"
+                className="flex flex-col items-start justify-between p-3.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-900/40 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition cursor-pointer disabled:opacity-60 text-left"
               >
                 <div className="flex items-center justify-between w-full mb-2">
-                  <span className="text-base">📊</span>
-                  {exportingType === "excel" ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <FileSpreadsheet className="w-4 h-4 opacity-85" />
+                  <FileSpreadsheet className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  {exportingType === "excel" && (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-400" />
                   )}
                 </div>
-                <span className="text-xs sm:text-sm font-extrabold leading-snug">
-                  Unduh Rekap Excel (.xlsx)
+                <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 leading-snug">
+                  Rekap Excel (.xlsx)
                 </span>
-                <span className="text-[11px] font-normal text-emerald-100 mt-0.5">
+                <span className="text-[11px] text-zinc-500 mt-0.5">
                   Tabel Formal 8 Kolom
                 </span>
               </button>
@@ -3212,20 +3209,18 @@ export default function HomePage() {
                 type="button"
                 onClick={handleExportWord}
                 disabled={exportingType !== null}
-                className="flex flex-col items-start justify-between p-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-left transition shadow-xs disabled:opacity-60 cursor-pointer"
+                className="flex flex-col items-start justify-between p-3.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-900/40 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition cursor-pointer disabled:opacity-60 text-left"
               >
                 <div className="flex items-center justify-between w-full mb-2">
-                  <span className="text-base">📘</span>
-                  {exportingType === "word" ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <FileText className="w-4 h-4 opacity-85" />
+                  <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  {exportingType === "word" && (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-400" />
                   )}
                 </div>
-                <span className="text-xs sm:text-sm font-extrabold leading-snug">
-                  Unduh Laporan Word (.docx)
+                <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 leading-snug">
+                  Laporan Word (.docx)
                 </span>
-                <span className="text-[11px] font-normal text-blue-100 mt-0.5">
+                <span className="text-[11px] text-zinc-500 mt-0.5">
                   TNR 12pt • Cover & Foto
                 </span>
               </button>
@@ -3234,46 +3229,42 @@ export default function HomePage() {
                 type="button"
                 onClick={handleExportPowerPoint}
                 disabled={exportingType !== null}
-                className="flex flex-col items-start justify-between p-3.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-left transition shadow-xs disabled:opacity-60 cursor-pointer"
+                className="flex flex-col items-start justify-between p-3.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-900/40 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition cursor-pointer disabled:opacity-60 text-left"
               >
                 <div className="flex items-center justify-between w-full mb-2">
-                  <span className="text-base">📈</span>
-                  {exportingType === "pptx" ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Presentation className="w-4 h-4 opacity-85" />
+                  <Presentation className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                  {exportingType === "pptx" && (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-400" />
                   )}
                 </div>
-                <span className="text-xs sm:text-sm font-extrabold leading-snug">
-                  Unduh Slide Sidang (.pptx)
+                <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 leading-snug">
+                  Slide Sidang (.pptx)
                 </span>
-                <span className="text-[11px] font-normal text-amber-100 mt-0.5">
+                <span className="text-[11px] text-zinc-500 mt-0.5">
                   Slide Sidang + Foto
                 </span>
               </button>
             </div>
 
             {/* Grid Tombol Integrasi Cloud & Canva */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
               <button
                 type="button"
                 onClick={handleOpenDriveSyncModal}
-                className="flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 font-bold text-xs sm:text-sm transition shadow-2xs cursor-pointer"
+                className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-800 font-medium text-xs transition cursor-pointer"
               >
-                <span>🔗</span>
-                <Cloud className="w-4 h-4 text-indigo-600" />
+                <Cloud className="w-3.5 h-3.5 text-zinc-500" />
                 <span>Sync to Google Drive / Sheets</span>
               </button>
 
               <button
                 type="button"
                 onClick={handleOpenCanvaPoster}
-                className="flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 text-white font-bold text-xs sm:text-sm transition shadow-xs cursor-pointer"
+                className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-800 font-medium text-xs transition cursor-pointer"
               >
-                <span>🎨</span>
-                <Palette className="w-4 h-4" />
+                <Palette className="w-3.5 h-3.5 text-zinc-500" />
                 <span>Buat Poster di Canva</span>
-                <ExternalLink className="w-3.5 h-3.5 opacity-85" />
+                <ExternalLink className="w-3 h-3 text-zinc-400" />
               </button>
             </div>
 
