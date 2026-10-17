@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 import { WeeklyLogbookDayItem } from "@/src/lib/exporters/types";
+import { checkRateLimit } from "@/src/lib/security/rateLimiter";
 
 export interface WeeklyGeneratePayload {
   tipeKegiatan: string;
@@ -180,6 +181,11 @@ function buildWorkdaysList(
 
 export async function POST(request: NextRequest) {
   try {
+    const rateLimit = checkRateLimit(request);
+    if (!rateLimit.allowed && rateLimit.errorResponse) {
+      return rateLimit.errorResponse;
+    }
+
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey || apiKey.trim() === "" || apiKey === "your_gemini_api_key_here") {

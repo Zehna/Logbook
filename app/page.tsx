@@ -94,8 +94,14 @@ import {
   saveStoredMentorData,
   getStoredSksCourses,
   saveStoredSksCourses,
+  getStoredOfflineDrafts,
+  saveStoredOfflineDraft,
+  removeStoredOfflineDraft,
+  clearStoredOfflineDrafts,
+  OfflineDraftItem,
   StorageEstimateInfo,
 } from "@/src/lib/storage/indexedDbStore";
+import { MonthlyReportOutput } from "@/app/api/generate-monthly/route";
 
 const MAX_FREE_QUOTA = 3;
 const STORAGE_QUOTA_KEY = "logmagang_free_usage_count";
@@ -301,7 +307,7 @@ export default function HomePage() {
   const [mainTab, setMainTab] = useState<
     "generator" | "sks" | "resume" | "simulator" | "kkn" | "admin"
   >("generator");
-  const [mode, setMode] = useState<"daily" | "weekly">("daily");
+  const [mode, setMode] = useState<"daily" | "weekly" | "monthly">("daily");
   const [tone, setTone] = useState<ToneType>("alami");
 
   const [tipeKegiatan, setTipeKegiatan] = useState<TipeKegiatan>("Magang MBKM");
@@ -344,6 +350,18 @@ export default function HomePage() {
   const [expandedDayIdx, setExpandedDayIdx] = useState<number>(0);
   const [copiedDayIdx, setCopiedDayIdx] = useState<number | null>(null);
   const [copiedWeeklyAll, setCopiedWeeklyAll] = useState<boolean>(false);
+
+  // State Mode Laporan Bulanan (Monev)
+  const [selectedBulan, setSelectedBulan] = useState<string>("Bulan 1 (Pekan 1-4)");
+  const [monthlyNotes, setMonthlyNotes] = useState<string>("");
+  const [monthlyResult, setMonthlyResult] = useState<MonthlyReportOutput | null>(null);
+  const [isGeneratingMonthly, setIsGeneratingMonthly] = useState<boolean>(false);
+  const [isExportingMonthlyDocx, setIsExportingMonthlyDocx] = useState<boolean>(false);
+  const [copiedMonthlyField, setCopiedMonthlyField] = useState<string | null>(null);
+
+  // State Offline Resilience untuk Mahasiswa KKN di Pelosok
+  const [isOnline, setIsOnline] = useState<boolean>(true);
+  const [offlineDrafts, setOfflineDrafts] = useState<OfflineDraftItem[]>([]);
 
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -521,8 +539,10 @@ export default function HomePage() {
         }
 
         const est = await getStorageUsageEstimate();
+        const drafts = await getStoredOfflineDrafts();
         if (isMounted) {
           setStorageInfo(est);
+          setOfflineDrafts(drafts);
         }
       } catch (err) {
         console.warn("IndexedDB bootstrap warning:", err);
@@ -531,6 +551,33 @@ export default function HomePage() {
 
     return () => {
       isMounted = false;
+    };
+  }, []);
+
+  // Listener Status Koneksi Online / Offline untuk Mahasiswa KKN di Pelosok
+  useEffect(() => {
+    const handleOnline = async () => {
+      setIsOnline(true);
+      const drafts = await getStoredOfflineDrafts();
+      setOfflineDrafts(drafts);
+      toast.success("🌐 Anda kembali online. Sinkronisasi draf siap dijalankan.");
+    };
+
+    const handleOffline = () => {
+      setIsOnline(false);
+      toast.warning("⚠️ Koneksi internet terputus. Mode pencatatan draf offline aktif.");
+    };
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    if (typeof navigator !== "undefined") {
+      setIsOnline(navigator.onLine);
+    }
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
     };
   }, []);
 
@@ -771,6 +818,24 @@ export default function HomePage() {
       return;
     }
 
+    // Tangani kondisi offline untuk mahasiswa KKN di pelosok
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      await saveStoredOfflineDraft({
+        catatan: catatan.trim(),
+        tipeKegiatan,
+        peran: peran.trim(),
+        mode: "daily",
+        tanggalHarian,
+        fotoBase64: fotoBase64 || undefined,
+        fotoMimeType: fotoBase64 ? fotoMimeType : undefined,
+        tone,
+      });
+      const drafts = await getStoredOfflineDrafts();
+      setOfflineDrafts(drafts);
+      toast.info("📍 Koneksi offline terdeteksi. Catatan harian disimpan sebagai draf offline di IndexedDB.");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -902,6 +967,23 @@ export default function HomePage() {
       return;
     }
 
+    // Tangani kondisi offline untuk mahasiswa KKN di pelosok
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      await saveStoredOfflineDraft({
+        catatan: ringkasanMingguan.trim(),
+        tipeKegiatan,
+        peran: peran.trim(),
+        mode: "weekly",
+        tanggalMulai,
+        tanggalSelesai,
+        ringkasanMingguan: ringkasanMingguan.trim(),
+      });
+      const drafts = await getStoredOfflineDrafts();
+      setOfflineDrafts(drafts);
+      toast.info("📍 Koneksi offline terdeteksi. Catatan 1 pekan disimpan sebagai draf offline di IndexedDB.");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -985,6 +1067,157 @@ export default function HomePage() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Handler Generate Mode Laporan Bulanan (Monev Kemajuan)
+  const handleGenerateMonthly = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setErrorMsg(null);
+
+    if (isQuotaExhausted) {
+      paywallRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+      return;
+    }
+
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      await saveStoredOfflineDraft({
+        catatan: monthlyNotes.trim(),
+        tipeKegiatan,
+        peran: peran.trim() || "Mahasiswa Peserta Program",
+        mode: "monthly",
+        bulanKe: selectedBulan,
+      });
+      const drafts = await getStoredOfflineDrafts();
+      setOfflineDrafts(drafts);
+      toast.info("📍 Koneksi offline terdeteksi. Draf laporan bulanan disimpan di IndexedDB.");
+      return;
+    }
+
+    setIsLoading(true);
+    setIsGeneratingMonthly(true);
+
+    try {
+      const entriesContext = history.slice(0, 30).map((h) => ({
+        tanggal: h.tanggal,
+        deskripsiKegiatan: h.deskripsiKegiatan,
+        kompetensiDikembangkan: h.kompetensiDikembangkan,
+        kendalaDihadapi: h.kendalaDihadapi,
+        solusiTindakan: h.solusiTindakan,
+        refleksiPembelajaran: h.refleksiPembelajaran,
+      }));
+
+      const response = await fetch("/api/generate-monthly", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          bulanKe: selectedBulan,
+          tipeKegiatan,
+          peran: peran.trim() || "Mahasiswa Peserta Program",
+          catatanTambahan: monthlyNotes.trim(),
+          namaMahasiswa: studentProfile.namaMahasiswa,
+          nim: studentProfile.nim,
+          namaMitra: studentProfile.namaMitra,
+          programStudi: studentProfile.programStudi,
+          perguruanTinggi: studentProfile.perguruanTinggi,
+          entries: entriesContext,
+        }),
+      });
+
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload?.error || "Gagal menyusun laporan kemajuan bulanan.");
+      }
+
+      setMonthlyResult(payload);
+      toast.success("✅ Laporan Bulanan (Monev) berhasil disintesis!");
+
+      if (!isPro) {
+        const nextQuota = usedQuota + 1;
+        setUsedQuota(nextQuota);
+        try {
+          localStorage.setItem(STORAGE_QUOTA_KEY, String(nextQuota));
+        } catch {}
+      }
+
+      setTimeout(() => {
+        resultRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }, 150);
+    } catch (err: unknown) {
+      console.error(err);
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Gagal memproses laporan bulanan. Pastikan koneksi internet stabil.";
+      setErrorMsg(message);
+      toast.error(message);
+    } finally {
+      setIsLoading(false);
+      setIsGeneratingMonthly(false);
+    }
+  };
+
+  const handleExportMonthlyDocx = async () => {
+    if (!monthlyResult) return;
+    setIsExportingMonthlyDocx(true);
+    try {
+      const { exportMonthlyReportToWord } = await import(
+        "@/src/lib/exporters/exportMonthlyReport"
+      );
+      await exportMonthlyReportToWord(
+        monthlyResult,
+        studentProfile,
+        tipeKegiatan,
+        peran.trim() || "Mahasiswa Peserta Program"
+      );
+      toast.success("📄 Laporan Bulanan (.docx) berhasil diunduh!");
+    } catch (err: unknown) {
+      console.error("Gagal ekspor laporan bulanan:", err);
+      toast.error("Gagal mengekspor laporan bulanan ke format Word.");
+    } finally {
+      setIsExportingMonthlyDocx(false);
+    }
+  };
+
+  const handleProcessOfflineDrafts = async () => {
+    if (offlineDrafts.length === 0) return;
+    const topDraft = offlineDrafts[0];
+    if (topDraft.mode === "daily") {
+      setMode("daily");
+      setCatatan(topDraft.catatan);
+      if (topDraft.tanggalHarian) setTanggalHarian(topDraft.tanggalHarian);
+      if (topDraft.fotoBase64) setFotoBase64(topDraft.fotoBase64);
+      toast.success("Draf harian dimuat ke formulir. Klik tombol Generate untuk memproses.");
+    } else if (topDraft.mode === "weekly") {
+      setMode("weekly");
+      setRingkasanMingguan(topDraft.ringkasanMingguan || topDraft.catatan);
+      if (topDraft.tanggalMulai) setTanggalMulai(topDraft.tanggalMulai);
+      if (topDraft.tanggalSelesai) setTanggalSelesai(topDraft.tanggalSelesai);
+      toast.success("Draf mingguan dimuat ke formulir. Klik tombol Generate untuk memproses.");
+    } else {
+      setMode("monthly");
+      if (topDraft.bulanKe) setSelectedBulan(topDraft.bulanKe);
+      setMonthlyNotes(topDraft.catatan);
+      toast.success("Draf bulanan dimuat ke formulir. Klik tombol Generate untuk memproses.");
+    }
+
+    await removeStoredOfflineDraft(topDraft.id);
+    const remaining = await getStoredOfflineDrafts();
+    setOfflineDrafts(remaining);
+  };
+
+  const handleClearOfflineDrafts = async () => {
+    await clearStoredOfflineDrafts();
+    setOfflineDrafts([]);
+    toast.info("Seluruh antrean draf offline telah dibersihkan.");
   };
 
   // Daftar entri yang akan diekspor ke Excel, Word, dan PowerPoint
@@ -2009,11 +2242,52 @@ export default function HomePage() {
               </section>
             )}
 
+            {/* Banner Antrean Draf Offline untuk Mahasiswa KKN di Daerah Pelosok */}
+            {offlineDrafts.length > 0 && isOnline && (
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 rounded-xl border border-amber-300 dark:border-amber-700/60 bg-amber-50/90 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 text-xs shadow-xs">
+                <div className="flex items-center gap-2.5">
+                  <span className="text-base">🌐</span>
+                  <div>
+                    <span className="font-semibold">Anda kembali online.</span>
+                    <span className="ml-1 text-amber-800 dark:text-amber-300">
+                      Terdapat {offlineDrafts.length} draf logbook offline.
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                  <button
+                    type="button"
+                    onClick={handleProcessOfflineDrafts}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-medium text-xs cursor-pointer transition shadow-2xs"
+                  >
+                    <Zap className="w-3.5 h-3.5" />
+                    <span>Generate Sekarang</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleClearOfflineDrafts}
+                    className="px-2.5 py-1.5 rounded-lg hover:bg-amber-200/70 dark:hover:bg-amber-900/50 text-amber-800 dark:text-amber-300 font-medium text-xs cursor-pointer transition"
+                  >
+                    Hapus
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {!isOnline && (
+              <div className="flex items-center gap-2 p-3 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800/60 text-zinc-800 dark:text-zinc-200 text-xs">
+                <span className="text-sm">⚠️</span>
+                <span>
+                  <strong>Mode Offline Aktif:</strong> Tidak ada koneksi internet. Catatan Anda akan otomatis disimpan sebagai draf offline aman di IndexedDB perangkat.
+                </span>
+              </div>
+            )}
+
             {/* Form Input Card (Linear / Midday Minimalist Workspace) */}
             <section id="daily-form-card" className="bg-white dark:bg-zinc-900/60 rounded-xl p-5 sm:p-6 border border-zinc-200 dark:border-zinc-800 shadow-xs space-y-5">
-              {/* Segmented Mode Switcher */}
-              <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800/80 pb-3">
-                <div className="inline-flex p-1 rounded-lg bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700/60">
+              {/* Segmented Mode Switcher (Harian | Borongan 1 Pekan | Laporan Bulanan Monev) */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-zinc-100 dark:border-zinc-800/80 pb-3">
+                <div className="inline-flex p-1 rounded-lg bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700/60 flex-wrap gap-1">
                   <button
                     type="button"
                     onClick={() => {
@@ -2027,7 +2301,7 @@ export default function HomePage() {
                     }`}
                   >
                     <Calendar className="w-3.5 h-3.5" />
-                    <span>Mode Harian (1 Hari)</span>
+                    <span>Mode Harian</span>
                   </button>
 
                   <button
@@ -2043,18 +2317,38 @@ export default function HomePage() {
                     }`}
                   >
                     <Layers className="w-3.5 h-3.5" />
-                    <span>Mode Borongan (1 Pekan)</span>
+                    <span>Mode Borongan 1 Pekan</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode("monthly");
+                      setErrorMsg(null);
+                    }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${
+                      mode === "monthly"
+                        ? "bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-2xs font-semibold"
+                        : "text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200"
+                    }`}
+                  >
+                    <BookOpen className="w-3.5 h-3.5" />
+                    <span>Laporan Bulanan (Monev)</span>
                   </button>
                 </div>
 
                 <span className="text-xs text-zinc-400 dark:text-zinc-500 hidden sm:inline">
-                  Standar Taksonomi Bloom (C3–C6)
+                  Standar MBKM & Taksonomi Bloom
                 </span>
               </div>
 
               <form
                 onSubmit={
-                  mode === "daily" ? handleGenerateDaily : handleGenerateWeekly
+                  mode === "daily"
+                    ? handleGenerateDaily
+                    : mode === "weekly"
+                    ? handleGenerateWeekly
+                    : handleGenerateMonthly
                 }
                 className="space-y-4"
               >
@@ -2380,7 +2674,7 @@ export default function HomePage() {
                       </div>
                     </div>
                   </div>
-                ) : (
+                ) : mode === "weekly" ? (
                   /* KONDISIONAL: MODE BORONGAN 1 PEKAN */
                   <div className="space-y-4">
                     <div className="rounded-lg bg-zinc-50/70 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800 p-3 space-y-2.5">
@@ -2501,6 +2795,105 @@ export default function HomePage() {
                       </div>
                     </div>
                   </div>
+                ) : (
+                  /* KONDISIONAL: MODE LAPORAN BULANAN (MONEV) */
+                  <div className="space-y-4">
+                    <div className="rounded-lg bg-zinc-50/70 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800 p-3.5 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-zinc-800 dark:text-zinc-200 flex items-center gap-1.5">
+                          <BookOpen className="w-3.5 h-3.5 text-zinc-500" />
+                          <span>Pilih Target Periode Bulan Pelaporan</span>
+                        </span>
+                        <span className="text-[11px] text-zinc-400">
+                          Standar Monev MBKM
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                        {[
+                          "Bulan 1 (Pekan 1-4)",
+                          "Bulan 2 (Pekan 5-8)",
+                          "Mid-term (Tengah Periode)",
+                          "Bulan 3 (Pekan 9-12)",
+                          "Bulan 4 (Pekan 13-16)",
+                        ].map((b) => (
+                          <button
+                            key={b}
+                            type="button"
+                            onClick={() => setSelectedBulan(b)}
+                            className={`p-2.5 rounded-lg border text-left transition cursor-pointer flex flex-col justify-between ${
+                              selectedBulan === b
+                                ? "border-zinc-900 dark:border-zinc-100 bg-white dark:bg-zinc-900 shadow-2xs"
+                                : "border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/60"
+                            }`}
+                          >
+                            <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 leading-tight">
+                              {b.split(" ")[0]} {b.split(" ")[1] || ""}
+                            </span>
+                            <span className="text-[10px] text-zinc-500 mt-1">
+                              {b.includes("(") ? b.substring(b.indexOf("(") + 1, b.indexOf(")")) : "Evaluasi"}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="p-2.5 rounded-lg bg-zinc-100/70 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700/80 text-[11px] text-zinc-600 dark:text-zinc-300 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <BarChart3 className="w-4 h-4 text-zinc-500" />
+                          <span>
+                            <strong>Basis Data Historis:</strong> Menyintesis {history.length} entri riwayat logbook aktif.
+                          </span>
+                        </div>
+                        {history.length === 0 && (
+                          <span className="text-amber-600 dark:text-amber-400 font-medium">
+                            (Belum ada riwayat harian tersimpan)
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label
+                          htmlFor="input-catatan-bulanan"
+                          className="block text-xs font-medium text-zinc-700 dark:text-zinc-300"
+                        >
+                          Fokus Utama / Catatan Tambahan Laporan Kemajuan (Opsional)
+                        </label>
+                        <span className="text-[11px] text-zinc-400">
+                          Milestone & Target IKU
+                        </span>
+                      </div>
+
+                      <div className="relative rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 focus-within:border-zinc-400 dark:focus-within:border-zinc-600 focus-within:ring-1 focus-within:ring-zinc-400 dark:focus-within:ring-zinc-600 transition-all">
+                        <textarea
+                          id="input-catatan-bulanan"
+                          rows={4}
+                          value={monthlyNotes}
+                          onChange={(e) => setMonthlyNotes(e.target.value)}
+                          placeholder="Tambahkan catatan khusus, misal: 'Fokus bulan ini menyelesaikan modul backend dan integrasi gateway' atau biarkan kosong agar AI merangkum seluruh logbook..."
+                          disabled={isLoading}
+                          className="w-full bg-transparent p-3.5 pb-12 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none resize-y leading-relaxed border-0"
+                        />
+
+                        {/* Floating Toolbar inside monthly textarea */}
+                        <div className="absolute bottom-2 left-2.5 right-2.5 flex items-center justify-between gap-2 pt-1 border-t border-zinc-100 dark:border-zinc-800/80 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xs">
+                          <div className="flex items-center gap-1.5">
+                            <VoiceDictationButton
+                              onTranscript={(text) =>
+                                setMonthlyNotes((prev) =>
+                                  prev ? `${prev} ${text}` : text
+                                )
+                              }
+                            />
+                          </div>
+                          <span className="text-[11px] text-zinc-400">
+                            Merangkum IKU, Milestone, Evaluasi & Target 4 Pekan
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 )}
 
                 {/* Pesan Error */}
@@ -2528,17 +2921,24 @@ export default function HomePage() {
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
                       <span>
-                        {mode === "weekly"
-                          ? "Menyusun Narasi 1 Pekan..."
-                          : fotoBase64
-                            ? "Menganalisis Foto & Menyusun Logbook..."
-                            : "Menyusun Logbook..."}
+                        {mode === "monthly"
+                          ? "Menyintesis Laporan Bulanan..."
+                          : mode === "weekly"
+                            ? "Menyusun Narasi 1 Pekan..."
+                            : fotoBase64
+                              ? "Menganalisis Foto & Menyusun Logbook..."
+                              : "Menyusun Logbook..."}
                       </span>
                     </>
                   ) : isQuotaExhausted ? (
                     <>
                       <Crown className="w-4 h-4 text-zinc-400" />
                       <span>Kuota Gratis Habis — Upgrade ke Pro</span>
+                    </>
+                  ) : mode === "monthly" ? (
+                    <>
+                      <Sparkles className="w-4 h-4" />
+                      <span>Sintesis Laporan Bulanan (Monev)</span>
                     </>
                   ) : mode === "weekly" ? (
                     <>
@@ -2771,6 +3171,202 @@ export default function HomePage() {
                         })}
                       </div>
                     )}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* ================================================================= */}
+        {/* TAMPILAN HASIL MODE BULANAN (MONEV KEMAJUAN MBKM)                 */}
+        {/* ================================================================= */}
+        {mode === "monthly" && monthlyResult && !isLoading && (
+          <section
+            ref={resultRef}
+            className="bg-white dark:bg-zinc-900 rounded-xl p-5 sm:p-6 border border-zinc-200 dark:border-zinc-800 shadow-xs space-y-5 scroll-mt-16"
+          >
+            {/* Header Hasil Bulanan + Actions */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-zinc-100 dark:border-zinc-800">
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-xs font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700">
+                    <Calendar className="w-3.5 h-3.5 text-zinc-500" />
+                    <span>{monthlyResult.periodeBulan}</span>
+                  </span>
+                  <span className="text-xs text-zinc-500">
+                    {tipeKegiatan} • {peran.trim() || "Mahasiswa"}
+                  </span>
+                </div>
+                <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 mt-1">
+                  Hasil Sintesis Laporan Kemajuan Bulanan (Monev)
+                </h2>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const fullText = [
+                      `# ${monthlyResult.periodeBulan}`,
+                      `**Nama Mahasiswa**: ${studentProfile.namaMahasiswa} (${studentProfile.nim})`,
+                      `**Mitra**: ${studentProfile.namaMitra} | **Program**: ${tipeKegiatan}`,
+                      `**Peran**: ${peran.trim() || "Peserta"}`,
+                      "",
+                      "## 1. Ringkasan Pencapaian IKU (Capaian Pembelajaran)",
+                      monthlyResult.ringkasanPencapaianIKU,
+                      "",
+                      "## 2. Milestone & Progres Proyek Utama",
+                      monthlyResult.milestoneProyekUtama,
+                      "",
+                      "## 3. Evaluasi Hambatan & Solusi Mitigasi",
+                      monthlyResult.evaluasiHambatanDanSolusi,
+                      "",
+                      "## 4. Rencana Kerja Strategis 4 Pekan ke Depan",
+                      monthlyResult.rencanaEmpatPekanKedepan,
+                      "",
+                      "## 5. Refleksi Pembelajaran Bermakna & Saran Kolaborasi",
+                      monthlyResult.rekomendasiDanRefleksi,
+                    ].join("\n");
+                    try {
+                      await navigator.clipboard.writeText(fullText);
+                      setCopiedMonthlyField("all");
+                      setTimeout(() => setCopiedMonthlyField(null), 2000);
+                      toast.success("Seluruh naskah laporan bulanan tersalin!");
+                    } catch {
+                      // ignore
+                    }
+                  }}
+                  className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700 shadow-xs"
+                >
+                  {copiedMonthlyField === "all" ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                      <span>Semua Tersalin!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>Salin Semua (MD)</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleExportMonthlyDocx}
+                  disabled={isExportingMonthlyDocx}
+                  className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-zinc-200 text-white dark:text-zinc-900 shadow-xs disabled:opacity-50"
+                >
+                  {isExportingMonthlyDocx ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Mengekspor Word...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-3.5 h-3.5" />
+                      <span>Unduh Dokumen (.docx)</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* 5 Kartu Bagian Laporan Bulanan */}
+            <div className="space-y-4">
+              {[
+                {
+                  id: "iku",
+                  title: "Ringkasan Pencapaian IKU & Capaian Pembelajaran",
+                  badge: "Indikator Kinerja Utama (IKU MBKM / CPL Kurikulum OBE)",
+                  icon: Award,
+                  content: monthlyResult.ringkasanPencapaianIKU,
+                },
+                {
+                  id: "milestone",
+                  title: "Milestone & Progres Proyek Utama",
+                  badge: "Deliverables & Progres Kerja Industri",
+                  icon: CheckCircle2,
+                  content: monthlyResult.milestoneProyekUtama,
+                },
+                {
+                  id: "evaluasi",
+                  title: "Evaluasi Hambatan, Tantangan, & Solusi Mitigasi",
+                  badge: "Problem Solving & Kendala Teratasi",
+                  icon: AlertTriangle,
+                  content: monthlyResult.evaluasiHambatanDanSolusi,
+                },
+                {
+                  id: "rencana",
+                  title: "Rencana Kerja Strategis & Target 4 Pekan ke Depan",
+                  badge: "Action Plan & Timeline Kerja Lanjutan",
+                  icon: Calendar,
+                  content: monthlyResult.rencanaEmpatPekanKedepan,
+                },
+                {
+                  id: "refleksi",
+                  title: "Refleksi Pembelajaran Bermakna & Evaluasi",
+                  badge: "Pengembangan Diri & Rekomendasi Sinergi Mitra",
+                  icon: Lightbulb,
+                  content: monthlyResult.rekomendasiDanRefleksi,
+                },
+              ].map((section, idx) => {
+                const IconComponent = section.icon;
+                const isCopied = copiedMonthlyField === section.id;
+
+                return (
+                  <div
+                    key={section.id}
+                    className="p-4 rounded-xl bg-zinc-50/70 dark:bg-zinc-800/40 border border-zinc-200/80 dark:border-zinc-800 space-y-2.5 transition hover:border-zinc-300 dark:hover:border-zinc-700"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-lg bg-zinc-200/70 dark:bg-zinc-700 flex items-center justify-center shrink-0 text-zinc-800 dark:text-zinc-200">
+                          <IconComponent className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <h3 className="text-xs sm:text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                            {idx + 1}. {section.title}
+                          </h3>
+                          <span className="text-[11px] text-zinc-500 dark:text-zinc-400 block">
+                            {section.badge}
+                          </span>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(section.content);
+                            setCopiedMonthlyField(section.id);
+                            setTimeout(() => setCopiedMonthlyField(null), 2000);
+                            toast.success(`Bagian ${idx + 1} berhasil disalin!`);
+                          } catch {
+                            // ignore
+                          }
+                        }}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-200/60 dark:hover:bg-zinc-700/60 transition cursor-pointer shrink-0"
+                        title="Salin teks bagian ini"
+                      >
+                        {isCopied ? (
+                          <>
+                            <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                            <span className="text-emerald-600 dark:text-emerald-400">Tersalin</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3 h-3" />
+                            <span>Salin</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    <p className="text-xs sm:text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed whitespace-pre-line pl-0 sm:pl-9.5">
+                      {section.content}
+                    </p>
                   </div>
                 );
               })}

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 import { LogbookEntry, StudentProfile } from "@/src/lib/exporters/types";
 import { SynthesizedReportChapters } from "@/src/lib/types/modules";
+import { checkRateLimit } from "@/src/lib/security/rateLimiter";
 
 export interface SynthesizeReportPayload {
   studentProfile?: Partial<StudentProfile>;
@@ -51,6 +52,11 @@ const SYNTHESIZE_REPORT_SCHEMA = {
 
 export async function POST(request: NextRequest) {
   try {
+    const rateLimit = checkRateLimit(request);
+    if (!rateLimit.allowed && rateLimit.errorResponse) {
+      return rateLimit.errorResponse;
+    }
+
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey || apiKey.trim() === "" || apiKey === "your_gemini_api_key_here") {

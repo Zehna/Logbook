@@ -9,6 +9,7 @@ import {
   ShadingType,
   Table,
   TableCell,
+  TableLayoutType,
   TableRow,
   TextRun,
   VerticalAlign,
@@ -22,6 +23,13 @@ const SIZE_12PT = 24; // 12pt
 const SIZE_14PT = 28; // 14pt
 const SIZE_16PT = 32; // 16pt
 const LINE_SPACING_1_5 = 360;
+
+// Konstanta lebar tabel tetap A4 (dxa) untuk kompatibilitas WPS Office
+const ADMIN_TABLE_WIDTH_DXA = 8600;
+const KOP_WITH_LOGO_WIDTHS = [1400, 7200];
+const KOP_NO_LOGO_WIDTHS = [8600];
+const SIGNATURE_QR_WIDTHS = [4400, 4200];
+const RUBRIK_COL_WIDTHS = [600, 2800, 900, 1100, 3200];
 
 export interface MentorEvaluationScore {
   aspek: string;
@@ -300,12 +308,14 @@ function createKopSuratTable(student: Partial<StudentProfile>, kop?: KopSuratMit
 
   if (logoParagraph) {
     return new Table({
-      width: { size: 100, type: WidthType.PERCENTAGE },
+      layout: TableLayoutType.FIXED,
+      width: { size: ADMIN_TABLE_WIDTH_DXA, type: WidthType.DXA },
+      columnWidths: KOP_WITH_LOGO_WIDTHS,
       rows: [
         new TableRow({
           children: [
             new TableCell({
-              width: { size: 18, type: WidthType.PERCENTAGE },
+              width: { size: KOP_WITH_LOGO_WIDTHS[0], type: WidthType.DXA },
               verticalAlign: VerticalAlign.CENTER,
               borders: {
                 top: noneBorder,
@@ -316,7 +326,7 @@ function createKopSuratTable(student: Partial<StudentProfile>, kop?: KopSuratMit
               children: [logoParagraph],
             }),
             new TableCell({
-              width: { size: 82, type: WidthType.PERCENTAGE },
+              width: { size: KOP_WITH_LOGO_WIDTHS[1], type: WidthType.DXA },
               verticalAlign: VerticalAlign.CENTER,
               borders: {
                 top: noneBorder,
@@ -372,12 +382,14 @@ function createKopSuratTable(student: Partial<StudentProfile>, kop?: KopSuratMit
   }
 
   return new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE },
+    layout: TableLayoutType.FIXED,
+    width: { size: ADMIN_TABLE_WIDTH_DXA, type: WidthType.DXA },
+    columnWidths: KOP_NO_LOGO_WIDTHS,
     rows: [
       new TableRow({
         children: [
           new TableCell({
-            width: { size: 100, type: WidthType.PERCENTAGE },
+            width: { size: KOP_NO_LOGO_WIDTHS[0], type: WidthType.DXA },
             verticalAlign: VerticalAlign.CENTER,
             borders: {
               top: noneBorder,
@@ -486,18 +498,20 @@ function createSignatureSectionWithQr(params: {
   ];
 
   return new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE },
+    layout: TableLayoutType.FIXED,
+    width: { size: ADMIN_TABLE_WIDTH_DXA, type: WidthType.DXA },
+    columnWidths: SIGNATURE_QR_WIDTHS,
     rows: [
       new TableRow({
         children: [
           new TableCell({
-            width: { size: 52, type: WidthType.PERCENTAGE },
+            width: { size: SIGNATURE_QR_WIDTHS[0], type: WidthType.DXA },
             verticalAlign: VerticalAlign.BOTTOM,
             borders: { top: noneBorder, bottom: noneBorder, left: noneBorder, right: noneBorder },
             children: leftCellChildren,
           }),
           new TableCell({
-            width: { size: 48, type: WidthType.PERCENTAGE },
+            width: { size: SIGNATURE_QR_WIDTHS[1], type: WidthType.DXA },
             verticalAlign: VerticalAlign.BOTTOM,
             borders: { top: noneBorder, bottom: noneBorder, left: noneBorder, right: noneBorder },
             children: rightCellChildren,
@@ -539,15 +553,15 @@ export async function exportLembarPenilaianMentor(
   const tableHeader = new TableRow({
     tableHeader: true,
     children: [
-      { text: "No", width: 6 },
-      { text: "Komponen / Aspek Penilaian", width: 44 },
-      { text: "Bobot (%)", width: 14 },
-      { text: "Skor (1-100)", width: 14 },
-      { text: "Keterangan Kualitatif", width: 22 },
+      { text: "No", width: RUBRIK_COL_WIDTHS[0] },
+      { text: "Komponen / Aspek Penilaian", width: RUBRIK_COL_WIDTHS[1] },
+      { text: "Bobot (%)", width: RUBRIK_COL_WIDTHS[2] },
+      { text: "Skor (1-100)", width: RUBRIK_COL_WIDTHS[3] },
+      { text: "Keterangan Kualitatif", width: RUBRIK_COL_WIDTHS[4] },
     ].map(
       (col) =>
         new TableCell({
-          width: { size: col.width, type: WidthType.PERCENTAGE },
+          width: { size: col.width, type: WidthType.DXA },
           shading: { fill: "1E1B4B", type: ShadingType.CLEAR, color: "auto" },
           verticalAlign: VerticalAlign.CENTER,
           borders: {
@@ -579,6 +593,7 @@ export async function exportLembarPenilaianMentor(
     return new TableRow({
       children: [
         new TableCell({
+          width: { size: RUBRIK_COL_WIDTHS[0], type: WidthType.DXA },
           verticalAlign: VerticalAlign.CENTER,
           borders: {
             top: thinBorder,
@@ -591,6 +606,7 @@ export async function exportLembarPenilaianMentor(
           ],
         }),
         new TableCell({
+          width: { size: RUBRIK_COL_WIDTHS[1], type: WidthType.DXA },
           verticalAlign: VerticalAlign.CENTER,
           borders: {
             top: thinBorder,
@@ -603,6 +619,7 @@ export async function exportLembarPenilaianMentor(
           ],
         }),
         new TableCell({
+          width: { size: RUBRIK_COL_WIDTHS[2], type: WidthType.DXA },
           verticalAlign: VerticalAlign.CENTER,
           borders: {
             top: thinBorder,
@@ -615,6 +632,7 @@ export async function exportLembarPenilaianMentor(
           ],
         }),
         new TableCell({
+          width: { size: RUBRIK_COL_WIDTHS[3], type: WidthType.DXA },
           verticalAlign: VerticalAlign.CENTER,
           borders: {
             top: thinBorder,
@@ -630,6 +648,7 @@ export async function exportLembarPenilaianMentor(
           ],
         }),
         new TableCell({
+          width: { size: RUBRIK_COL_WIDTHS[4], type: WidthType.DXA },
           verticalAlign: VerticalAlign.CENTER,
           borders: {
             top: thinBorder,
@@ -650,6 +669,7 @@ export async function exportLembarPenilaianMentor(
     children: [
       new TableCell({
         columnSpan: 3,
+        width: { size: RUBRIK_COL_WIDTHS[0] + RUBRIK_COL_WIDTHS[1] + RUBRIK_COL_WIDTHS[2], type: WidthType.DXA },
         borders: { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder },
         shading: { fill: "F1F5F9", type: ShadingType.CLEAR, color: "auto" },
         children: [
@@ -660,6 +680,7 @@ export async function exportLembarPenilaianMentor(
         ],
       }),
       new TableCell({
+        width: { size: RUBRIK_COL_WIDTHS[3], type: WidthType.DXA },
         borders: { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder },
         shading: { fill: "E0E7FF", type: ShadingType.CLEAR, color: "auto" },
         children: [
@@ -670,6 +691,7 @@ export async function exportLembarPenilaianMentor(
         ],
       }),
       new TableCell({
+        width: { size: RUBRIK_COL_WIDTHS[4], type: WidthType.DXA },
         borders: { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder },
         shading: { fill: "F1F5F9", type: ShadingType.CLEAR, color: "auto" },
         children: [
@@ -732,7 +754,9 @@ export async function exportLembarPenilaianMentor(
           }),
 
           new Table({
-            width: { size: 100, type: WidthType.PERCENTAGE },
+            layout: TableLayoutType.FIXED,
+            width: { size: ADMIN_TABLE_WIDTH_DXA, type: WidthType.DXA },
+            columnWidths: RUBRIK_COL_WIDTHS,
             rows: [tableHeader, ...tableRows, totalRow],
           }),
 

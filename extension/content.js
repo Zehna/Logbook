@@ -427,15 +427,21 @@
     panel.style.display = "none";
   });
 
-  // 4. Logika Cerdas Pencocokan Form Berdasarkan Preset Portal
+  // 4. Logika Cerdas Pencocokan Form Berdasarkan Preset Portal & React SPA Resilience
   function triggerEvents(el, value) {
     const tracker = el._valueTracker;
     if (tracker) {
       tracker.setValue("");
     }
 
-    const proto = Object.getPrototypeOf(el);
-    const nativeSetter = Object.getOwnPropertyDescriptor(proto, "value")?.set;
+    // Pola nativeInputValueSetter untuk React 16/17/18+ SPA (mencegah teks terhapus saat form disubmit)
+    const isTextArea = el.tagName?.toLowerCase() === "textarea";
+    const nativeSetter = isTextArea
+      ? (Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value")?.set ||
+         Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set)
+      : (Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set ||
+         Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value")?.set);
+
     if (nativeSetter) {
       nativeSetter.call(el, value);
     } else {

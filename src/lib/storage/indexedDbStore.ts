@@ -23,8 +23,28 @@ export const IDB_KEYS = {
   KKN_TEAM: "logmagang_kkn_team_data",
   SYNTHESIZED_REPORT: "logmagang_synthesized_report",
   DEFENSE_EVALUATIONS: "logmagang_defense_evaluations",
+  OFFLINE_DRAFTS: "logmagang_offline_drafts",
   MIGRATION_FLAG: "logmagang_idb_migrated_v1",
 } as const;
+
+export interface OfflineDraftItem {
+  id: string;
+  createdAt: string;
+  catatan: string;
+  tipeKegiatan: string;
+  peran: string;
+  mode: "daily" | "weekly" | "monthly";
+  tanggalHarian?: string;
+  tanggalMulai?: string;
+  tanggalSelesai?: string;
+  ringkasanMingguan?: string;
+  bulanKe?: string;
+  fotoBase64?: string;
+  fotoMimeType?: string;
+  tone?: string;
+  instruksiKhusus?: string;
+  status: "DRAFT_OFFLINE";
+}
 
 /**
  * Membuka koneksi IndexedDB dengan aman
@@ -188,6 +208,36 @@ export async function getStoredDefenseEvaluations(): Promise<Record<number, Defe
 
 export async function saveStoredDefenseEvaluations(evals: Record<number, DefenseEvaluationResult>): Promise<void> {
   await setIdbItem(IDB_KEYS.DEFENSE_EVALUATIONS, evals);
+}
+
+export async function getStoredOfflineDrafts(): Promise<OfflineDraftItem[]> {
+  const data = await getIdbItem<OfflineDraftItem[]>(IDB_KEYS.OFFLINE_DRAFTS);
+  return Array.isArray(data) ? data : [];
+}
+
+export async function saveStoredOfflineDraft(
+  draft: Omit<OfflineDraftItem, "id" | "createdAt" | "status">
+): Promise<OfflineDraftItem> {
+  const existing = await getStoredOfflineDrafts();
+  const newItem: OfflineDraftItem = {
+    ...draft,
+    id: `draft_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    createdAt: new Date().toISOString(),
+    status: "DRAFT_OFFLINE",
+  };
+  const updated = [newItem, ...existing];
+  await setIdbItem(IDB_KEYS.OFFLINE_DRAFTS, updated);
+  return newItem;
+}
+
+export async function removeStoredOfflineDraft(id: string): Promise<void> {
+  const existing = await getStoredOfflineDrafts();
+  const updated = existing.filter((d) => d.id !== id);
+  await setIdbItem(IDB_KEYS.OFFLINE_DRAFTS, updated);
+}
+
+export async function clearStoredOfflineDrafts(): Promise<void> {
+  await setIdbItem(IDB_KEYS.OFFLINE_DRAFTS, []);
 }
 
 // ==========================================

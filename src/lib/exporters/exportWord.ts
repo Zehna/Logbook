@@ -9,6 +9,7 @@ import {
   ShadingType,
   Table,
   TableCell,
+  TableLayoutType,
   TableRow,
   TextRun,
   VerticalAlign,
@@ -29,6 +30,13 @@ const SIZE_12PT = 24; // 24 half-points = 12pt
 const SIZE_14PT = 28; // 14pt
 const SIZE_16PT = 32; // 16pt
 const LINE_SPACING_1_5 = 360; // 240 * 1.5 = 360 twips
+
+// Lebar tabel tetap standar A4 (dxa) untuk kompatibilitas presisi WPS Office & Word
+const TABLE_WIDTH_DXA = 8000;
+const BIO_COL_WIDTHS = [2500, 300, 5200];
+const DUAL_SIGN_WIDTHS = [4000, 4000];
+const LOGBOOK_COL_WIDTHS = [450, 1250, 2300, 1350, 1400, 1250];
+const MENTOR_RUBRIK_WIDTHS = [600, 4200, 1400, 1800];
 
 function renderMultiParagraph(text: string): Paragraph[] {
   if (!text) return [];
@@ -126,7 +134,7 @@ function createBioRow(label: string, value: string): TableRow {
   return new TableRow({
     children: [
       new TableCell({
-        width: { size: 32, type: WidthType.PERCENTAGE },
+        width: { size: BIO_COL_WIDTHS[0], type: WidthType.DXA },
         borders: {
           top: noBorder,
           bottom: noBorder,
@@ -142,7 +150,7 @@ function createBioRow(label: string, value: string): TableRow {
         ],
       }),
       new TableCell({
-        width: { size: 3, type: WidthType.PERCENTAGE },
+        width: { size: BIO_COL_WIDTHS[1], type: WidthType.DXA },
         borders: {
           top: noBorder,
           bottom: noBorder,
@@ -158,7 +166,7 @@ function createBioRow(label: string, value: string): TableRow {
         ],
       }),
       new TableCell({
-        width: { size: 65, type: WidthType.PERCENTAGE },
+        width: { size: BIO_COL_WIDTHS[2], type: WidthType.DXA },
         borders: {
           top: noBorder,
           bottom: noBorder,
@@ -213,16 +221,16 @@ export async function exportLogbookToWord(
   const logbookTableHeader = new TableRow({
     tableHeader: true,
     children: [
-      { title: "No", width: 5 },
-      { title: "Tanggal & Peran", width: 15 },
-      { title: "Deskripsi & Dokumentasi", width: 28 },
-      { title: "Kompetensi", width: 18 },
-      { title: "Kendala & Solusi", width: 18 },
-      { title: "Refleksi", width: 16 },
+      { title: "No", width: LOGBOOK_COL_WIDTHS[0] },
+      { title: "Tanggal & Peran", width: LOGBOOK_COL_WIDTHS[1] },
+      { title: "Deskripsi & Dokumentasi", width: LOGBOOK_COL_WIDTHS[2] },
+      { title: "Kompetensi", width: LOGBOOK_COL_WIDTHS[3] },
+      { title: "Kendala & Solusi", width: LOGBOOK_COL_WIDTHS[4] },
+      { title: "Refleksi", width: LOGBOOK_COL_WIDTHS[5] },
     ].map(
       (col) =>
         new TableCell({
-          width: { size: col.width, type: WidthType.PERCENTAGE },
+          width: { size: col.width, type: WidthType.DXA },
           verticalAlign: VerticalAlign.CENTER,
           shading: {
             fill: headerBgColor,
@@ -280,6 +288,7 @@ export async function exportLogbookToWord(
     return new TableRow({
       children: [
         new TableCell({
+          width: { size: LOGBOOK_COL_WIDTHS[0], type: WidthType.DXA },
           verticalAlign: VerticalAlign.TOP,
           borders: {
             top: thinBorder,
@@ -294,6 +303,7 @@ export async function exportLogbookToWord(
           ],
         }),
         new TableCell({
+          width: { size: LOGBOOK_COL_WIDTHS[1], type: WidthType.DXA },
           verticalAlign: VerticalAlign.TOP,
           borders: {
             top: thinBorder,
@@ -325,6 +335,7 @@ export async function exportLogbookToWord(
           ],
         }),
         new TableCell({
+          width: { size: LOGBOOK_COL_WIDTHS[2], type: WidthType.DXA },
           verticalAlign: VerticalAlign.TOP,
           borders: {
             top: thinBorder,
@@ -335,6 +346,7 @@ export async function exportLogbookToWord(
           children: descChildren,
         }),
         new TableCell({
+          width: { size: LOGBOOK_COL_WIDTHS[3], type: WidthType.DXA },
           verticalAlign: VerticalAlign.TOP,
           borders: {
             top: thinBorder,
@@ -349,6 +361,7 @@ export async function exportLogbookToWord(
           ],
         }),
         new TableCell({
+          width: { size: LOGBOOK_COL_WIDTHS[4], type: WidthType.DXA },
           verticalAlign: VerticalAlign.TOP,
           borders: {
             top: thinBorder,
@@ -367,6 +380,7 @@ export async function exportLogbookToWord(
           ],
         }),
         new TableCell({
+          width: { size: LOGBOOK_COL_WIDTHS[5], type: WidthType.DXA },
           verticalAlign: VerticalAlign.TOP,
           borders: {
             top: thinBorder,
@@ -549,12 +563,14 @@ export async function exportLogbookToWord(
       ),
       // Tabel Tanda Tangan Ganda
       new Table({
-        width: { size: 100, type: WidthType.PERCENTAGE },
+        layout: TableLayoutType.FIXED,
+        width: { size: TABLE_WIDTH_DXA, type: WidthType.DXA },
+        columnWidths: DUAL_SIGN_WIDTHS,
         rows: [
           new TableRow({
             children: [
               new TableCell({
-                width: { size: 50, type: WidthType.PERCENTAGE },
+                width: { size: DUAL_SIGN_WIDTHS[0], type: WidthType.DXA },
                 borders: {
                   top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
                   bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
@@ -569,7 +585,7 @@ export async function exportLogbookToWord(
                 ],
               }),
               new TableCell({
-                width: { size: 50, type: WidthType.PERCENTAGE },
+                width: { size: DUAL_SIGN_WIDTHS[1], type: WidthType.DXA },
                 borders: {
                   top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
                   bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
@@ -657,7 +673,9 @@ export async function exportLogbookToWord(
         }
       ),
       new Table({
-        width: { size: 100, type: WidthType.PERCENTAGE },
+        layout: TableLayoutType.FIXED,
+        width: { size: TABLE_WIDTH_DXA, type: WidthType.DXA },
+        columnWidths: BIO_COL_WIDTHS,
         rows: [
           createBioRow("Nama Mahasiswa", student.namaMahasiswa),
           createBioRow("NIM", student.nim),
@@ -751,7 +769,9 @@ export async function exportLogbookToWord(
         after: 160,
       }),
       new Table({
-        width: { size: 100, type: WidthType.PERCENTAGE },
+        layout: TableLayoutType.FIXED,
+        width: { size: TABLE_WIDTH_DXA, type: WidthType.DXA },
+        columnWidths: LOGBOOK_COL_WIDTHS,
         rows: [logbookTableHeader, ...logbookTableRows],
       }),
       ...bab4Children,
@@ -802,7 +822,9 @@ export async function exportLogbookToWord(
         after: 120,
       }),
       new Table({
-        width: { size: 100, type: WidthType.PERCENTAGE },
+        layout: TableLayoutType.FIXED,
+        width: { size: TABLE_WIDTH_DXA, type: WidthType.DXA },
+        columnWidths: BIO_COL_WIDTHS,
         rows: [
           createBioRow("Nama Mahasiswa", student.namaMahasiswa),
           createBioRow("NIM", student.nim),
@@ -859,7 +881,9 @@ export async function exportLogbookToWord(
         after: 160,
       }),
       new Table({
-        width: { size: 100, type: WidthType.PERCENTAGE },
+        layout: TableLayoutType.FIXED,
+        width: { size: TABLE_WIDTH_DXA, type: WidthType.DXA },
+        columnWidths: LOGBOOK_COL_WIDTHS,
         rows: [logbookTableHeader, ...logbookTableRows],
       }),
       ...discussionChildren,
@@ -876,7 +900,9 @@ export async function exportLogbookToWord(
         after: 200,
       }),
       new Table({
-        width: { size: 100, type: WidthType.PERCENTAGE },
+        layout: TableLayoutType.FIXED,
+        width: { size: TABLE_WIDTH_DXA, type: WidthType.DXA },
+        columnWidths: BIO_COL_WIDTHS,
         rows: [
           createBioRow("Nama Mahasiswa", student.namaMahasiswa),
           createBioRow("Nomor Induk Mahasiswa (NIM)", student.nim),
@@ -982,7 +1008,9 @@ export async function exportLogbookToWord(
         after: 200,
       }),
       new Table({
-        width: { size: 100, type: WidthType.PERCENTAGE },
+        layout: TableLayoutType.FIXED,
+        width: { size: TABLE_WIDTH_DXA, type: WidthType.DXA },
+        columnWidths: LOGBOOK_COL_WIDTHS,
         rows: [logbookTableHeader, ...logbookTableRows],
       }),
       ...narrativeChildren,
@@ -1027,28 +1055,30 @@ export async function exportLogbookToWord(
         { after: 200 }
       ),
       new Table({
-        width: { size: 100, type: WidthType.PERCENTAGE },
+        layout: TableLayoutType.FIXED,
+        width: { size: TABLE_WIDTH_DXA, type: WidthType.DXA },
+        columnWidths: MENTOR_RUBRIK_WIDTHS,
         rows: [
           new TableRow({
             tableHeader: true,
             children: [
               new TableCell({
-                width: { size: 8, type: WidthType.PERCENTAGE },
+                width: { size: MENTOR_RUBRIK_WIDTHS[0], type: WidthType.DXA },
                 shading: { fill: "F1F5F9", type: ShadingType.CLEAR, color: "auto" },
                 children: [createAcademicParagraph("No", { bold: true, alignment: AlignmentType.CENTER })],
               }),
               new TableCell({
-                width: { size: 52, type: WidthType.PERCENTAGE },
+                width: { size: MENTOR_RUBRIK_WIDTHS[1], type: WidthType.DXA },
                 shading: { fill: "F1F5F9", type: ShadingType.CLEAR, color: "auto" },
                 children: [createAcademicParagraph("Aspek Penilaian Evaluasi", { bold: true })],
               }),
               new TableCell({
-                width: { size: 15, type: WidthType.PERCENTAGE },
+                width: { size: MENTOR_RUBRIK_WIDTHS[2], type: WidthType.DXA },
                 shading: { fill: "F1F5F9", type: ShadingType.CLEAR, color: "auto" },
                 children: [createAcademicParagraph("Bobot", { bold: true, alignment: AlignmentType.CENTER })],
               }),
               new TableCell({
-                width: { size: 25, type: WidthType.PERCENTAGE },
+                width: { size: MENTOR_RUBRIK_WIDTHS[3], type: WidthType.DXA },
                 shading: { fill: "F1F5F9", type: ShadingType.CLEAR, color: "auto" },
                 children: [createAcademicParagraph("Nilai (0-100)", { bold: true, alignment: AlignmentType.CENTER })],
               }),
@@ -1058,10 +1088,22 @@ export async function exportLogbookToWord(
             (sc, sIdx) =>
               new TableRow({
                 children: [
-                  new TableCell({ children: [createAcademicParagraph(String(sIdx + 1), { alignment: AlignmentType.CENTER })] }),
-                  new TableCell({ children: [createAcademicParagraph(sc.aspek, { bold: true }), createAcademicParagraph(sc.keterangan, { italics: true, size: 20 })] }),
-                  new TableCell({ children: [createAcademicParagraph(`${sc.bobot}%`, { alignment: AlignmentType.CENTER })] }),
-                  new TableCell({ children: [createAcademicParagraph(String(sc.nilai), { bold: true, alignment: AlignmentType.CENTER })] }),
+                  new TableCell({
+                    width: { size: MENTOR_RUBRIK_WIDTHS[0], type: WidthType.DXA },
+                    children: [createAcademicParagraph(String(sIdx + 1), { alignment: AlignmentType.CENTER })],
+                  }),
+                  new TableCell({
+                    width: { size: MENTOR_RUBRIK_WIDTHS[1], type: WidthType.DXA },
+                    children: [createAcademicParagraph(sc.aspek, { bold: true }), createAcademicParagraph(sc.keterangan, { italics: true, size: 20 })],
+                  }),
+                  new TableCell({
+                    width: { size: MENTOR_RUBRIK_WIDTHS[2], type: WidthType.DXA },
+                    children: [createAcademicParagraph(`${sc.bobot}%`, { alignment: AlignmentType.CENTER })],
+                  }),
+                  new TableCell({
+                    width: { size: MENTOR_RUBRIK_WIDTHS[3], type: WidthType.DXA },
+                    children: [createAcademicParagraph(String(sc.nilai), { bold: true, alignment: AlignmentType.CENTER })],
+                  }),
                 ],
               })
           ),
@@ -1069,14 +1111,17 @@ export async function exportLogbookToWord(
             children: [
               new TableCell({
                 columnSpan: 2,
+                width: { size: MENTOR_RUBRIK_WIDTHS[0] + MENTOR_RUBRIK_WIDTHS[1], type: WidthType.DXA },
                 shading: { fill: "E2E8F0", type: ShadingType.CLEAR, color: "auto" },
                 children: [createAcademicParagraph("NILAI AKHIR TERBOBOT (SKALA 100)", { bold: true, alignment: AlignmentType.RIGHT })],
               }),
               new TableCell({
+                width: { size: MENTOR_RUBRIK_WIDTHS[2], type: WidthType.DXA },
                 shading: { fill: "E2E8F0", type: ShadingType.CLEAR, color: "auto" },
                 children: [createAcademicParagraph("100%", { bold: true, alignment: AlignmentType.CENTER })],
               }),
               new TableCell({
+                width: { size: MENTOR_RUBRIK_WIDTHS[3], type: WidthType.DXA },
                 shading: { fill: "E2E8F0", type: ShadingType.CLEAR, color: "auto" },
                 children: [createAcademicParagraph(`${totalWeighted} (${mentorAdminData.predikat || (totalWeighted >= 85 ? "A" : "B")})`, { bold: true, alignment: AlignmentType.CENTER })],
               }),
