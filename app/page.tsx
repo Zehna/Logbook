@@ -1696,39 +1696,34 @@ export default function HomePage() {
     weeklyResults.length > 0;
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-indigo-50/60 via-slate-50 to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 text-slate-900 dark:text-slate-100 transition-colors">
-      {/* Top Navbar & Sticky Glassmorphism Header */}
-      <header className="sticky top-0 z-40 backdrop-blur-md bg-white/80 dark:bg-slate-950/80 border-b border-slate-200/80 dark:border-slate-800/60 shadow-xs transition-colors">
-        <div className="max-w-5xl mx-auto px-4 py-2.5 flex items-center justify-between gap-2">
+    <div className="min-h-screen flex flex-col bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 transition-colors">
+      {/* Top Navbar & Sticky Glass Header (Midday / Dub Style) */}
+      <header className="sticky top-0 z-40 backdrop-blur-md bg-white/80 dark:bg-zinc-950/80 border-b border-zinc-200 dark:border-zinc-800 transition-colors">
+        <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-sm shadow-indigo-500/30">
-              <BookOpen className="w-5 h-5" />
+            <div className="w-7 h-7 rounded-lg bg-zinc-900 dark:bg-zinc-100 flex items-center justify-center text-white dark:text-zinc-900 shadow-2xs">
+              <BookOpen className="w-4 h-4" />
             </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="font-extrabold text-base tracking-tight text-slate-900 dark:text-white">
-                  LogMagang <span className="text-indigo-600 dark:text-indigo-400">OS</span>
-                </span>
-                <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300">
-                  Gemini 3.8
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-none mt-0.5">
-                Platform Terpadu Logbook, Konversi SKS, CV ATS, & Sidang
-              </p>
+            <div className="flex items-baseline gap-2">
+              <span className="font-semibold text-sm tracking-tight text-zinc-900 dark:text-zinc-100">
+                LogMagang OS
+              </span>
+              <span className="text-xs text-zinc-500 dark:text-zinc-400 hidden sm:inline">
+                Workspace Magang & KKN
+              </span>
             </div>
           </div>
 
-          {/* Indikator Kuota Gratis & Lisensi Pro */}
+          {/* Sederhanakan tombol di kanan: Backup & Sync, Lencana Pro Monokrom Halus, Dark/Light Mode */}
           {isHydrated && (
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => setIsWorkspaceSyncOpen(true)}
-                className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full text-xs font-bold bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 border border-slate-200/90 dark:border-slate-800 shadow-2xs hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
-                title="Sinkronisasi Data Multi-Device (HP <-> Laptop) & Cadangan JSON"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition cursor-pointer"
+                title="Cadangan & Sinkronisasi JSON"
               >
-                <ArrowRightLeft className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                <ArrowRightLeft className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
                 <span className="hidden sm:inline">Backup & Sync</span>
               </button>
 
@@ -1736,166 +1731,77 @@ export default function HomePage() {
                 <button
                   type="button"
                   onClick={() => setIsLicenseModalOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-400 hover:to-orange-500 text-white shadow-sm transition cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium bg-zinc-100 dark:bg-zinc-800/80 text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-200/70 dark:hover:bg-zinc-700/60 transition cursor-pointer"
                   title="Klik untuk melihat detail Lisensi Pro Anda"
                 >
-                  <Crown className="w-3.5 h-3.5 text-amber-200" />
+                  <Crown className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-300" />
                   <span>
-                    👑 {licenseDetails?.tier === "sultan" ? "Sultan Pro Aktif" : "Member Pro Aktif"}
+                    {licenseDetails?.tier === "sultan" ? "Sultan Pro" : "Pro Plan"}
                   </span>
                 </button>
               ) : (
                 <button
                   type="button"
                   onClick={() => setIsLicenseModalOpen(true)}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition cursor-pointer ${
-                    remainingQuota > 0
-                      ? "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100"
-                      : "bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800 hover:bg-rose-100 animate-pulse"
-                  }`}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition cursor-pointer"
                   title="Klik untuk upgrade ke LogMagang Pro"
                 >
-                  <Zap className="w-3.5 h-3.5" />
+                  <Zap className="w-3.5 h-3.5 text-zinc-400" />
                   <span>
-                    Kuota: {remainingQuota}/{MAX_FREE_QUOTA} • <strong className="underline underline-offset-2">Upgrade Pro 🚀</strong>
+                    Kuota: {remainingQuota}/{MAX_FREE_QUOTA}
                   </span>
+                  <span className="text-zinc-400 dark:text-zinc-600">•</span>
+                  <span className="text-zinc-900 dark:text-zinc-100 font-medium">Upgrade</span>
                 </button>
               )}
 
-              {/* Tombol Toggle Dark Mode (Tahap 6) */}
+              {/* Tombol Toggle Dark Mode */}
               <button
                 type="button"
                 onClick={toggleTheme}
-                className="p-1.5 sm:p-2 rounded-full text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
+                className="p-1.5 rounded-md text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition cursor-pointer"
                 title={isDarkMode ? "Beralih ke Tema Terang (Light Mode)" : "Beralih ke Tema Gelap (Dark Mode)"}
                 aria-label="Toggle Dark Mode"
               >
                 {isDarkMode ? (
-                  <Sun className="w-4 h-4 text-amber-400" />
+                  <Sun className="w-4 h-4 text-zinc-300" />
                 ) : (
-                  <Moon className="w-4 h-4 text-slate-600 dark:text-slate-300" />
+                  <Moon className="w-4 h-4 text-zinc-600" />
                 )}
               </button>
             </div>
           )}
         </div>
 
-        {/* 6 Tabs Navigation Bar (shadcn/ui Minimalist Monochromatic Pill) */}
-        <div className="border-t border-slate-200/70 dark:border-slate-800/70 bg-slate-50/70 dark:bg-slate-950/60">
-          <div className="max-w-5xl mx-auto px-4 flex items-center gap-1.5 overflow-x-auto py-2 no-scrollbar">
-            <button
-              type="button"
-              onClick={() => setMainTab("generator")}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs md:text-sm font-medium transition-all duration-200 whitespace-nowrap cursor-pointer ${
-                mainTab === "generator"
-                  ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-950 shadow-xs font-semibold"
-                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-200/60 dark:hover:bg-slate-800/60"
-              }`}
-            >
-              <FileText className="w-4 h-4" />
-              <span>Generator & Dokumen</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setMainTab("sks")}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs md:text-sm font-medium transition-all duration-200 whitespace-nowrap cursor-pointer ${
-                mainTab === "sks"
-                  ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-950 shadow-xs font-semibold"
-                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-200/60 dark:hover:bg-slate-800/60"
-              }`}
-            >
-              <GraduationCap className="w-4 h-4" />
-              <span>Konversi 20 SKS</span>
-              <span
-                className={`text-[10px] px-1.5 py-0.2 rounded font-bold ${
-                  mainTab === "sks"
-                    ? "bg-amber-400 text-slate-950"
-                    : "bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700"
-                }`}
-              >
-                OBE
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setMainTab("resume")}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs md:text-sm font-medium transition-all duration-200 whitespace-nowrap cursor-pointer ${
-                mainTab === "resume"
-                  ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-950 shadow-xs font-semibold"
-                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-200/60 dark:hover:bg-slate-800/60"
-              }`}
-            >
-              <Briefcase className="w-4 h-4" />
-              <span>CV ATS & LinkedIn</span>
-              <span
-                className={`text-[10px] px-1.5 py-0.2 rounded font-bold ${
-                  mainTab === "resume"
-                    ? "bg-blue-400 text-slate-950"
-                    : "bg-blue-100 dark:bg-blue-950/80 text-blue-800 dark:text-blue-300 border border-blue-300 dark:border-blue-700"
-                }`}
-              >
-                STAR
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setMainTab("simulator")}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs md:text-sm font-medium transition-all duration-200 whitespace-nowrap cursor-pointer ${
-                mainTab === "simulator"
-                  ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-950 shadow-xs font-semibold"
-                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-200/60 dark:hover:bg-slate-800/60"
-              }`}
-            >
-              <Mic className="w-4 h-4" />
-              <span>Simulasi Sidang DPL</span>
-              <span
-                className={`text-[10px] px-1.5 py-0.2 rounded font-bold ${
-                  mainTab === "simulator"
-                    ? "bg-rose-400 text-slate-950"
-                    : "bg-rose-100 dark:bg-rose-950/80 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-700"
-                }`}
-              >
-                Live Voice
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setMainTab("kkn")}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs md:text-sm font-medium transition-all duration-200 whitespace-nowrap cursor-pointer ${
-                mainTab === "kkn"
-                  ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-950 shadow-xs font-semibold"
-                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-200/60 dark:hover:bg-slate-800/60"
-              }`}
-            >
-              <Tent className="w-4 h-4" />
-              <span>Tim KKN Desa</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setMainTab("admin")}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs md:text-sm font-medium transition-all duration-200 whitespace-nowrap cursor-pointer ${
-                mainTab === "admin"
-                  ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-950 shadow-xs font-semibold"
-                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-200/60 dark:hover:bg-slate-800/60"
-              }`}
-            >
-              <ClipboardCheck className="w-4 h-4" />
-              <span>Berkas & Penilaian</span>
-              <span
-                className={`text-[10px] px-1.5 py-0.2 rounded font-bold ${
-                  mainTab === "admin"
-                    ? "bg-teal-400 text-slate-950"
-                    : "bg-teal-100 dark:bg-teal-950/80 text-teal-800 dark:text-teal-300 border border-teal-300 dark:border-teal-700"
-                }`}
-              >
-                Docx
-              </span>
-            </button>
+        {/* 6 Tabs Navigation Bar (Dub.co Minimalist Underline Style) */}
+        <div className="border-t border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-zinc-950/50">
+          <div className="max-w-5xl mx-auto px-4 flex items-center gap-6 overflow-x-auto no-scrollbar">
+            {[
+              { id: "generator", label: "Generator & Dokumen", icon: FileText },
+              { id: "sks", label: "Konversi 20 SKS", icon: GraduationCap },
+              { id: "resume", label: "CV ATS & LinkedIn", icon: Briefcase },
+              { id: "simulator", label: "Simulasi Sidang DPL", icon: Mic },
+              { id: "kkn", label: "Tim KKN Desa", icon: Tent },
+              { id: "admin", label: "Berkas & Penilaian", icon: ClipboardCheck },
+            ].map((tab) => {
+              const Icon = tab.icon;
+              const isActive = mainTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setMainTab(tab.id as typeof mainTab)}
+                  className={`inline-flex items-center gap-2 py-2.5 text-xs sm:text-sm transition-all whitespace-nowrap cursor-pointer border-b-2 -mb-px ${
+                    isActive
+                      ? "border-zinc-900 dark:border-zinc-100 text-zinc-900 dark:text-zinc-100 font-medium"
+                      : "border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300 font-normal"
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
       </header>
@@ -1904,907 +1810,780 @@ export default function HomePage() {
       <main className="flex-1 max-w-5xl w-full mx-auto px-4 pt-5 pb-14 space-y-6">
         {mainTab === "generator" && (
           <>
-            {/* Hero Banner */}
-            <section className="text-center sm:text-left bg-white rounded-2xl p-5 border border-slate-200/90 shadow-xs">
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-700 text-xs font-semibold mb-2.5">
-                <Camera className="w-3.5 h-3.5" />
-                <span>Multimodal Vision • Analisis Foto Dokumentasi Kegiatan</span>
-              </div>
-              <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight leading-snug">
-                Ubah Catatan & Foto Lapangan Jadi{" "}
-                <span className="text-indigo-600">
-                  Logbook & Dokumen Sidang Resmi
-                </span>
-              </h1>
-              <p className="mt-1.5 text-xs sm:text-sm text-slate-600 leading-relaxed">
-                Unggah foto layar kerja atau kegiatan lapanganmu, lalu AI akan
-                menginspeksi bukti visual dan menyusun laporan formal berstandar
-                Taksonomi Bloom.
-              </p>
-            </section>
-
-        {/* Kartu Ajakan Aktivasi Langganan & Monetisasi QRIS (Ditampilkan saat kuota 3x habis) */}
-        {isHydrated && isQuotaExhausted && (
-          <section
-            ref={paywallRef}
-            className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-950 text-white p-5 sm:p-7 shadow-2xl border border-indigo-500/30 space-y-5"
-          >
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400/20 border border-amber-400/40 text-amber-300 text-xs font-bold">
-                <Crown className="w-3.5 h-3.5" />
-                <span>Kuota Gratis 3/3 Telah Terpakai</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsLicenseModalOpen(true)}
-                  className="text-xs text-amber-300 hover:text-white underline font-semibold cursor-pointer"
-                >
-                  Lihat Detail Paket Lengkap
-                </button>
-                <span className="text-slate-500">•</span>
-                <button
-                  type="button"
-                  onClick={handleResetQuota}
-                  title="Reset kuota gratis untuk keperluan pengujian"
-                  className="inline-flex items-center gap-1 text-[11px] text-slate-400 hover:text-white underline cursor-pointer"
-                >
-                  <RotateCcw className="w-3 h-3" />
-                  Reset Demo
-                </button>
-              </div>
-            </div>
-
-            <div>
-              <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white">
-                Upgrade ke LogMagang Pro 🚀
-              </h2>
-              <p className="mt-1 text-xs sm:text-sm text-indigo-100/90 leading-relaxed max-w-2xl">
-                Buka seluruh potensi akademik dan karier Anda. Pilih paket langganan yang sesuai dengan kebutuhan magang atau program MBKM Anda:
-              </p>
-            </div>
-
-            {/* 2 Pilihan Kartu Paket */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-              {/* Paket Reguler */}
-              <div className="rounded-2xl p-4 bg-white/10 backdrop-blur-md border border-white/15 space-y-3 flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-indigo-200 uppercase tracking-wider">
-                      Paket Reguler Magang
-                    </span>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-500/30 text-indigo-200 border border-indigo-400/30">
-                      Hemat Mahasiswa
-                    </span>
-                  </div>
-                  <div className="mt-2 flex items-baseline gap-1">
-                    <span className="text-2xl font-black text-white">Rp25.000</span>
-                    <span className="text-xs text-indigo-200"> / 3 Bulan</span>
-                  </div>
-                  <p className="text-[11px] text-indigo-200 mt-1">
-                    Ideal untuk logbook harian rutin dan bebas tugas nunggak.
-                  </p>
-
-                  <ul className="mt-3 space-y-1.5 text-xs text-indigo-100 border-t border-white/10 pt-2.5">
-                    <li className="flex items-center gap-1.5">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                      <span><strong>Unlimited</strong> Logbook Harian</span>
-                    </li>
-                    <li className="flex items-center gap-1.5">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                      <span><strong>Mode Borongan</strong> 1 Pekan Sekaligus</span>
-                    </li>
-                    <li className="flex items-center gap-1.5">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                      <span>Tone Humanizer (Anti-Klise AI)</span>
-                    </li>
-                  </ul>
-                </div>
-
-                <a
-                  href={`https://wa.me/6281234567890?text=${encodeURIComponent(
-                    "Halo Admin LogMagang! Saya ingin beli Paket Reguler Magang (Rp25.000) via QRIS."
-                  )}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full py-2.5 px-3 rounded-xl bg-white/15 hover:bg-white/25 text-white font-bold text-xs text-center border border-white/20 transition flex items-center justify-center gap-1.5 cursor-pointer mt-2"
-                >
-                  <span>💳 Bayar Rp25.000 via QRIS</span>
-                  <ExternalLink className="w-3 h-3 text-indigo-200" />
-                </a>
-              </div>
-
-              {/* Paket Sultan */}
-              <div className="rounded-2xl p-4 bg-gradient-to-br from-amber-500/20 via-orange-500/15 to-white/10 backdrop-blur-md border border-amber-400/40 space-y-3 flex flex-col justify-between shadow-lg relative">
-                <div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1">
-                      <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                      <span>Paket Sultan Lulus MBKM</span>
-                    </span>
-                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-gradient-to-r from-amber-400 to-orange-500 text-slate-950 shadow-xs">
-                      BESTSELLER 🏆
-                    </span>
-                  </div>
-                  <div className="mt-2 flex items-baseline gap-1">
-                    <span className="text-2xl font-black text-white">Rp49.000</span>
-                    <span className="text-xs text-amber-200"> / Periode</span>
-                  </div>
-                  <p className="text-[11px] text-amber-100/90 mt-1">
-                    Seluruh fitur OS lengkap: logbook, konversi SKS, CV ATS, hingga sidang A.
-                  </p>
-
-                  <ul className="mt-3 space-y-1.5 text-xs text-amber-50 border-t border-amber-400/20 pt-2.5">
-                    <li className="flex items-center gap-1.5">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                      <span><strong>Semua Fitur Reguler</strong> + Vision Foto</span>
-                    </li>
-                    <li className="flex items-center gap-1.5">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                      <span>Ekspor Dokumen <strong>Word, Excel & PPT</strong></span>
-                    </li>
-                    <li className="flex items-center gap-1.5">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                      <span><strong>Matriks Konversi 20 SKS</strong> OBE</span>
-                    </li>
-                    <li className="flex items-center gap-1.5">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                      <span><strong>CV ATS Harvard</strong> & Simulasi DPL</span>
-                    </li>
-                    <li className="flex items-center gap-1.5">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                      <span>Ekstensi Chrome & Tim KKN Desa</span>
-                    </li>
-                  </ul>
-                </div>
-
-                <a
-                  href={`https://wa.me/6281234567890?text=${encodeURIComponent(
-                    "Halo Admin LogMagang! Saya ingin beli Paket Sultan Lulus MBKM (Rp49.000) via QRIS."
-                  )}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-slate-950 font-bold text-xs text-center transition shadow-md flex items-center justify-center gap-1.5 cursor-pointer mt-2"
-                >
-                  <span>💳 Bayar Rp49.000 via QRIS</span>
-                  <ExternalLink className="w-3 h-3" />
-                </a>
-              </div>
-            </div>
-
-            {/* Form Input Kode Lisensi Langsung */}
-            <div className="rounded-2xl p-4 bg-white/10 backdrop-blur-md border border-white/15 space-y-3">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1">
-                <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                  <span>Sudah bayar? Masukkan Kode Lisensi Pro:</span>
-                </span>
-                <span className="text-[11px] text-indigo-200">
-                  Aktivasi Instan & Validasi Server
-                </span>
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-2">
-                <input
-                  type="text"
-                  value={inlineLicenseCode}
-                  onChange={(e) => setInlineLicenseCode(e.target.value.toUpperCase())}
-                  placeholder="Contoh: LMPRO-2026-BERES"
-                  className="flex-1 text-xs sm:text-sm font-mono font-bold uppercase p-2.5 rounded-xl border border-white/20 bg-slate-900/80 text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400"
-                />
-                <button
-                  type="button"
-                  onClick={() => handleVerifyInlineLicense()}
-                  disabled={isInlineVerifying}
-                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition disabled:opacity-50 cursor-pointer"
-                >
-                  {isInlineVerifying ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
-                      <span>Memverifikasi...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Crown className="w-4 h-4" />
-                      <span>Aktivasi Sekarang</span>
-                    </>
-                  )}
-                </button>
-              </div>
-
-              {inlineLicenseError && (
-                <p className="text-xs text-rose-300 bg-rose-500/20 border border-rose-500/30 p-2.5 rounded-xl leading-relaxed">
-                  {inlineLicenseError}
-                </p>
-              )}
-
-              {/* Preset Kode Demo Cepat untuk Pengujian */}
-              <div className="pt-2 border-t border-white/10 flex flex-wrap items-center gap-1.5">
-                <span className="text-[11px] text-indigo-200 mr-1">
-                  ⚡ Kode Demo Cepat:
-                </span>
-                {["LMPRO-2026-BERES", "LMPRO-SULTAN-99", "KKN-DESA-2026"].map((code) => (
-                  <button
-                    key={code}
-                    type="button"
-                    onClick={() => {
-                      setInlineLicenseCode(code);
-                      handleVerifyInlineLicense(code);
-                    }}
-                    className="text-[11px] px-2.5 py-0.5 rounded-lg bg-white/10 hover:bg-white/20 text-white font-mono border border-white/15 transition cursor-pointer"
-                  >
-                    {code}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </section>
-        )}
-
-        {/* Bento Grid Dashboard & Heatmap Kehadiran 900 Jam MBKM */}
-        <AttendanceTracker
-          history={history}
-          isPro={isPro}
-          remainingQuota={remainingQuota}
-          maxFreeQuota={MAX_FREE_QUOTA}
-          planName={
-            licenseDetails?.tier === "sultan"
-              ? "Sultan Pro MBKM"
-              : licenseDetails?.plan || "Member Pro 3 Bulan"
-          }
-          onOpenUpgradeModal={() => setIsLicenseModalOpen(true)}
-          onSelectDateToBackfill={(isoDate, displayDate) => {
-            setMode("daily");
-            setTanggalHarian(isoDate);
-            toast.info(`Form disetel untuk tanggal ${displayDate}`, {
-              description: "Silakan lengkapi catatan kegiatan atau unggah foto dokumentasi.",
-            });
-            const formElem = document.getElementById("daily-form-card");
-            if (formElem) {
-              formElem.scrollIntoView({ behavior: "smooth" });
-            }
-          }}
-        />
-
-        {/* Form Input Card dengan Tab Switcher di Bagian Atas */}
-        <section id="daily-form-card" className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/90 shadow-xs space-y-5">
-          {/* Tab Switcher: Mode Harian vs Mode Borongan (1 Pekan) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-1.5 rounded-2xl bg-slate-100 border border-slate-200/80">
-            <button
-              type="button"
-              onClick={() => {
+            {/* Attendance Tracker & Heatmap Kehadiran 900 Jam MBKM (GitHub/Linear Strip Style) */}
+            <AttendanceTracker
+              history={history}
+              isPro={isPro}
+              remainingQuota={remainingQuota}
+              maxFreeQuota={MAX_FREE_QUOTA}
+              planName={
+                licenseDetails?.tier === "sultan"
+                  ? "Sultan Pro MBKM"
+                  : licenseDetails?.plan || "Member Pro 3 Bulan"
+              }
+              onOpenUpgradeModal={() => setIsLicenseModalOpen(true)}
+              onSelectDateToBackfill={(isoDate, displayDate) => {
                 setMode("daily");
-                setErrorMsg(null);
+                setTanggalHarian(isoDate);
+                toast.info(`Form disetel untuk tanggal ${displayDate}`, {
+                  description: "Silakan lengkapi catatan kegiatan atau unggah foto dokumentasi.",
+                });
+                const formElem = document.getElementById("daily-form-card");
+                if (formElem) {
+                  formElem.scrollIntoView({ behavior: "smooth" });
+                }
               }}
-              className={`flex items-center justify-center gap-2 py-2.5 px-3.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
-                mode === "daily"
-                  ? "bg-white text-indigo-700 shadow-xs border border-slate-200/80"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              <span>📅 Mode Harian (1 Hari) + Vision</span>
-            </button>
+            />
 
-            <button
-              type="button"
-              onClick={() => {
-                setMode("weekly");
-                setErrorMsg(null);
-              }}
-              className={`flex items-center justify-center gap-2 py-2.5 px-3.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
-                mode === "weekly"
-                  ? "bg-indigo-600 text-white shadow-sm shadow-indigo-500/25"
-                  : "text-slate-700 hover:text-slate-900"
-              }`}
-            >
-              <span>⚡ Mode Borongan (1 Pekan)</span>
-              <span
-                className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full whitespace-nowrap ${
-                  mode === "weekly"
-                    ? "bg-amber-400 text-slate-950"
-                    : "bg-amber-100 text-amber-800 border border-amber-300"
-                }`}
+            {/* Kartu Ajakan Aktivasi Langganan (Ditampilkan saat kuota 3x habis) */}
+            {isHydrated && isQuotaExhausted && (
+              <section
+                ref={paywallRef}
+                className="rounded-xl bg-zinc-900 text-white p-5 sm:p-6 border border-zinc-800 shadow-md space-y-4"
               >
-                Populer / Anti-Nunggak
-              </span>
-            </button>
-          </div>
-
-          <form
-            onSubmit={
-              mode === "daily" ? handleGenerateDaily : handleGenerateWeekly
-            }
-            className="space-y-5"
-          >
-            {/* 1. Pilihan Program */}
-            <div>
-              <label className="block text-xs sm:text-sm font-bold text-slate-800 mb-2">
-                1. Pilih Program Kegiatan
-              </label>
-              <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
-                {PROGRAM_OPTIONS.map((prog) => {
-                  const Icon = prog.icon;
-                  const isSelected = tipeKegiatan === prog.value;
-                  return (
-                    <button
-                      key={prog.value}
-                      type="button"
-                      onClick={() => {
-                        setTipeKegiatan(prog.value);
-                        setErrorMsg(null);
-                      }}
-                      className={`flex flex-col items-center sm:items-start text-center sm:text-left p-3 rounded-xl border transition-all cursor-pointer ${
-                        isSelected
-                          ? "bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-500/25"
-                          : "bg-slate-50/80 text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300"
-                      }`}
-                    >
-                      <Icon
-                        className={`w-4 h-4 mb-1.5 ${
-                          isSelected ? "text-indigo-100" : "text-indigo-600"
-                        }`}
-                      />
-                      <span className="font-bold text-xs sm:text-sm leading-tight">
-                        {prog.label}
-                      </span>
-                      <span
-                        className={`hidden sm:block text-[11px] mt-0.5 leading-tight ${
-                          isSelected ? "text-indigo-100" : "text-slate-500"
-                        }`}
-                      >
-                        {prog.subtitle}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* 2. Input Peran / Posisi */}
-            <div>
-              <label
-                htmlFor="input-peran"
-                className="block text-xs sm:text-sm font-bold text-slate-800 mb-1.5"
-              >
-                2. Peran / Posisi
-              </label>
-              <div className="relative">
-                <input
-                  id="input-peran"
-                  type="text"
-                  value={peran}
-                  onChange={(e) => setPeran(e.target.value)}
-                  placeholder='Contoh: "Social Media Specialist", "Staff Operasional"'
-                  disabled={isLoading}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-600 focus:outline-none focus:ring-3 focus:ring-indigo-500/15 disabled:bg-slate-100 transition"
-                />
-              </div>
-
-              {/* Saran Peran Cepat */}
-              <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                <span className="text-[11px] text-slate-400 mr-0.5">
-                  Contoh cepat:
-                </span>
-                {currentProgramConfig.roleExamples.map((roleSample) => (
-                  <button
-                    key={roleSample}
-                    type="button"
-                    onClick={() => setPeran(roleSample)}
-                    className={`text-[11px] px-2.5 py-1 rounded-lg border transition cursor-pointer ${
-                      peran === roleSample
-                        ? "bg-indigo-50 border-indigo-300 text-indigo-700 font-semibold"
-                        : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
-                    }`}
-                  >
-                    {roleSample}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* KONDISIONAL: MODE HARIAN (DENGAN AREA UNGGAH FOTO VISION) */}
-            {mode === "daily" ? (
-              <div className="space-y-4">
-                {/* Tanggal Kegiatan Harian */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-slate-50 border border-slate-200/80 rounded-xl">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-indigo-600" />
-                    <div>
-                      <label htmlFor="input-tanggal-harian" className="text-xs font-bold text-slate-800 block">
-                        Tanggal Kegiatan Harian
-                      </label>
-                      <span className="text-[11px] text-slate-500">
-                        Pilih tanggal kegiatan (klik tanggal kosong di kalender atas untuk mengisi hari terlewat)
-                      </span>
-                    </div>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-800 border border-zinc-700 text-zinc-200 text-xs font-medium">
+                    <Crown className="w-3.5 h-3.5 text-zinc-400" />
+                    <span>Kuota Gratis 3/3 Telah Terpakai</span>
                   </div>
-                  <input
-                    id="input-tanggal-harian"
-                    type="date"
-                    value={tanggalHarian}
-                    onChange={(e) => setTanggalHarian(e.target.value)}
-                    disabled={isLoading}
-                    className="text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsLicenseModalOpen(true)}
+                      className="text-xs text-zinc-300 hover:text-white underline cursor-pointer"
+                    >
+                      Lihat Detail Paket
+                    </button>
+                    <span className="text-zinc-600">•</span>
+                    <button
+                      type="button"
+                      onClick={handleResetQuota}
+                      title="Reset kuota gratis untuk keperluan pengujian"
+                      className="inline-flex items-center gap-1 text-[11px] text-zinc-400 hover:text-zinc-200 underline cursor-pointer"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      Reset Demo
+                    </button>
+                  </div>
                 </div>
 
-                {/* Deteksi Hari Libur Nasional & Akhir Pekan Indonesia (Mode Harian) */}
-                {(() => {
-                  const holidayInfo = getIndonesianHolidayInfo(tanggalHarian);
-                  if (!holidayInfo.isHoliday && !holidayInfo.isWeekend) return null;
-                  return (
-                    <div className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700/60 text-amber-800 dark:text-amber-300 text-xs animate-fadeIn">
-                      <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-                      <div>
-                        <span className="font-bold">⚠️ Peringatan:</span> {holidayInfo.formattedDate} adalah{" "}
-                        <strong className="underline underline-offset-2">{holidayInfo.description}</strong>.
-                        <p className="mt-0.5 text-[11px] text-amber-700/90 dark:text-amber-400/90">
-                          Pastikan instansi atau mitra Anda memberlakukan lembur kerja atau penugasan khusus pada hari libur ini.
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                {/* Area Unggah Foto Dokumentasi (Vision-to-Logbook) */}
                 <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="block text-xs sm:text-sm font-bold text-slate-800 flex items-center gap-1.5">
-                      <Camera className="w-4 h-4 text-indigo-600" />
-                      <span>Foto Bukti Dokumentasi Kegiatan (Vision AI)</span>
-                    </label>
-                    {fotoBase64 && (
-                      <button
-                        type="button"
-                        onClick={handleRemovePhoto}
-                        className="text-[11px] font-semibold text-rose-600 hover:text-rose-700 underline underline-offset-2 cursor-pointer"
-                      >
-                        Hapus Foto
-                      </button>
-                    )}
-                  </div>
+                  <h2 className="text-lg font-semibold tracking-tight text-white">
+                    Upgrade ke LogMagang Pro
+                  </h2>
+                  <p className="mt-1 text-xs text-zinc-400 leading-relaxed max-w-xl">
+                    Buka akses tanpa batas untuk logbook harian, mode borongan, konversi SKS, dan ekspor dokumen resmi:
+                  </p>
+                </div>
 
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    onChange={handleFileChange}
-                    className="hidden"
-                    disabled={isLoading}
-                  />
-
-                  {!fotoBase64 ? (
-                    <div
-                      onDragOver={(e) => e.preventDefault()}
-                      onDrop={handleDropImage}
-                      onClick={() => fileInputRef.current?.click()}
-                      className="border-2 border-dashed border-slate-300 hover:border-indigo-500 rounded-2xl p-4 sm:p-5 bg-slate-50/70 hover:bg-indigo-50/30 transition text-center cursor-pointer space-y-2"
-                    >
-                      <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center mx-auto">
-                        <UploadCloud className="w-5 h-5" />
+                {/* 2 Pilihan Kartu Paket */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {/* Paket Reguler */}
+                  <div className="rounded-lg p-3.5 bg-zinc-800/60 border border-zinc-700/80 space-y-2.5 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-zinc-200">
+                          Paket Reguler Magang
+                        </span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-700 text-zinc-300">
+                          3 Bulan
+                        </span>
                       </div>
-                      <div>
-                        <p className="text-xs sm:text-sm font-bold text-slate-800">
-                          Klik untuk upload foto atau drag & drop ke sini
-                        </p>
-                        <p className="text-[11px] text-slate-500 mt-0.5">
-                          Format JPG, PNG, atau WebP (Maksimal 5MB)
-                        </p>
+                      <div className="mt-1.5 flex items-baseline gap-1">
+                        <span className="text-xl font-bold text-white">Rp25.000</span>
+                        <span className="text-xs text-zinc-400"> / periode</span>
                       </div>
-                      <p className="text-[11px] text-indigo-600 font-semibold bg-indigo-50/80 rounded-lg p-2 max-w-md mx-auto leading-relaxed border border-indigo-100">
-                        📸 <strong>Opsional tapi sangat disarankan:</strong>{" "}
-                        Unggah foto layar laptop, ruang rapat, atau kegiatan
-                        lapangan. AI akan menyelaraskan laporan dengan bukti
-                        fotomu!
+                      <p className="text-[11px] text-zinc-400 mt-1">
+                        Ideal untuk logbook harian rutin dan bebas tugas nunggak.
                       </p>
                     </div>
-                  ) : (
-                    <div className="space-y-2.5">
-                      <div className="rounded-2xl border border-indigo-200 bg-indigo-50/40 p-3 sm:p-4 flex items-center gap-3.5">
-                        <div className="relative w-24 h-24 rounded-xl overflow-hidden border border-indigo-200 bg-slate-100 shrink-0 shadow-xs">
-                          {isCompressingPhoto ? (
-                            <div className="w-full h-full flex flex-col items-center justify-center p-2 bg-indigo-50 text-indigo-700 text-center">
-                              <Loader2 className="w-5 h-5 animate-spin mb-1" />
-                              <span className="text-[10px] font-bold">Mengompres...</span>
-                            </div>
-                          ) : (
-                            /* eslint-disable-next-line @next/next/no-img-element */
-                            <img
-                              src={fotoBase64}
-                              alt="Pratinjau Foto Kegiatan"
-                              className="w-full h-full object-cover"
-                            />
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0 space-y-1.5">
-                          <div className="flex items-center gap-1.5">
-                            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                            <span className="text-xs font-bold text-slate-900 truncate">
-                              {fotoFileName || "Foto Kegiatan Terlampir"}
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-indigo-700 font-medium">
-                            Kompresi Canvas Aktif (Maks 1280px) • Multimodal Vision AI siap menganalisis foto.
-                          </p>
 
-                          {/* Watermark Toggle */}
-                          <label className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-700 cursor-pointer select-none">
-                            <input
-                              type="checkbox"
-                              checked={enableWatermark}
-                              onChange={(e) => handleToggleWatermark(e.target.checked)}
-                              className="rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                            />
-                            <span>📍 Bubuhkan Watermark Timestamp & Identitas Resmi (Standar MBKM/KKN)</span>
-                          </label>
-
-                          <div>
-                            <button
-                              type="button"
-                              onClick={handleRemovePhoto}
-                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-600 hover:text-rose-700 underline cursor-pointer"
-                            >
-                              <X className="w-3 h-3" />
-                              <span>Ganti / Hapus Foto</span>
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Banner Deteksi Tanggal Foto & Sinkronisasi */}
-                      {detectedPhotoDate && detectedPhotoDate.iso !== tanggalHarian && (
-                        <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-2xs">
-                          <div className="flex items-center gap-2">
-                            <Calendar className="w-4 h-4 text-amber-600 shrink-0" />
-                            <span>
-                              Tanggal foto terdeteksi: <strong>{detectedPhotoDate.formatted}</strong>
-                            </span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setTanggalHarian(detectedPhotoDate.iso);
-                              triggerToast(
-                                `Tanggal logbook berhasil diselaraskan ke tanggal foto: ${detectedPhotoDate.iso}`
-                              );
-                            }}
-                            className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-bold shadow-xs transition cursor-pointer shrink-0"
-                          >
-                            <RefreshCw className="w-3 h-3" />
-                            <span>Samakan Tanggal ({detectedPhotoDate.iso})</span>
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Textarea Catatan Harian Santai */}
-                <div>
-                  <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
-                    <label
-                      htmlFor="input-catatan"
-                      className="block text-xs sm:text-sm font-bold text-slate-800"
+                    <a
+                      href={`https://wa.me/6281234567890?text=${encodeURIComponent(
+                        "Halo Admin LogMagang! Saya ingin beli Paket Reguler Magang (Rp25.000) via QRIS."
+                      )}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full py-2 px-3 rounded-md bg-zinc-700 hover:bg-zinc-600 text-white font-medium text-xs text-center border border-zinc-600 transition flex items-center justify-center gap-1.5 cursor-pointer mt-1"
                     >
-                      4. Catatan Harian Santai
-                    </label>
-                    <div className="flex items-center gap-1.5">
-                      <VoiceDictationButton
-                        onTranscript={(text) =>
-                          setCatatan((prev) => (prev.trim() ? `${prev.trim()} ${text}` : text))
-                        }
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setIsSmartIngestionOpen(true)}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition cursor-pointer"
-                        title="Tarik commit GitHub atau jadwal kalender otomatis"
-                      >
-                        <GitBranch className="w-3.5 h-3.5" />
-                        <span>GitHub / Agenda</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleFillSample}
-                        className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 underline underline-offset-2 cursor-pointer"
-                      >
-                        Contoh
-                      </button>
-                    </div>
+                      <span>Beli via QRIS (Rp25.000)</span>
+                      <ExternalLink className="w-3 h-3 text-zinc-400" />
+                    </a>
                   </div>
-                  <textarea
-                    id="input-catatan"
-                    rows={3}
-                    value={catatan}
-                    onChange={(e) => setCatatan(e.target.value)}
-                    placeholder={
-                      fotoBase64
-                        ? "Bisa dikosongkan atau tambahkan catatan santai pelengkap (AI akan mendeteksi dari fotomu)..."
-                        : "hari ini bantu rekap nota masuk ke excel sama packing barang"
-                    }
-                    disabled={isLoading}
-                    className="w-full rounded-xl border border-slate-300 bg-white p-3.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-600 focus:outline-none focus:ring-3 focus:ring-indigo-500/15 disabled:bg-slate-100 transition resize-y leading-relaxed"
-                  />
-                  <p className="mt-1 text-[11px] text-slate-500">
-                    {fotoBase64
-                      ? "Jika catatan teks kosong, AI secara mandiri mendeteksi dan menginferensikan kegiatan kerja berdasarkan analisis foto dokumentasi."
-                      : "Tulis saja apa adanya dengan bahasa santai. Anda juga dapat menggunakan Dikte Suara (id-ID) atau Smart Ingestion (GitHub/Kalender)."}
-                  </p>
+
+                  {/* Paket Sultan */}
+                  <div className="rounded-lg p-3.5 bg-zinc-800/90 border border-zinc-600 space-y-2.5 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-zinc-100 flex items-center gap-1">
+                          <Sparkles className="w-3.5 h-3.5 text-zinc-300" />
+                          <span>Paket Sultan Lulus MBKM</span>
+                        </span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-900 font-semibold">
+                          Full Fitur
+                        </span>
+                      </div>
+                      <div className="mt-1.5 flex items-baseline gap-1">
+                        <span className="text-xl font-bold text-white">Rp49.000</span>
+                        <span className="text-xs text-zinc-400"> / periode</span>
+                      </div>
+                      <p className="text-[11px] text-zinc-400 mt-1">
+                        Seluruh fitur OS lengkap: logbook, konversi SKS, CV ATS, hingga sidang.
+                      </p>
+                    </div>
+
+                    <a
+                      href={`https://wa.me/6281234567890?text=${encodeURIComponent(
+                        "Halo Admin LogMagang! Saya ingin beli Paket Sultan Lulus MBKM (Rp49.000) via QRIS."
+                      )}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full py-2 px-3 rounded-md bg-zinc-100 hover:bg-zinc-200 text-zinc-900 font-medium text-xs text-center transition flex items-center justify-center gap-1.5 cursor-pointer mt-1"
+                    >
+                      <span>Beli via QRIS (Rp49.000)</span>
+                      <ExternalLink className="w-3 h-3 text-zinc-600" />
+                    </a>
+                  </div>
                 </div>
 
-                {/* 5. Gaya Bahasa (Tone Humanizer) */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="block text-xs sm:text-sm font-bold text-slate-800 flex items-center gap-1.5">
-                      <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                      <span>5. Gaya Bahasa (Tone Humanizer)</span>
-                    </label>
-                    <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                      Anti-Klise AI
+                {/* Form Input Kode Lisensi Langsung */}
+                <div className="rounded-lg p-3 bg-zinc-800/40 border border-zinc-700/60 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-zinc-300 font-medium flex items-center gap-1.5">
+                      <ShieldCheck className="w-3.5 h-3.5 text-zinc-400" />
+                      <span>Sudah punya lisensi? Masukkan kode:</span>
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    {TONE_OPTIONS.map((opt) => {
-                      const isSelected = tone === opt.value;
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={inlineLicenseCode}
+                      onChange={(e) => setInlineLicenseCode(e.target.value.toUpperCase())}
+                      placeholder="Contoh: LMPRO-2026-BERES"
+                      className="flex-1 text-xs font-mono font-medium uppercase p-2 rounded-md border border-zinc-700 bg-zinc-950 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleVerifyInlineLicense()}
+                      disabled={isInlineVerifying}
+                      className="px-4 py-2 rounded-md bg-zinc-100 hover:bg-zinc-200 text-zinc-900 font-medium text-xs flex items-center justify-center gap-1.5 transition disabled:opacity-50 cursor-pointer"
+                    >
+                      {isInlineVerifying ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-900" />
+                          <span>Verifikasi...</span>
+                        </>
+                      ) : (
+                        <span>Aktivasi</span>
+                      )}
+                    </button>
+                  </div>
+
+                  {inlineLicenseError && (
+                    <p className="text-xs text-rose-300 bg-rose-950/40 border border-rose-800 p-2 rounded-md">
+                      {inlineLicenseError}
+                    </p>
+                  )}
+
+                  {/* Preset Kode Demo Cepat untuk Pengujian */}
+                  <div className="pt-1.5 border-t border-zinc-800 flex flex-wrap items-center gap-1.5">
+                    <span className="text-[11px] text-zinc-500 mr-1">
+                      Kode Demo:
+                    </span>
+                    {["LMPRO-2026-BERES", "LMPRO-SULTAN-99", "KKN-DESA-2026"].map((code) => (
+                      <button
+                        key={code}
+                        type="button"
+                        onClick={() => {
+                          setInlineLicenseCode(code);
+                          handleVerifyInlineLicense(code);
+                        }}
+                        className="text-[10px] px-2 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-mono border border-zinc-700 transition cursor-pointer"
+                      >
+                        {code}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {/* Form Input Card (Linear / Midday Minimalist Workspace) */}
+            <section id="daily-form-card" className="bg-white dark:bg-zinc-900/60 rounded-xl p-5 sm:p-6 border border-zinc-200 dark:border-zinc-800 shadow-xs space-y-5">
+              {/* Segmented Mode Switcher */}
+              <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800/80 pb-3">
+                <div className="inline-flex p-1 rounded-lg bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700/60">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode("daily");
+                      setErrorMsg(null);
+                    }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${
+                      mode === "daily"
+                        ? "bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-2xs font-semibold"
+                        : "text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200"
+                    }`}
+                  >
+                    <Calendar className="w-3.5 h-3.5" />
+                    <span>Mode Harian (1 Hari)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode("weekly");
+                      setErrorMsg(null);
+                    }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${
+                      mode === "weekly"
+                        ? "bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-2xs font-semibold"
+                        : "text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200"
+                    }`}
+                  >
+                    <Layers className="w-3.5 h-3.5" />
+                    <span>Mode Borongan (1 Pekan)</span>
+                  </button>
+                </div>
+
+                <span className="text-xs text-zinc-400 dark:text-zinc-500 hidden sm:inline">
+                  Standar Taksonomi Bloom (C3–C6)
+                </span>
+              </div>
+
+              <form
+                onSubmit={
+                  mode === "daily" ? handleGenerateDaily : handleGenerateWeekly
+                }
+                className="space-y-4"
+              >
+                {/* 1. Pilihan Program Kegiatan */}
+                <div>
+                  <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
+                    1. Program Kegiatan
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {PROGRAM_OPTIONS.map((prog) => {
+                      const Icon = prog.icon;
+                      const isSelected = tipeKegiatan === prog.value;
                       return (
-                        <div
-                          key={opt.value}
-                          onClick={() => setTone(opt.value)}
-                          className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
+                        <button
+                          key={prog.value}
+                          type="button"
+                          onClick={() => {
+                            setTipeKegiatan(prog.value);
+                            setErrorMsg(null);
+                          }}
+                          className={`flex items-center gap-2.5 p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
                             isSelected
-                              ? "bg-emerald-50/70 border-emerald-500 ring-2 ring-emerald-500/20 shadow-xs"
-                              : "bg-slate-50/70 border-slate-200 hover:bg-slate-100 hover:border-slate-300"
+                              ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 border-zinc-900 dark:border-zinc-100 shadow-2xs font-medium"
+                              : "bg-zinc-50/70 dark:bg-zinc-900/40 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800/40"
                           }`}
                         >
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="font-bold text-xs text-slate-900">
-                              {opt.label}
-                            </span>
-                            <span
-                              className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
-                                isSelected
-                                  ? "bg-emerald-600 text-white"
-                                  : "bg-slate-200 text-slate-600"
+                          <Icon
+                            className={`w-4 h-4 shrink-0 ${
+                              isSelected ? "text-white dark:text-zinc-900" : "text-zinc-500 dark:text-zinc-400"
+                            }`}
+                          />
+                          <div className="min-w-0">
+                            <div className="text-xs font-medium truncate">{prog.label}</div>
+                            <div
+                              className={`text-[10px] truncate ${
+                                isSelected ? "text-zinc-300 dark:text-zinc-600" : "text-zinc-400 dark:text-zinc-500"
                               }`}
                             >
-                              {opt.badge}
-                            </span>
+                              {prog.subtitle}
+                            </div>
                           </div>
-                          <p className="text-[11px] text-slate-500 leading-tight">
-                            {opt.description}
-                          </p>
-                        </div>
+                        </button>
                       );
                     })}
                   </div>
                 </div>
-              </div>
-            ) : (
-              /* KONDISIONAL: MODE BORONGAN 1 PEKAN */
-              <div className="space-y-4 pt-1">
-                <div className="rounded-xl bg-indigo-50/60 border border-indigo-100 p-3.5 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-indigo-950 flex items-center gap-1.5">
-                      <Calendar className="w-4 h-4 text-indigo-600" />
-                      <span>3. Rentang Tanggal Pekan Ini (Senin – Jumat)</span>
-                    </span>
-                    <span className="text-[11px] font-semibold text-indigo-700 bg-white px-2 py-0.5 rounded-md border border-indigo-200">
-                      Narasi Progresif 5 Tahap
-                    </span>
-                  </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label
-                        htmlFor="tanggal-mulai"
-                        className="block text-[11px] font-semibold text-slate-600 mb-1"
-                      >
-                        Tanggal Mulai (Senin)
-                      </label>
-                      <input
-                        id="tanggal-mulai"
-                        type="date"
-                        value={tanggalMulai}
-                        onChange={(e) => setTanggalMulai(e.target.value)}
-                        disabled={isLoading}
-                        className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs sm:text-sm text-slate-900 focus:border-indigo-600 focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label
-                        htmlFor="tanggal-selesai"
-                        className="block text-[11px] font-semibold text-slate-600 mb-1"
-                      >
-                        Tanggal Selesai (Jumat)
-                      </label>
-                      <input
-                        id="tanggal-selesai"
-                        type="date"
-                        value={tanggalSelesai}
-                        onChange={(e) => setTanggalSelesai(e.target.value)}
-                        disabled={isLoading}
-                        className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs sm:text-sm text-slate-900 dark:text-white focus:border-indigo-600 focus:outline-none"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Deteksi Hari Libur Nasional & Akhir Pekan Indonesia (Mode Borongan 1 Pekan) */}
-                  {(() => {
-                    const weeklyHolidays = checkRangeForHolidays(tanggalMulai, tanggalSelesai);
-                    if (weeklyHolidays.length === 0) return null;
-                    return (
-                      <div className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700/60 text-amber-800 dark:text-amber-300 text-xs animate-fadeIn">
-                        <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-                        <div className="space-y-1">
-                          <span className="font-bold">⚠️ Catatan Kalender Kerja:</span> Terdapat{" "}
-                          <strong>{weeklyHolidays.length} hari libur / akhir pekan</strong> dalam rentang pekan ini:
-                          <ul className="list-disc list-inside text-[11px] text-amber-700/90 dark:text-amber-400/90 space-y-0.5 mt-0.5">
-                            {weeklyHolidays.map((h, idx) => (
-                              <li key={idx}>
-                                <strong>{h.formattedDate}:</strong> {h.description}
-                              </li>
-                            ))}
-                          </ul>
-                          <p className="text-[10px] text-amber-600 dark:text-amber-400 italic">
-                            Pastikan narasi aktivitas pekanan disesuaikan dengan ketentuan operasional mitra magang atau desa KKN.
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </div>
-
+                {/* 2. Input Peran / Posisi */}
                 <div>
-                  <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
-                    <label
-                      htmlFor="input-ringkasan-mingguan"
-                      className="block text-xs sm:text-sm font-bold text-slate-800"
-                    >
-                      4. Ringkasan Aktivitas Pekan Ini
-                    </label>
-                    <div className="flex items-center gap-1.5">
-                      <VoiceDictationButton
-                        onTranscript={(text) =>
-                          setRingkasanMingguan((prev) => (prev.trim() ? `${prev.trim()} ${text}` : text))
-                        }
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setIsSmartIngestionOpen(true)}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition cursor-pointer"
-                        title="Tarik commit GitHub atau jadwal kalender otomatis"
-                      >
-                        <GitBranch className="w-3.5 h-3.5" />
-                        <span>GitHub / Agenda</span>
-                      </button>
-                    </div>
-                  </div>
+                  <label
+                    htmlFor="input-peran"
+                    className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1.5"
+                  >
+                    2. Peran / Posisi
+                  </label>
+                  <input
+                    id="input-peran"
+                    type="text"
+                    value={peran}
+                    onChange={(e) => setPeran(e.target.value)}
+                    placeholder='Contoh: "Social Media Specialist", "Staff Operasional"'
+                    disabled={isLoading}
+                    className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-400 dark:focus:ring-zinc-600 disabled:opacity-60 transition"
+                  />
 
-                  <div className="mb-2 flex flex-wrap items-center gap-1.5">
-                    <span className="text-[11px] text-slate-400 mr-0.5">
-                      Chip contoh tugas mingguan:
+                  {/* Saran Peran Cepat */}
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                    <span className="text-[11px] text-zinc-400 mr-0.5">
+                      Contoh:
                     </span>
-                    {currentProgramConfig.weeklyExamples.map((ex) => (
+                    {currentProgramConfig.roleExamples.map((roleSample) => (
                       <button
-                        key={ex.label}
+                        key={roleSample}
                         type="button"
-                        onClick={() => handleFillWeeklySample(ex.summary)}
-                        className="text-[11px] px-2.5 py-1 rounded-lg border bg-amber-50/80 hover:bg-amber-100/80 border-amber-200 text-amber-900 font-semibold transition cursor-pointer"
+                        onClick={() => setPeran(roleSample)}
+                        className={`text-[11px] px-2 py-0.5 rounded-md border transition cursor-pointer ${
+                          peran === roleSample
+                            ? "bg-zinc-100 dark:bg-zinc-800 border-zinc-400 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100 font-medium"
+                            : "bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700 hover:text-zinc-900 dark:hover:text-zinc-200"
+                        }`}
                       >
-                        {ex.label}
+                        {roleSample}
                       </button>
                     ))}
                   </div>
-
-                  <textarea
-                    id="input-ringkasan-mingguan"
-                    rows={4}
-                    value={ringkasanMingguan}
-                    onChange={(e) => setRingkasanMingguan(e.target.value)}
-                    placeholder="Ceritakan secara santai apa saja yang kamu kerjakan selama 1 pekan ini..."
-                    disabled={isLoading}
-                    className="w-full rounded-xl border border-slate-300 bg-white p-3.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-600 focus:outline-none focus:ring-3 focus:ring-indigo-500/15 disabled:bg-slate-100 transition resize-y leading-relaxed"
-                  />
-                  <p className="mt-1.5 text-[11px] text-slate-500 leading-relaxed">
-                    AI akan otomatis membagi ringkasanmu menjadi alur progresif:{" "}
-                    <strong>Hari 1</strong> (Briefing & Perencanaan) →{" "}
-                    <strong>Hari 2</strong> (Persiapan Materi/Data) →{" "}
-                    <strong>Hari 3</strong> (Eksekusi Utama) →{" "}
-                    <strong>Hari 4</strong> (Troubleshooting & Revisi) →{" "}
-                    <strong>Hari 5</strong> (Rekapitulasi & Evaluasi).
-                  </p>
                 </div>
-              </div>
-            )}
 
-            {/* Pesan Error (jika ada) */}
-            {errorMsg && (
-              <div className="rounded-xl bg-rose-50 border border-rose-200 p-3.5 flex items-start gap-2.5 text-rose-700 text-xs sm:text-sm">
-                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-rose-600" />
-                <div className="flex-1">
-                  <p className="font-semibold">Perhatian</p>
-                  <p className="mt-0.5 text-rose-600/90">{errorMsg}</p>
-                </div>
-              </div>
-            )}
+                {/* KONDISIONAL: MODE HARIAN */}
+                {mode === "daily" ? (
+                  <div className="space-y-4">
+                    {/* Tanggal Kegiatan Harian */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/30">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
+                        <div>
+                          <label htmlFor="input-tanggal-harian" className="text-xs font-medium text-zinc-800 dark:text-zinc-200 block">
+                            Tanggal Kegiatan Harian
+                          </label>
+                          <span className="text-[11px] text-zinc-400">
+                            Klik titik di baris kalender atas untuk mengisi hari terlewat
+                          </span>
+                        </div>
+                      </div>
+                      <input
+                        id="input-tanggal-harian"
+                        type="date"
+                        value={tanggalHarian}
+                        onChange={(e) => setTanggalHarian(e.target.value)}
+                        disabled={isLoading}
+                        className="text-xs font-medium px-2.5 py-1.5 rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400 cursor-pointer"
+                      />
+                    </div>
 
-            {/* Tombol Submit dengan Efek Shimmer Button */}
-            <button
-              type="submit"
-              disabled={isLoading || isQuotaExhausted}
-              className={`shimmer-button relative w-full py-3.5 px-5 rounded-xl font-bold text-sm sm:text-base flex items-center justify-center gap-2.5 transition-all shadow-md cursor-pointer ${
-                isQuotaExhausted
-                  ? "bg-slate-200 dark:bg-slate-800 text-slate-500 cursor-not-allowed shadow-none"
-                  : mode === "weekly"
-                    ? "bg-gradient-to-r from-indigo-600 via-indigo-700 to-violet-700 hover:from-indigo-700 hover:to-violet-800 active:scale-[0.99] text-white shadow-indigo-500/25 ring-1 ring-white/20"
-                    : fotoBase64
-                      ? "bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 hover:from-indigo-700 hover:to-purple-700 active:scale-[0.99] text-white shadow-indigo-500/25 ring-1 ring-white/20"
-                      : "bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white shadow-indigo-500/25 ring-1 ring-white/20"
-              }`}
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>
-                    {mode === "weekly"
-                      ? "Menyusun Narasi Progresif 1 Pekan..."
-                      : fotoBase64
-                        ? "Menganalisis Bukti Foto & Menyusun Logbook..."
-                        : "Menyusun Logbook Resmi..."}
-                  </span>
-                </>
-              ) : isQuotaExhausted ? (
-                <>
-                  <Crown className="w-5 h-5 text-amber-500" />
-                  <span>Kuota Gratis Habis — Aktifkan Langganan di Atas</span>
-                </>
-              ) : mode === "weekly" ? (
-                <span>🚀 Susun Logbook 1 Pekan Sekaligus</span>
-              ) : fotoBase64 ? (
-                <>
-                  <Camera className="w-5 h-5" />
-                  <span>Analisis Foto & Generate Logbook Resmi</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-5 h-5" />
-                  <span>Generate Logbook Resmi</span>
-                </>
-              )}
-            </button>
-          </form>
-        </section>
+                    {/* Deteksi Hari Libur Nasional & Akhir Pekan Indonesia */}
+                    {(() => {
+                      const holidayInfo = getIndonesianHolidayInfo(tanggalHarian);
+                      if (!holidayInfo.isHoliday && !holidayInfo.isWeekend) return null;
+                      return (
+                        <div className="flex items-start gap-2.5 p-2.5 rounded-lg bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 text-amber-900 dark:text-amber-300 text-xs animate-fadeIn">
+                          <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                          <div>
+                            <span><strong>Catatan Kalender:</strong> {holidayInfo.formattedDate} adalah <u>{holidayInfo.description}</u>.</span>
+                            <p className="text-[11px] text-amber-700 dark:text-amber-400/90 mt-0.5">
+                              Pastikan terdapat lembur kerja atau penugasan resmi pada tanggal ini.
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Hidden File Input for Image Upload */}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={handleFileChange}
+                      className="hidden"
+                      disabled={isLoading}
+                    />
+
+                    {/* Compact Attached Photo Card (if photo selected) */}
+                    {fotoBase64 && (
+                      <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50/70 dark:bg-zinc-900/50 p-2.5 flex items-center justify-between gap-3 animate-fadeIn">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="relative w-12 h-12 rounded-md overflow-hidden border border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-800 shrink-0">
+                            {isCompressingPhoto ? (
+                              <div className="w-full h-full flex items-center justify-center text-zinc-400">
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              </div>
+                            ) : (
+                              /* eslint-disable-next-line @next/next/no-img-element */
+                              <img
+                                src={fotoBase64}
+                                alt="Pratinjau Foto"
+                                className="w-full h-full object-cover"
+                              />
+                            )}
+                          </div>
+                          <div className="min-w-0 space-y-0.5">
+                            <div className="flex items-center gap-1.5">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                              <span className="text-xs font-medium text-zinc-900 dark:text-zinc-100 truncate">
+                                {fotoFileName || "Foto Kegiatan Terlampir"}
+                              </span>
+                            </div>
+                            <label className="inline-flex items-center gap-1.5 text-[11px] text-zinc-500 dark:text-zinc-400 cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={enableWatermark}
+                                onChange={(e) => handleToggleWatermark(e.target.checked)}
+                                className="rounded border-zinc-300 dark:border-zinc-700 text-zinc-900 focus:ring-0 cursor-pointer"
+                              />
+                              <span>Watermark Timestamp & Identitas Resmi</span>
+                            </label>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          {detectedPhotoDate && detectedPhotoDate.iso !== tanggalHarian && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setTanggalHarian(detectedPhotoDate.iso);
+                                toast.info(`Tanggal logbook diselaraskan ke tanggal foto: ${detectedPhotoDate.iso}`);
+                              }}
+                              className="text-[11px] text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 underline cursor-pointer"
+                            >
+                              Samakan ({detectedPhotoDate.iso})
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={handleRemovePhoto}
+                            className="p-1 text-zinc-400 hover:text-rose-500 transition cursor-pointer"
+                            title="Hapus Foto"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Textarea Catatan Harian with Floating Action Toolbar */}
+                    <div>
+                      <label
+                        htmlFor="input-catatan"
+                        className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1.5"
+                      >
+                        3. Catatan Kegiatan
+                      </label>
+                      <div
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={handleDropImage}
+                        className="relative rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 focus-within:border-zinc-400 dark:focus-within:border-zinc-600 focus-within:ring-1 focus-within:ring-zinc-400 dark:focus-within:ring-zinc-600 transition-all"
+                      >
+                        <textarea
+                          id="input-catatan"
+                          rows={4}
+                          value={catatan}
+                          onChange={(e) => setCatatan(e.target.value)}
+                          placeholder={
+                            fotoBase64
+                              ? "Catatan santai pelengkap (AI juga akan menganalisis dari fotomu)..."
+                              : "Tuliskan aktivitas santaimu hari ini (misal: bantu rekap nota excel dan bereskan packing)..."
+                          }
+                          disabled={isLoading}
+                          className="w-full bg-transparent p-3.5 pb-12 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none resize-y leading-relaxed border-0"
+                        />
+
+                        {/* Floating Action Toolbar at bottom inside textarea */}
+                        <div className="absolute bottom-2 left-2.5 right-2.5 flex items-center justify-between gap-2 pt-1 border-t border-zinc-100 dark:border-zinc-800/80 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xs">
+                          <div className="flex items-center gap-1.5">
+                            <VoiceDictationButton
+                              onTranscript={(text) =>
+                                setCatatan((prev) => (prev.trim() ? `${prev.trim()} ${text}` : text))
+                              }
+                            />
+
+                            {/* Upload Foto Action Button */}
+                            <button
+                              type="button"
+                              onClick={() => fileInputRef.current?.click()}
+                              className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition cursor-pointer border ${
+                                fotoBase64
+                                  ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 border-zinc-300 dark:border-zinc-700"
+                                  : "bg-transparent text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                              }`}
+                              title="Unggah Foto Bukti Kegiatan (Vision AI)"
+                            >
+                              <Camera className="w-3.5 h-3.5" />
+                              <span className="hidden sm:inline">
+                                {fotoBase64 ? "Ganti Foto" : "Unggah Foto"}
+                              </span>
+                            </button>
+
+                            {/* Smart Import Button */}
+                            <button
+                              type="button"
+                              onClick={() => setIsSmartIngestionOpen(true)}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition cursor-pointer"
+                              title="Tarik commit GitHub atau jadwal kalender otomatis"
+                            >
+                              <GitBranch className="w-3.5 h-3.5" />
+                              <span className="hidden sm:inline">GitHub / Agenda</span>
+                            </button>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={handleFillSample}
+                            className="text-xs text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition cursor-pointer"
+                          >
+                            Isi Contoh
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Gaya Bahasa (Tone Humanizer) */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                          4. Gaya Bahasa (Tone Humanizer)
+                        </label>
+                        <span className="text-[10px] text-zinc-400">
+                          Anti-Klise AI
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        {TONE_OPTIONS.map((opt) => {
+                          const isSelected = tone === opt.value;
+                          return (
+                            <div
+                              key={opt.value}
+                              onClick={() => setTone(opt.value)}
+                              className={`p-2.5 rounded-lg border text-left cursor-pointer transition-all ${
+                                isSelected
+                                  ? "border-zinc-900 dark:border-zinc-100 bg-zinc-50 dark:bg-zinc-800/80 shadow-2xs"
+                                  : "border-zinc-200 dark:border-zinc-800 bg-transparent hover:border-zinc-300 dark:hover:border-zinc-700"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between mb-0.5">
+                                <span className="font-medium text-xs text-zinc-900 dark:text-zinc-100">
+                                  {opt.label}
+                                </span>
+                                <span
+                                  className={`text-[10px] px-1.5 py-0.2 rounded font-medium ${
+                                    isSelected
+                                      ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
+                                      : "bg-zinc-100 dark:bg-zinc-800 text-zinc-500"
+                                  }`}
+                                >
+                                  {opt.badge}
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-tight">
+                                {opt.description}
+                              </p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* KONDISIONAL: MODE BORONGAN 1 PEKAN */
+                  <div className="space-y-4">
+                    <div className="rounded-lg bg-zinc-50/70 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800 p-3 space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-zinc-800 dark:text-zinc-200 flex items-center gap-1.5">
+                          <Calendar className="w-3.5 h-3.5 text-zinc-500" />
+                          <span>Rentang Tanggal Pekan Ini (Senin – Jumat)</span>
+                        </span>
+                        <span className="text-[11px] text-zinc-400">
+                          Narasi Progresif 5 Tahap
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <div>
+                          <label
+                            htmlFor="tanggal-mulai"
+                            className="block text-[11px] text-zinc-500 mb-1"
+                          >
+                            Tanggal Mulai (Senin)
+                          </label>
+                          <input
+                            id="tanggal-mulai"
+                            type="date"
+                            value={tanggalMulai}
+                            onChange={(e) => setTanggalMulai(e.target.value)}
+                            disabled={isLoading}
+                            className="w-full rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2.5 py-1.5 text-xs text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                          />
+                        </div>
+                        <div>
+                          <label
+                            htmlFor="tanggal-selesai"
+                            className="block text-[11px] text-zinc-500 mb-1"
+                          >
+                            Tanggal Selesai (Jumat)
+                          </label>
+                          <input
+                            id="tanggal-selesai"
+                            type="date"
+                            value={tanggalSelesai}
+                            onChange={(e) => setTanggalSelesai(e.target.value)}
+                            disabled={isLoading}
+                            className="w-full rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2.5 py-1.5 text-xs text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Deteksi Hari Libur Nasional Mode Borongan */}
+                      {(() => {
+                        const weeklyHolidays = checkRangeForHolidays(tanggalMulai, tanggalSelesai);
+                        if (weeklyHolidays.length === 0) return null;
+                        return (
+                          <div className="p-2 rounded bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 text-amber-900 dark:text-amber-300 text-[11px]">
+                            <strong>Catatan Kalender:</strong> Terdapat {weeklyHolidays.length} hari libur dalam rentang ini ({weeklyHolidays.map((h) => h.formattedDate).join(", ")}).
+                          </div>
+                        );
+                      })()}
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label
+                          htmlFor="input-ringkasan-mingguan"
+                          className="block text-xs font-medium text-zinc-700 dark:text-zinc-300"
+                        >
+                          Ringkasan Aktivitas Pekan Ini
+                        </label>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[11px] text-zinc-400 mr-1">Contoh:</span>
+                          {currentProgramConfig.weeklyExamples.slice(0, 2).map((ex) => (
+                            <button
+                              key={ex.label}
+                              type="button"
+                              onClick={() => handleFillWeeklySample(ex.summary)}
+                              className="text-[11px] px-2 py-0.5 rounded border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700 transition cursor-pointer"
+                            >
+                              {ex.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="relative rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 focus-within:border-zinc-400 dark:focus-within:border-zinc-600 focus-within:ring-1 focus-within:ring-zinc-400 dark:focus-within:ring-zinc-600 transition-all">
+                        <textarea
+                          id="input-ringkasan-mingguan"
+                          rows={4}
+                          value={ringkasanMingguan}
+                          onChange={(e) => setRingkasanMingguan(e.target.value)}
+                          placeholder="Ceritakan secara santai apa saja yang kamu kerjakan selama 1 pekan ini..."
+                          disabled={isLoading}
+                          className="w-full bg-transparent p-3.5 pb-12 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none resize-y leading-relaxed border-0"
+                        />
+
+                        {/* Floating Toolbar inside weekly textarea */}
+                        <div className="absolute bottom-2 left-2.5 right-2.5 flex items-center justify-between gap-2 pt-1 border-t border-zinc-100 dark:border-zinc-800/80 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xs">
+                          <div className="flex items-center gap-1.5">
+                            <VoiceDictationButton
+                              onTranscript={(text) =>
+                                setRingkasanMingguan((prev) => (prev.trim() ? `${prev.trim()} ${text}` : text))
+                              }
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setIsSmartIngestionOpen(true)}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition cursor-pointer"
+                              title="Tarik commit GitHub atau jadwal kalender otomatis"
+                            >
+                              <GitBranch className="w-3.5 h-3.5" />
+                              <span className="hidden sm:inline">GitHub / Agenda</span>
+                            </button>
+                          </div>
+
+                          <span className="text-[11px] text-zinc-400">
+                            Alur 5 hari otomatis disusun AI
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Pesan Error */}
+                {errorMsg && (
+                  <div className="rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 p-3 flex items-start gap-2.5 text-rose-700 dark:text-rose-300 text-xs sm:text-sm">
+                    <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-rose-600 dark:text-rose-400" />
+                    <div className="flex-1">
+                      <p className="font-medium">Perhatian</p>
+                      <p className="mt-0.5 text-rose-600 dark:text-rose-400/90">{errorMsg}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Tombol Generate Logbook: Solid Monokromatik Bergaya Vercel / Linear */}
+                <button
+                  type="submit"
+                  disabled={isLoading || isQuotaExhausted}
+                  className={`w-full font-medium px-5 py-2.5 rounded-lg shadow-sm active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer text-sm ${
+                    isQuotaExhausted
+                      ? "bg-zinc-200 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-600 cursor-not-allowed shadow-none"
+                      : "bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-zinc-100 dark:hover:bg-zinc-200 dark:text-zinc-900"
+                  }`}
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>
+                        {mode === "weekly"
+                          ? "Menyusun Narasi 1 Pekan..."
+                          : fotoBase64
+                            ? "Menganalisis Foto & Menyusun Logbook..."
+                            : "Menyusun Logbook..."}
+                      </span>
+                    </>
+                  ) : isQuotaExhausted ? (
+                    <>
+                      <Crown className="w-4 h-4 text-zinc-400" />
+                      <span>Kuota Gratis Habis — Upgrade ke Pro</span>
+                    </>
+                  ) : mode === "weekly" ? (
+                    <>
+                      <Sparkles className="w-4 h-4" />
+                      <span>Generate Logbook 1 Pekan</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4" />
+                      <span>Generate Logbook Resmi</span>
+                    </>
+                  )}
+                </button>
+              </form>
+            </section>
 
         {/* Loading Skeleton */}
         {isLoading && (
-          <section className="bg-white rounded-2xl p-5 sm:p-6 border border-indigo-100 shadow-xs space-y-4 animate-pulse-subtle">
+          <section className="bg-white dark:bg-zinc-900 rounded-xl p-5 sm:p-6 border border-zinc-200 dark:border-zinc-800 shadow-xs space-y-4 animate-pulse-subtle">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-600">
-                <Loader2 className="w-5 h-5 animate-spin" />
+              <div className="w-8 h-8 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-900 dark:text-zinc-100">
+                <Loader2 className="w-4 h-4 animate-spin" />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-slate-800">
+                <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                   {fotoBase64
                     ? "Sedang Menginspeksi Bukti Foto Kegiatan..."
                     : mode === "weekly"
                       ? "Sedang Merancang Alur Progresif 1 Pekan..."
                       : "Sedang Menganalisis & Menyusun Laporan..."}
                 </h3>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">
                   Mengonversi data ke standar akademik Taksonomi Bloom (C3–C6)
                 </p>
               </div>
             </div>
-            <div className="space-y-3 pt-2">
+            <div className="space-y-2.5 pt-2">
               {[1, 2, 3, 4, 5].map((item) => (
                 <div
                   key={item}
-                  className="p-3.5 rounded-xl bg-slate-50 border border-slate-100 space-y-2"
+                  className="p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-100 dark:border-zinc-800/60 space-y-1.5"
                 >
-                  <div className="h-3.5 w-44 bg-slate-200 rounded" />
-                  <div className="h-3 w-full bg-slate-200/70 rounded" />
-                  <div className="h-3 w-5/6 bg-slate-200/70 rounded" />
+                  <div className="h-3 w-40 bg-zinc-200 dark:bg-zinc-700 rounded" />
+                  <div className="h-2.5 w-full bg-zinc-200/70 dark:bg-zinc-700/60 rounded" />
+                  <div className="h-2.5 w-5/6 bg-zinc-200/70 dark:bg-zinc-700/60 rounded" />
                 </div>
               ))}
             </div>
@@ -2815,42 +2594,38 @@ export default function HomePage() {
         {mode === "weekly" && weeklyResults.length > 0 && !isLoading && (
           <section
             ref={resultRef}
-            className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/90 shadow-sm space-y-5 scroll-mt-16"
+            className="bg-white dark:bg-zinc-900 rounded-xl p-5 sm:p-6 border border-zinc-200 dark:border-zinc-800 shadow-xs space-y-4 scroll-mt-16"
           >
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-200">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-zinc-100 dark:border-zinc-800">
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
-                    <Layers className="w-3.5 h-3.5" />
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700">
+                    <Layers className="w-3.5 h-3.5 text-zinc-500" />
                     <span>Batch {weeklyResults.length} Hari Kerja</span>
                   </span>
-                  <span className="text-xs font-semibold text-slate-600">
+                  <span className="text-xs text-zinc-500">
                     {tipeKegiatan} • {peran}
                   </span>
                 </div>
-                <h2 className="text-base sm:text-lg font-extrabold text-slate-900 mt-1">
-                  Hasil Logbook 1 Pekan (Narasi Progresif)
+                <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 mt-1">
+                  Hasil Logbook 1 Pekan
                 </h2>
               </div>
 
               <button
                 type="button"
                 onClick={handleCopyAllWeeklyMarkdown}
-                className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition shadow-xs cursor-pointer ${
-                  copiedWeeklyAll
-                    ? "bg-emerald-600 text-white"
-                    : "bg-slate-900 hover:bg-slate-800 text-white"
-                }`}
+                className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium transition cursor-pointer bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-zinc-200 text-white dark:text-zinc-900 shadow-xs"
               >
                 {copiedWeeklyAll ? (
                   <>
-                    <Check className="w-4 h-4" />
-                    <span>Rekap Seluruh Pekan Tersalin!</span>
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Rekap Tersalin!</span>
                   </>
                 ) : (
                   <>
-                    <Copy className="w-4 h-4" />
-                    <span>Salin Rekap Seluruh Pekan (Markdown/Text)</span>
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>Salin Rekap (Markdown)</span>
                   </>
                 )}
               </button>
@@ -3009,20 +2784,20 @@ export default function HomePage() {
         {mode === "daily" && result && !isLoading && (
           <section
             ref={resultRef}
-            className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/90 shadow-sm space-y-5 scroll-mt-16"
+            className="bg-white dark:bg-zinc-900 rounded-xl p-5 sm:p-6 border border-zinc-200 dark:border-zinc-800 shadow-xs space-y-4 scroll-mt-16"
           >
             {/* Header Hasil + Tombol Salin Semua */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-200">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-zinc-100 dark:border-zinc-800">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700">
                     {tipeKegiatan}
                   </span>
-                  <span className="text-xs font-medium text-slate-500 truncate max-w-[200px]">
+                  <span className="text-xs text-zinc-500 truncate max-w-[200px]">
                     • {peran}
                   </span>
                 </div>
-                <h2 className="text-base sm:text-lg font-extrabold text-slate-900 mt-1">
+                <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 mt-1">
                   Hasil Logbook Harian Resmi
                 </h2>
               </div>
@@ -3030,20 +2805,16 @@ export default function HomePage() {
               <button
                 type="button"
                 onClick={handleCopyAll}
-                className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition shadow-xs cursor-pointer ${
-                  copiedAll
-                    ? "bg-emerald-600 text-white"
-                    : "bg-slate-900 hover:bg-slate-800 text-white"
-                }`}
+                className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium transition cursor-pointer bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-zinc-200 text-white dark:text-zinc-900 shadow-xs"
               >
                 {copiedAll ? (
                   <>
-                    <Check className="w-4 h-4" />
+                    <Check className="w-3.5 h-3.5" />
                     <span>Semua Bagian Tersalin!</span>
                   </>
                 ) : (
                   <>
-                    <Copy className="w-4 h-4" />
+                    <Copy className="w-3.5 h-3.5" />
                     <span>Salin Semua</span>
                   </>
                 )}
