@@ -25,8 +25,14 @@ export const IDB_KEYS = {
   DEFENSE_EVALUATIONS: "logmagang_defense_evaluations",
   OFFLINE_DRAFTS: "logmagang_offline_drafts",
   TEMPLATES: "logmagang_template_snippets",
+  DAILY_AUTOSAVE_CATATAN: "logmagang_daily_autosave_catatan",
   MIGRATION_FLAG: "logmagang_idb_migrated_v1",
 } as const;
+
+export interface DailyAutoSaveDraft {
+  catatan: string;
+  updatedAt: string;
+}
 
 export interface OfflineDraftItem {
   id: string;
@@ -239,6 +245,31 @@ export async function removeStoredOfflineDraft(id: string): Promise<void> {
 
 export async function clearStoredOfflineDrafts(): Promise<void> {
   await setIdbItem(IDB_KEYS.OFFLINE_DRAFTS, []);
+}
+
+export async function getStoredDailyAutoSave(): Promise<DailyAutoSaveDraft | null> {
+  const data = await getIdbItem<DailyAutoSaveDraft | string>(IDB_KEYS.DAILY_AUTOSAVE_CATATAN);
+  if (!data) return null;
+  if (typeof data === "string") {
+    return { catatan: data, updatedAt: new Date().toISOString() };
+  }
+  if (typeof data === "object" && typeof data.catatan === "string") {
+    return data;
+  }
+  return null;
+}
+
+export async function saveStoredDailyAutoSave(catatan: string): Promise<DailyAutoSaveDraft> {
+  const draft: DailyAutoSaveDraft = {
+    catatan,
+    updatedAt: new Date().toISOString(),
+  };
+  await setIdbItem(IDB_KEYS.DAILY_AUTOSAVE_CATATAN, draft);
+  return draft;
+}
+
+export async function clearStoredDailyAutoSave(): Promise<void> {
+  await deleteIdbItem(IDB_KEYS.DAILY_AUTOSAVE_CATATAN);
 }
 
 // ==========================================

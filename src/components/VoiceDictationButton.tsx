@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { toast } from "sonner";
 import { Mic, MicOff, AlertCircle } from "lucide-react";
 
 interface VoiceDictationButtonProps {
@@ -111,7 +112,7 @@ export function VoiceDictationButton({
 
   const toggleListening = () => {
     if (!isSupported) {
-      alert("Browser Anda belum mendukung Web Speech API. Coba gunakan Google Chrome atau Microsoft Edge.");
+      toast.error("Browser Anda belum mendukung Web Speech API. Coba gunakan Google Chrome atau Microsoft Edge.");
       return;
     }
 

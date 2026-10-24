@@ -1,0 +1,8 @@
+{
+  "name": "LogMagang OS — Generator Logbook & Laporan Magang MBKM, MSIB & KKN",
+  "description": "Platform produktivitas akademik terpadu untuk menyusun logbook harian, borongan mingguan, konversi 20 SKS OBE, simulasi sidang DPL, dan ekspor dokumen resmi.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

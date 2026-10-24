@@ -136,15 +136,9 @@ export function TemplateLibraryModal({
   };
 
   const handleResetDefaults = async () => {
-    if (
-      window.confirm(
-        "Kembalikan library templat ke setelan awal? Snippet bawaan akan dipulihkan."
-      )
-    ) {
-      const defs = await resetStoredTemplates();
-      setTemplates(defs);
-      toast.success("Library templat telah dipulihkan ke bawaan.");
-    }
+    const defs = await resetStoredTemplates();
+    setTemplates(defs);
+    toast.success("Library templat telah dipulihkan ke bawaan.");
   };
 
   const handleCopyContent = (e: React.MouseEvent, id: string, content: string) => {

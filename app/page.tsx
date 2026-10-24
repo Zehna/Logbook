@@ -61,6 +61,8 @@ import {
   Square,
   ListFilter,
   CheckCheck,
+  Eye,
+  QrCode,
 } from "lucide-react";
 import {
   getIndonesianHolidayInfo,
@@ -90,6 +92,9 @@ import { WorkspaceSyncModal } from "@/src/components/WorkspaceSyncModal";
 import { AuditHistoryPanel } from "@/src/components/AuditHistoryPanel";
 import { TemplateLibraryModal } from "@/src/components/TemplateLibraryModal";
 import { AuthLoginModal } from "@/src/components/AuthLoginModal";
+import { LivePreviewModal } from "@/src/components/LivePreviewModal";
+import { QrScannerModal } from "@/src/components/QrScannerModal";
+import { CalendarCompetencyModal } from "@/src/components/CalendarCompetencyModal";
 import { auth, getUserFromFirestore, AppUserProfile } from "@/src/lib/firebase/config";
 import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
 import { MentorAdminData } from "@/src/lib/exporters/exportAdminDocs";
@@ -109,6 +114,9 @@ import {
   removeStoredOfflineDraft,
   clearStoredOfflineDrafts,
   getStoredTemplates,
+  getStoredDailyAutoSave,
+  saveStoredDailyAutoSave,
+  clearStoredDailyAutoSave,
   OfflineDraftItem,
   StorageEstimateInfo,
 } from "@/src/lib/storage/indexedDbStore";
@@ -333,6 +341,9 @@ export default function HomePage() {
     return `${yyyy}-${mm}-${dd}`;
   });
   const [catatan, setCatatan] = useState<string>("");
+  const [lastAutoSavedAt, setLastAutoSavedAt] = useState<string | null>(null);
+  const catatanRef = useRef<string>("");
+  const lastSavedCatatanRef = useRef<string>("");
   const [result, setResult] = useState<LogbookResult | null>(null);
   const [fotoBase64, setFotoBase64] = useState<string | null>(null);
   const [fotoMimeType, setFotoMimeType] = useState<string>("image/jpeg");
@@ -395,7 +406,7 @@ export default function HomePage() {
 
   // State Dokumen & Export Hub
   const [exportingType, setExportingType] = useState<
-    "excel" | "word" | "pptx" | null
+    "pdf" | "excel" | "word" | "pptx" | null
   >(null);
   const [exportSuccessToast, setExportSuccessToast] = useState<string | null>(
     null
@@ -445,6 +456,16 @@ export default function HomePage() {
   const [selectedExportEntryIds, setSelectedExportEntryIds] = useState<string[]>([]);
   const [bulkExportSearchQuery, setBulkExportSearchQuery] = useState<string>("");
   const [bulkExportFilterType, setBulkExportFilterType] = useState<string>("all");
+
+  // Live Preview Modal State
+  const [isLivePreviewOpen, setIsLivePreviewOpen] = useState<boolean>(false);
+
+  // QR Scanner Modal State
+  const [isQrScannerOpen, setIsQrScannerOpen] = useState<boolean>(false);
+
+  // Calendar Heatmap, Competency & E-Paraf Hub Modal State
+  const [isCalendarHubOpen, setIsCalendarHubOpen] = useState<boolean>(false);
+  const [calendarHubTab, setCalendarHubTab] = useState<"calendar" | "competency" | "signature">("calendar");
 
   // Listener Autentikasi Firebase
   useEffect(() => {
@@ -576,12 +597,13 @@ export default function HomePage() {
     (async () => {
       try {
         await autoMigrateFromLocalStorage();
-        const [idbHistory, idbProfile, idbMentor, idbCourses, idbTemplates] = await Promise.all([
+        const [idbHistory, idbProfile, idbMentor, idbCourses, idbTemplates, idbDailyAutoSave] = await Promise.all([
           getStoredHistory(),
           getStoredProfile(),
           getStoredMentorData(),
           getStoredSksCourses(),
           getStoredTemplates(),
+          getStoredDailyAutoSave(),
         ]);
 
         if (!isMounted) return;
@@ -604,6 +626,21 @@ export default function HomePage() {
         if (idbTemplates && idbTemplates.length > 0) {
           setTemplateSnippets(idbTemplates);
         }
+        if (idbDailyAutoSave && idbDailyAutoSave.catatan.trim()) {
+          setCatatan((prev) => (prev.trim() ? prev : idbDailyAutoSave.catatan));
+          catatanRef.current = idbDailyAutoSave.catatan;
+          lastSavedCatatanRef.current = idbDailyAutoSave.catatan;
+          const parsedTime = new Date(idbDailyAutoSave.updatedAt);
+          if (!isNaN(parsedTime.getTime())) {
+            setLastAutoSavedAt(
+              parsedTime.toLocaleTimeString("id-ID", {
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+              })
+            );
+          }
+        }
 
         const est = await getStorageUsageEstimate();
         const drafts = await getStoredOfflineDrafts();
@@ -620,6 +657,47 @@ export default function HomePage() {
       isMounted = false;
     };
   }, []);
+
+  // Sinkronisasi ref catatan terbaru agar interval 30 detik tidak ter-reset setiap ketikan
+  useEffect(() => {
+    catatanRef.current = catatan;
+  }, [catatan]);
+
+  // Auto-save catatan ke IndexedDB setiap 30 detik pada mode 'daily'
+  useEffect(() => {
+    if (mode !== "daily") return;
+
+    const autoSaveInterval = setInterval(async () => {
+      const currentCatatan = catatanRef.current;
+      if (currentCatatan === lastSavedCatatanRef.current) return;
+
+      try {
+        if (currentCatatan.trim()) {
+          const savedDraft = await saveStoredDailyAutoSave(currentCatatan);
+          lastSavedCatatanRef.current = currentCatatan;
+          const timeFormatted = new Date(savedDraft.updatedAt).toLocaleTimeString(
+            "id-ID",
+            {
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit",
+            }
+          );
+          setLastAutoSavedAt(timeFormatted);
+        } else {
+          await clearStoredDailyAutoSave();
+          lastSavedCatatanRef.current = "";
+          setLastAutoSavedAt(null);
+        }
+      } catch (err) {
+        console.warn("Gagal menyimpan otomatis catatan harian ke IndexedDB:", err);
+      }
+    }, 30000);
+
+    return () => {
+      clearInterval(autoSaveInterval);
+    };
+  }, [mode]);
 
   const refreshTemplateSnippets = async () => {
     try {
@@ -1411,6 +1489,40 @@ export default function HomePage() {
     }, 3500);
   };
 
+  const handleOpenLivePreview = () => {
+    const entries = getSelectedEntriesForExport();
+    if (entries.length === 0) {
+      toast.error(
+        "Belum ada entri logbook untuk ditampilkan di Live Preview. Silakan generate atau pilih entri terlebih dahulu."
+      );
+      return;
+    }
+    setIsLivePreviewOpen(true);
+  };
+
+  const handleExportPdf = async () => {
+    const entries = getSelectedEntriesForExport();
+    if (entries.length === 0) {
+      toast.error("Pilih minimal 1 entri logbook untuk diekspor ke PDF.");
+      return;
+    }
+    setExportingType("pdf");
+    try {
+      const { exportLogbookToPdf } = await import("@/src/lib/exporters/exportPdf");
+      await exportLogbookToPdf(entries, studentProfile, selectedPreset);
+      triggerToast(
+        `Berhasil mengunduh Dokumen Resmi PDF (.pdf) gabungan berisi ${entries.length} entri ${
+          isBulkSelectionActive ? "terpilih" : ""
+        }!`
+      );
+    } catch (err) {
+      console.error("Gagal ekspor PDF:", err);
+      setErrorMsg("Gagal mengekspor dokumen PDF (.pdf). Silakan coba lagi.");
+    } finally {
+      setExportingType(null);
+    }
+  };
+
   const handleExportExcel = async () => {
     const entries = getSelectedEntriesForExport();
     if (entries.length === 0) {
@@ -1514,7 +1626,7 @@ export default function HomePage() {
       console.error("Gagal sintesis laporan Word:", err);
       const msg = err instanceof Error ? err.message : "Gagal menyintesis naskah laporan akademik.";
       setErrorMsg(msg);
-      alert(msg);
+      toast.error(msg);
     } finally {
       setIsSynthesizingReport(false);
     }
@@ -1583,7 +1695,6 @@ export default function HomePage() {
   };
 
   const handleDeleteHistoryEntry = async (id: string) => {
-    if (!confirm("Hapus entri logbook ini dari riwayat tersimpan?")) return;
     const updated = history.filter((e) => e.id !== id);
     setHistory(updated);
     try {
@@ -1594,16 +1705,11 @@ export default function HomePage() {
     await saveStoredHistory(updated);
     const est = await getStorageUsageEstimate();
     setStorageInfo(est);
+    toast.success("Entri logbook berhasil dihapus dari riwayat.");
     triggerToast("Entri logbook berhasil dihapus dari riwayat.");
   };
 
   const handleClearAllHistory = async () => {
-    if (
-      !confirm(
-        "Apakah Anda yakin ingin menghapus SELURUH riwayat logbook tersimpan? Tindakan ini tidak dapat dibatalkan."
-      )
-    )
-      return;
     setHistory([]);
     try {
       localStorage.removeItem(STORAGE_HISTORY_KEY);
@@ -1613,6 +1719,7 @@ export default function HomePage() {
     await saveStoredHistory([]);
     const est = await getStorageUsageEstimate();
     setStorageInfo(est);
+    toast.success("Seluruh riwayat logbook telah dibersihkan.");
     triggerToast("Seluruh riwayat logbook telah dibersihkan.");
   };
 
@@ -1802,11 +1909,7 @@ export default function HomePage() {
       // Abaikan
     }
     setCanvaBannerOpen(true);
-    window.open(
-      "https://www.canva.com/id_id/buat/poster/",
-      "_blank",
-      "noopener,noreferrer"
-    );
+    toast.success("Draf Poster Luaran berhasil disalin ke clipboard!");
   };
 
   const handleCopyExtensionJson = async () => {
@@ -2272,6 +2375,11 @@ export default function HomePage() {
                   : licenseDetails?.plan || "Member Pro 3 Bulan"
               }
               onOpenUpgradeModal={() => setIsLicenseModalOpen(true)}
+              onOpenQrScanner={() => setIsQrScannerOpen(true)}
+              onOpenCalendarHub={(tab = "calendar") => {
+                setCalendarHubTab(tab);
+                setIsCalendarHubOpen(true);
+              }}
               onSelectDateToBackfill={(isoDate, displayDate) => {
                 setMode("daily");
                 setTanggalHarian(isoDate);
@@ -2771,16 +2879,49 @@ export default function HomePage() {
 
                     {/* Textarea Catatan Harian with Floating Action Toolbar */}
                     <div>
-                      <label
-                        htmlFor="input-catatan"
-                        className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1.5"
-                      >
-                        3. Catatan Kegiatan
-                      </label>
+                      <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+                        <label
+                          htmlFor="input-catatan"
+                          className="block text-xs font-medium text-zinc-700 dark:text-zinc-300"
+                        >
+                          3. Catatan Kegiatan
+                        </label>
+                        <div className="flex items-center gap-2 text-[11px] text-zinc-500 dark:text-zinc-400">
+                          <span className="inline-flex items-center gap-1.5">
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${
+                                lastAutoSavedAt
+                                  ? "bg-emerald-500"
+                                  : "bg-zinc-400 dark:bg-zinc-600"
+                              }`}
+                            />
+                            {lastAutoSavedAt
+                              ? `Tersimpan otomatis di IndexedDB • ${lastAutoSavedAt}`
+                              : "Auto-save IndexedDB tiap 30 detik"}
+                          </span>
+                          {catatan.trim() && (
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                setCatatan("");
+                                catatanRef.current = "";
+                                lastSavedCatatanRef.current = "";
+                                setLastAutoSavedAt(null);
+                                await clearStoredDailyAutoSave();
+                                toast.info("Draf catatan harian dibersihkan.");
+                              }}
+                              className="text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 transition cursor-pointer underline underline-offset-2"
+                              title="Bersihkan catatan dan draf auto-save"
+                            >
+                              Bersihkan
+                            </button>
+                          )}
+                        </div>
+                      </div>
                       <div
                         onDragOver={(e) => e.preventDefault()}
                         onDrop={handleDropImage}
-                        className="relative rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 focus-within:border-zinc-400 dark:focus-within:border-zinc-600 focus-within:ring-1 focus-within:ring-zinc-400 dark:focus-within:ring-zinc-600 transition-all"
+                        className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 focus-within:border-zinc-400 dark:focus-within:border-zinc-600 focus-within:ring-1 focus-within:ring-zinc-400 dark:focus-within:ring-zinc-600 transition-all overflow-hidden"
                       >
                         <textarea
                           id="input-catatan"
@@ -2793,12 +2934,12 @@ export default function HomePage() {
                               : "Tuliskan aktivitas santaimu hari ini (misal: bantu rekap nota excel dan bereskan packing)..."
                           }
                           disabled={isLoading}
-                          className="w-full bg-transparent p-3.5 pb-12 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none resize-y leading-relaxed border-0"
+                          className="w-full bg-transparent p-3.5 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none resize-y leading-relaxed border-0 block"
                         />
 
-                        {/* Floating Action Toolbar at bottom inside textarea */}
-                        <div className="absolute bottom-2 left-2.5 right-2.5 flex items-center justify-between gap-2 pt-1 border-t border-zinc-100 dark:border-zinc-800/80 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xs">
-                          <div className="flex items-center gap-1.5">
+                        {/* Non-overlapping Action Toolbar below textarea */}
+                        <div className="px-3 py-2 flex flex-wrap items-center justify-between gap-2 border-t border-zinc-100 dark:border-zinc-800/80 bg-zinc-50/70 dark:bg-zinc-900/90">
+                          <div className="flex flex-wrap items-center gap-1.5">
                             <VoiceDictationButton
                               onTranscript={(text) =>
                                 setCatatan((prev) => (prev.trim() ? `${prev.trim()} ${text}` : text))
@@ -2809,15 +2950,15 @@ export default function HomePage() {
                             <button
                               type="button"
                               onClick={() => fileInputRef.current?.click()}
-                              className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition cursor-pointer border ${
+                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition cursor-pointer border ${
                                 fotoBase64
                                   ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 border-zinc-300 dark:border-zinc-700"
-                                  : "bg-transparent text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                                  : "bg-white dark:bg-zinc-800/80 text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800"
                               }`}
                               title="Unggah Foto Bukti Kegiatan (Vision AI)"
                             >
                               <Camera className="w-3.5 h-3.5" />
-                              <span className="hidden sm:inline">
+                              <span>
                                 {fotoBase64 ? "Ganti Foto" : "Unggah Foto"}
                               </span>
                             </button>
@@ -2826,18 +2967,29 @@ export default function HomePage() {
                             <button
                               type="button"
                               onClick={() => setIsSmartIngestionOpen(true)}
-                              className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition cursor-pointer"
-                              title="Tarik commit GitHub atau jadwal kalender otomatis"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-white dark:bg-zinc-800/80 text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition cursor-pointer"
+                              title="Tarik commit GitHub, jadwal kalender (.ics), atau tabel CSV Timesheet"
                             >
                               <GitBranch className="w-3.5 h-3.5" />
-                              <span className="hidden sm:inline">GitHub / Agenda</span>
+                              <span>GitHub / CSV</span>
+                            </button>
+
+                            {/* QR Code Scanner Button */}
+                            <button
+                              type="button"
+                              onClick={() => setIsQrScannerOpen(true)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 border border-emerald-200/80 dark:border-emerald-800 transition cursor-pointer"
+                              title="Pindai QR Dokumen Mentor untuk verifikasi atau presensi cepat"
+                            >
+                              <QrCode className="w-3.5 h-3.5" />
+                              <span>Scan QR</span>
                             </button>
 
                             {/* Template Snippet Library Button */}
                             <button
                               type="button"
                               onClick={() => setIsTemplateLibraryOpen(true)}
-                              className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 border border-indigo-200/80 dark:border-indigo-800 transition cursor-pointer"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 border border-indigo-200/80 dark:border-indigo-800 transition cursor-pointer"
                               title="Buka Library Templat Snippet (1-Click Insert)"
                             >
                               <Bookmark className="w-3.5 h-3.5" />
@@ -2848,7 +3000,7 @@ export default function HomePage() {
                           <button
                             type="button"
                             onClick={handleFillSample}
-                            className="text-xs text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition cursor-pointer"
+                            className="text-xs font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition cursor-pointer px-1.5 py-0.5"
                           >
                             Isi Contoh
                           </button>
@@ -3294,23 +3446,34 @@ export default function HomePage() {
                 </h2>
               </div>
 
-              <button
-                type="button"
-                onClick={handleCopyAllWeeklyMarkdown}
-                className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium transition cursor-pointer bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-zinc-200 text-white dark:text-zinc-900 shadow-xs"
-              >
-                {copiedWeeklyAll ? (
-                  <>
-                    <Check className="w-3.5 h-3.5" />
-                    <span>Rekap Tersalin!</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-3.5 h-3.5" />
-                    <span>Salin Rekap (Markdown)</span>
-                  </>
-                )}
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleOpenLivePreview}
+                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition cursor-pointer bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700 shadow-2xs"
+                >
+                  <Eye className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                  <span>Live Preview</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleCopyAllWeeklyMarkdown}
+                  className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium transition cursor-pointer bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-zinc-200 text-white dark:text-zinc-900 shadow-xs"
+                >
+                  {copiedWeeklyAll ? (
+                    <>
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Rekap Tersalin!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>Salin Rekap (Markdown)</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
 
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
@@ -3680,23 +3843,34 @@ export default function HomePage() {
                 </h2>
               </div>
 
-              <button
-                type="button"
-                onClick={handleCopyAll}
-                className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium transition cursor-pointer bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-zinc-200 text-white dark:text-zinc-900 shadow-xs"
-              >
-                {copiedAll ? (
-                  <>
-                    <Check className="w-3.5 h-3.5" />
-                    <span>Semua Bagian Tersalin!</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-3.5 h-3.5" />
-                    <span>Salin Semua</span>
-                  </>
-                )}
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleOpenLivePreview}
+                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition cursor-pointer bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700 shadow-2xs"
+                >
+                  <Eye className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                  <span>Live Preview</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleCopyAll}
+                  className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium transition cursor-pointer bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-zinc-200 text-white dark:text-zinc-900 shadow-xs"
+                >
+                  {copiedAll ? (
+                    <>
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Semua Bagian Tersalin!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>Salin Semua</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
 
             {/* Bukti Dokumentasi Kegiatan (Jika ada foto yang dianalisis) */}
@@ -3811,6 +3985,16 @@ export default function HomePage() {
               </div>
 
               <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+                <button
+                  type="button"
+                  onClick={handleOpenLivePreview}
+                  disabled={getSelectedEntriesForExport().length === 0}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white border border-indigo-600 text-xs font-semibold transition cursor-pointer shadow-2xs disabled:opacity-50"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  <span>Live Preview Dokumen</span>
+                </button>
+
                 <button
                   type="button"
                   onClick={handleToggleBulkSelectionMode}
@@ -4123,7 +4307,16 @@ export default function HomePage() {
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleOpenLivePreview}
+                        disabled={getSelectedEntriesForExport().length === 0}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-zinc-200 text-white dark:text-zinc-900 text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>Live Preview ({getSelectedEntriesForExport().length})</span>
+                      </button>
                       <button
                         type="button"
                         onClick={handleExportWord}
@@ -4919,7 +5112,7 @@ export default function HomePage() {
         currentLicense={licenseDetails}
       />
 
-      {/* Modal Smart Ingestion (GitHub Commit Sync & Agenda Kalender) */}
+      {/* Modal Smart Ingestion (GitHub Commit Sync, Agenda Kalender & Batch CSV Timesheet) */}
       <SmartIngestionModal
         isOpen={isSmartIngestionOpen}
         onClose={() => setIsSmartIngestionOpen(false)}
@@ -4931,6 +5124,18 @@ export default function HomePage() {
           }
           if (suggestedRole && !peran.trim()) {
             setPeran(suggestedRole);
+          }
+        }}
+        onImportBatchEntries={(importedEntries) => {
+          if (importedEntries.length > 0) {
+            setMainTab("generator");
+            setMode("daily");
+            setResult(importedEntries[0]);
+            setHistory((prev) => {
+              const updated = [...importedEntries, ...prev].slice(0, 150);
+              saveStoredHistory(updated).catch(console.error);
+              return updated;
+            });
           }
         }}
         currentPeran={peran}
@@ -4977,6 +5182,107 @@ export default function HomePage() {
         initialName={studentProfile.namaMahasiswa || ""}
         initialNim={studentProfile.nim || ""}
         initialCampus={studentProfile.perguruanTinggi || ""}
+      />
+
+      {/* Modal Live Preview Format Dokumen Resmi (.pdf, .docx, .xlsx, .pptx) */}
+      <LivePreviewModal
+        isOpen={isLivePreviewOpen}
+        onClose={() => setIsLivePreviewOpen(false)}
+        entries={getSelectedEntriesForExport()}
+        studentProfile={studentProfile}
+        selectedPreset={selectedPreset}
+        onExportPdf={handleExportPdf}
+        onExportWord={handleExportWord}
+        onExportExcel={handleExportExcel}
+        onExportPowerPoint={handleExportPowerPoint}
+        exportingType={exportingType}
+        onOpenSignatureModal={() => {
+          setIsLivePreviewOpen(false);
+          setCalendarHubTab("signature");
+          setIsCalendarHubOpen(true);
+        }}
+        title={
+          isBulkSelectionActive
+            ? `Live Preview: ${getSelectedEntriesForExport().length} Entri Terpilih`
+            : "Live Preview Format Dokumen Resmi"
+        }
+      />
+
+      {/* Modal Kalender Heatmap, Deteksi Hari Bolong, Peta Kompetensi & E-Paraf Digital */}
+      <CalendarCompetencyModal
+        isOpen={isCalendarHubOpen}
+        onClose={() => setIsCalendarHubOpen(false)}
+        initialTab={calendarHubTab}
+        history={history}
+        studentProfile={studentProfile}
+        onUpdateProfile={(updatedProfile) => {
+          setStudentProfile(updatedProfile);
+          saveStoredProfile(updatedProfile).catch(console.error);
+        }}
+        onSelectDateToBackfill={(isoDate, displayDate) => {
+          setMainTab("generator");
+          setMode("daily");
+          setTanggalHarian(isoDate);
+          toast.info(`Form disetel untuk menambal tanggal ${displayDate}`, {
+            description: "Silakan lengkapi catatan kegiatan harian Anda lalu klik Generate.",
+          });
+          const formElem = document.getElementById("daily-form-card");
+          if (formElem) {
+            formElem.scrollIntoView({ behavior: "smooth" });
+          }
+        }}
+      />
+
+      {/* Modal QR Code Scanner untuk Verifikasi Dokumen Mentor & Presensi Kehadiran */}
+      <QrScannerModal
+        isOpen={isQrScannerOpen}
+        onClose={() => setIsQrScannerOpen(false)}
+        studentProfile={studentProfile}
+        currentRole={peran}
+        currentProgram={tipeKegiatan}
+        onApplyToForm={(qrData) => {
+          setMainTab("generator");
+          setMode("daily");
+          setTanggalHarian(qrData.isoDate);
+          if (qrData.peran) setPeran(qrData.peran);
+          const qrNote = `[Terverifikasi QR Mentor #${qrData.verificationHash} - ${qrData.mentorName}] ${qrData.agendaCatatan}`;
+          setCatatan((prev) => (prev.trim() ? `${prev.trim()}\n${qrNote}` : qrNote));
+          setStudentProfile((prev) => ({
+            ...prev,
+            namaPembimbing: qrData.mentorName || prev.namaPembimbing,
+            namaMitra: qrData.mitraName || prev.namaMitra,
+          }));
+          toast.success(
+            `Data QR Mentor (#${qrData.verificationHash}) berhasil dimasukkan ke form generator!`
+          );
+        }}
+        onRecordInstantAttendance={(newEntry, mentorName, mitraName) => {
+          setMainTab("generator");
+          setMode("daily");
+          setResult(newEntry);
+          setHistory((prev) => {
+            const updated = [newEntry, ...prev].slice(0, 120);
+            saveStoredHistory(updated).catch(console.error);
+            return updated;
+          });
+          if (mentorName || mitraName) {
+            setStudentProfile((prev) => {
+              const updatedProfile = {
+                ...prev,
+                namaPembimbing: mentorName || prev.namaPembimbing,
+                namaMitra: mitraName || prev.namaMitra,
+              };
+              saveStoredProfile(updatedProfile).catch(console.error);
+              return updatedProfile;
+            });
+          }
+          toast.success(
+            `Presensi & Logbook Terverifikasi QR berhasil dicatat (+8 Jam MBKM)!`,
+            {
+              description: `${newEntry.tanggal} • Disupervisi oleh ${mentorName || "Mentor"}`,
+            }
+          );
+        }}
       />
 
       {/* Footer */}

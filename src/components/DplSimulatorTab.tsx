@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { toast } from "sonner";
 import {
   Mic,
   Sparkles,
@@ -91,7 +92,6 @@ export const DplSimulatorTab: React.FC<DplSimulatorTabProps> = ({
 
   const handleSpeakQuestion = (id: number, text: string) => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) {
-      alert("Browser Anda belum mendukung Web Speech Synthesis API.");
       return;
     }
 
@@ -154,7 +154,7 @@ export const DplSimulatorTab: React.FC<DplSimulatorTabProps> = ({
   const handleEvaluateAnswer = async (q: DefenseQuestionItem) => {
     const studentAnswer = answers[q.id]?.trim();
     if (!studentAnswer) {
-      alert("Silakan ketik atau gunakan tombol Dikte Suara untuk menjawab pertanyaan ini terlebih dahulu.");
+      toast.error("Silakan ketik atau gunakan tombol Dikte Suara untuk menjawab pertanyaan ini terlebih dahulu.");
       return;
     }
 
@@ -182,9 +182,10 @@ export const DplSimulatorTab: React.FC<DplSimulatorTabProps> = ({
       const updated = { ...evaluations, [q.id]: data.data };
       setEvaluations(updated);
       await saveStoredDefenseEvaluations(updated);
+      toast.success("Jawaban latihan sidang berhasil dievaluasi!");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Terjadi kesalahan evaluasi.";
-      alert(msg);
+      toast.error(msg);
     } finally {
       setEvaluatingId(null);
     }

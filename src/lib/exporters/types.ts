@@ -45,6 +45,8 @@ export interface StudentProfile {
   kampusPreset?: KampusPreset;
   logoKampusBase64?: string;
   logoKampusMimeType?: string;
+  ttdMahasiswaBase64?: string;
+  ttdMentorBase64?: string;
 }
 
 export const DEFAULT_STUDENT_PROFILE: StudentProfile = {

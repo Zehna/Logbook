@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { toast } from "sonner";
 import {
   Briefcase,
   Sparkles,
@@ -218,9 +219,10 @@ export const AtsResumeTab: React.FC<AtsResumeTabProps> = ({
       };
 
       await exportAtsResumeToDocx(resumeData);
+      toast.success("CV ATS-Friendly (.docx) berhasil diunduh!");
     } catch (err) {
       console.error("Gagal ekspor CV Word ATS:", err);
-      alert("Gagal mengunduh dokumen CV ATS Word. Silakan coba lagi.");
+      toast.error("Gagal mengunduh dokumen CV ATS Word. Silakan coba lagi.");
     } finally {
       setIsExportingDocx(false);
     }
