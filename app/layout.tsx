@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
-import { Toaster } from "sonner";
+import { ClientToaster } from "@/src/components/ClientToaster";
 import "./globals.css";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
@@ -56,8 +56,11 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="min-h-screen font-sans bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
-        <Toaster richColors position="top-right" closeButton />
+      <body
+        suppressHydrationWarning
+        className="min-h-screen font-sans bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200"
+      >
+        <ClientToaster />
         {children}
       </body>
     </html>

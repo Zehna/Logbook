@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 import { DefenseEvaluationResult, DefenseEvaluationPayload } from "@/src/lib/types/modules";
+import { checkRateLimit } from "@/src/lib/security/rateLimiter";
 
 const DEFENSE_EVALUATION_SCHEMA = {
   type: "object",
@@ -41,6 +42,11 @@ const DEFENSE_EVALUATION_SCHEMA = {
 
 export async function POST(request: NextRequest) {
   try {
+    const rateLimit = checkRateLimit(request, { limit: 15, windowMs: 60 * 1000 });
+    if (!rateLimit.allowed) {
+      return rateLimit.errorResponse;
+    }
+
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey || apiKey.trim() === "" || apiKey === "your_gemini_api_key_here") {
@@ -54,13 +60,13 @@ export async function POST(request: NextRequest) {
     }
 
     const body = (await request.json()) as DefenseEvaluationPayload;
-    const pertanyaan = body.pertanyaan?.trim();
-    const jawabanMahasiswa = body.jawabanMahasiswa?.trim();
-    const kategori = body.kategori?.trim() || "Sidang Magang/KKN";
-    const alasanPenguji = body.alasanPenguji?.trim() || "Menguji kontribusi nyata dan integritas mahasiswa.";
-    const peran = body.peran?.trim() || "Mahasiswa Peserta";
-    const tipeKegiatan = body.tipeKegiatan?.trim() || "Magang MBKM";
-    const riwayatKegiatan = body.riwayatKegiatan?.trim() || "";
+    const pertanyaan = body.pertanyaan?.trim().slice(0, 2000);
+    const jawabanMahasiswa = body.jawabanMahasiswa?.trim().slice(0, 10000);
+    const kategori = body.kategori?.trim().slice(0, 100) || "Sidang Magang/KKN";
+    const alasanPenguji = body.alasanPenguji?.trim().slice(0, 1000) || "Menguji kontribusi nyata dan integritas mahasiswa.";
+    const peran = body.peran?.trim().slice(0, 100) || "Mahasiswa Peserta";
+    const tipeKegiatan = body.tipeKegiatan?.trim().slice(0, 50) || "Magang MBKM";
+    const riwayatKegiatan = body.riwayatKegiatan?.trim().slice(0, 50000) || "";
 
     if (!pertanyaan || !jawabanMahasiswa) {
       return NextResponse.json(

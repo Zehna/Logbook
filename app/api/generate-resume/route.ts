@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 import { ResumeGeneratorResponse } from "@/src/lib/types/modules";
+import { checkRateLimit } from "@/src/lib/security/rateLimiter";
 
 export interface ResumeGeneratorPayload {
   tipeKegiatan: string;
@@ -111,6 +112,11 @@ const RESUME_GENERATOR_SCHEMA = {
 
 export async function POST(request: NextRequest) {
   try {
+    const rateLimit = checkRateLimit(request, { limit: 15, windowMs: 60 * 1000 });
+    if (!rateLimit.allowed) {
+      return rateLimit.errorResponse;
+    }
+
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey || apiKey.trim() === "" || apiKey === "your_gemini_api_key_here") {
@@ -124,10 +130,10 @@ export async function POST(request: NextRequest) {
     }
 
     const body = (await request.json()) as Partial<ResumeGeneratorPayload>;
-    const tipeKegiatan = body.tipeKegiatan?.trim() || "Magang MBKM";
-    const peran = body.peran?.trim() || "Intern Professional";
-    const targetPosisi = body.targetPosisi?.trim() || peran;
-    const riwayatKegiatan = body.riwayatKegiatan?.trim() || "";
+    const tipeKegiatan = body.tipeKegiatan?.trim().slice(0, 50) || "Magang MBKM";
+    const peran = body.peran?.trim().slice(0, 100) || "Intern Professional";
+    const targetPosisi = body.targetPosisi?.trim().slice(0, 100) || peran;
+    const riwayatKegiatan = body.riwayatKegiatan?.trim().slice(0, 50000) || "";
 
     if (!riwayatKegiatan) {
       return NextResponse.json(

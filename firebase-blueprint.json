@@ -1,0 +1,60 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Data profil mahasiswa dan akun pengguna",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "ID unik pengguna dari Firebase Auth"
+        },
+        "displayName": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Nama lengkap mahasiswa"
+        },
+        "email": {
+          "type": "string",
+          "maxLength": 150,
+          "description": "Alamat email Google"
+        },
+        "photoURL": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "URL foto avatar profil pengguna"
+        },
+        "nim": {
+          "type": "string",
+          "maxLength": 50,
+          "description": "Nomor Induk Mahasiswa (NIM)"
+        },
+        "campus": {
+          "type": "string",
+          "maxLength": 150,
+          "description": "Asal perguruan tinggi"
+        },
+        "prodi": {
+          "type": "string",
+          "maxLength": 150,
+          "description": "Program studi / jurusan"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Waktu pendaftaran akun"
+        },
+        "lastLoginAt": {
+          "type": "string",
+          "description": "Waktu login terakhir pengguna"
+        }
+      },
+      "required": ["uid", "displayName", "email"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Koleksi data profil akun mahasiswa"
+    }
+  }
+}

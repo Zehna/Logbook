@@ -6,7 +6,7 @@
 
 import { LogbookEntry, StudentProfile } from "../exporters/types";
 import { MentorAdminData } from "../exporters/exportAdminDocs";
-import { MatriksSksItem, KknTeamData, SynthesizedReportChapters, DefenseEvaluationResult } from "../types/modules";
+import { MatriksSksItem, KknTeamData, SynthesizedReportChapters, DefenseEvaluationResult, LogbookTemplateSnippet } from "../types/modules";
 
 const DB_NAME = "logmagang_db";
 const DB_VERSION = 1;
@@ -24,6 +24,7 @@ export const IDB_KEYS = {
   SYNTHESIZED_REPORT: "logmagang_synthesized_report",
   DEFENSE_EVALUATIONS: "logmagang_defense_evaluations",
   OFFLINE_DRAFTS: "logmagang_offline_drafts",
+  TEMPLATES: "logmagang_template_snippets",
   MIGRATION_FLAG: "logmagang_idb_migrated_v1",
 } as const;
 
@@ -239,6 +240,137 @@ export async function removeStoredOfflineDraft(id: string): Promise<void> {
 export async function clearStoredOfflineDrafts(): Promise<void> {
   await setIdbItem(IDB_KEYS.OFFLINE_DRAFTS, []);
 }
+
+// ==========================================
+// TEMPLATE SNIPPETS LOGBOOK
+// ==========================================
+
+export const DEFAULT_LOGBOOK_TEMPLATES: LogbookTemplateSnippet[] = [
+  {
+    id: "tpl-default-1",
+    title: "Daily Standup & Slicing UI Komponen",
+    category: "Magang MBKM",
+    content:
+      "pagi ini ikut daily standup tim engineering, lanjut slicing komponen UI dashboard dan filter tabel di Next.js sesuai wireframe Figma, lalu testing responsif di mobile dan fix bug alignment",
+    isCustom: false,
+    createdAt: "2026-01-01T00:00:00.000Z",
+  },
+  {
+    id: "tpl-default-2",
+    title: "Rekapitulasi Nota & Arsip Finansial",
+    category: "Magang MBKM",
+    content:
+      "hari ini bantu rekap nota masuk dan faktur penjualan ke master spreadsheet Excel, cross-check selisih mutasi kas bareng supervisor, dan rapikan berkas arsip fisik divisi keuangan",
+    isCustom: false,
+    createdAt: "2026-01-01T00:00:00.000Z",
+  },
+  {
+    id: "tpl-default-3",
+    title: "Riset Konten Medsos & Copywriting",
+    category: "Magang MBKM",
+    content:
+      "hari ini riset tren konten TikTok & Instagram Reels untuk kampanye mingguan, bikin 3 draf naskah copywriting, koordinasi dengan desainer grafis, dan submit jadwal tayang ke marketing lead",
+    isCustom: false,
+    createdAt: "2026-01-01T00:00:00.000Z",
+  },
+  {
+    id: "tpl-default-4",
+    title: "Live Mentoring & Integrasi REST API",
+    category: "MSIB",
+    content:
+      "hari ini menghadiri live mentoring sesi ke-6 membahas integrasi REST API dan token JWT, dilanjutkan hands-on coding modul autentikasi user dan testing endpoint via Postman",
+    isCustom: false,
+    createdAt: "2026-01-01T00:00:00.000Z",
+  },
+  {
+    id: "tpl-default-5",
+    title: "Data Cleaning & Eksplorasi Dataset",
+    category: "MSIB",
+    content:
+      "hari ini fokus pembersihan dataset transaksi dengan Python Pandas, menangani missing values dan outlier, lalu membuat visualisasi korelasi di Looker Studio untuk bahan sprint review",
+    isCustom: false,
+    createdAt: "2026-01-01T00:00:00.000Z",
+  },
+  {
+    id: "tpl-default-6",
+    title: "Pendampingan UMKM & Foto Produk Desa",
+    category: "KKN",
+    content:
+      "pagi ini ke balai desa untuk mendampingi ibu-ibu PKK pembuat keripik singkong, membantu pemotretan produk dengan pencahayaan portabel, membuatkan draf stiker kemasan, dan mendaftarkan titik lokasi Google Maps Bisnis",
+    isCustom: false,
+    createdAt: "2026-01-01T00:00:00.000Z",
+  },
+  {
+    id: "tpl-default-7",
+    title: "Bimbingan Belajar & Calistung Posko",
+    category: "KKN",
+    content:
+      "sore ini mengadakan bimbel gratis untuk 18 siswa SD di posko KKN, mengajarkan matematika dasar dan calistung dengan kuis interaktif, lalu dilanjutkan kegiatan membaca buku cerita donasi",
+    isCustom: false,
+    createdAt: "2026-01-01T00:00:00.000Z",
+  },
+  {
+    id: "tpl-default-8",
+    title: "Rapat Evaluasi Mingguan & Notulensi",
+    category: "Umum / Rutinitas",
+    content:
+      "mengikuti rapat mingguan evaluasi capaian kerja bersama mentor dan tim divisi, mencatat poin-poin kesepakatan dan action items ke dalam notulensi resmi, lalu membagikannya ke grup komunikasi",
+    isCustom: false,
+    createdAt: "2026-01-01T00:00:00.000Z",
+  },
+  {
+    id: "tpl-default-9",
+    title: "Quality Control & Pengujian Deliverables",
+    category: "Umum / Rutinitas",
+    content:
+      "hari ini fokus quality control deliverables sebelum diserahkan ke mentor/atasan, mengecek kesesuaian checklist operasional, mencatat temuan deviasi minor, dan menyusun laporan perbaikan",
+    isCustom: false,
+    createdAt: "2026-01-01T00:00:00.000Z",
+  },
+];
+
+export async function getStoredTemplates(): Promise<LogbookTemplateSnippet[]> {
+  const custom = await getIdbItem<LogbookTemplateSnippet[]>(IDB_KEYS.TEMPLATES);
+  if (Array.isArray(custom) && custom.length > 0) {
+    return custom;
+  }
+  // Simpan default ke IDB pertama kali
+  await setIdbItem(IDB_KEYS.TEMPLATES, DEFAULT_LOGBOOK_TEMPLATES);
+  return DEFAULT_LOGBOOK_TEMPLATES;
+}
+
+export async function saveStoredTemplates(
+  templates: LogbookTemplateSnippet[]
+): Promise<void> {
+  await setIdbItem(IDB_KEYS.TEMPLATES, templates);
+}
+
+export async function addStoredTemplate(
+  item: Omit<LogbookTemplateSnippet, "id" | "createdAt">
+): Promise<LogbookTemplateSnippet> {
+  const current = await getStoredTemplates();
+  const newSnippet: LogbookTemplateSnippet = {
+    ...item,
+    id: `tpl-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+    isCustom: true,
+    createdAt: new Date().toISOString(),
+  };
+  const updated = [newSnippet, ...current];
+  await saveStoredTemplates(updated);
+  return newSnippet;
+}
+
+export async function deleteStoredTemplate(id: string): Promise<void> {
+  const current = await getStoredTemplates();
+  const updated = current.filter((t) => t.id !== id);
+  await saveStoredTemplates(updated);
+}
+
+export async function resetStoredTemplates(): Promise<LogbookTemplateSnippet[]> {
+  await saveStoredTemplates(DEFAULT_LOGBOOK_TEMPLATES);
+  return DEFAULT_LOGBOOK_TEMPLATES;
+}
+
 
 // ==========================================
 // MEKANISME AUTO-MIGRASI DARI LOCALSTORAGE

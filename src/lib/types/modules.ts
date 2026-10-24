@@ -199,3 +199,22 @@ export interface DefenseEvaluationPayload {
   riwayatKegiatan?: string;
 }
 
+// ==========================================
+// 9. TEMPLATE SNIPPET LIBRARY
+// ==========================================
+export type TemplateCategory =
+  | "Magang MBKM"
+  | "MSIB"
+  | "KKN"
+  | "Umum / Rutinitas"
+  | "Kustom";
+
+export interface LogbookTemplateSnippet {
+  id: string;
+  title: string;
+  content: string;
+  category: TemplateCategory | string;
+  isCustom?: boolean;
+  createdAt?: string;
+}
+

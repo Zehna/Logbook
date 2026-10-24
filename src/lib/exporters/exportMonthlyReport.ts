@@ -15,7 +15,7 @@ import {
 } from "docx";
 import { saveAs } from "file-saver";
 import { StudentProfile, DEFAULT_STUDENT_PROFILE } from "./types";
-import { MonthlyReportOutput } from "@/app/api/generate-monthly/route";
+import { MonthlyReportOutput } from "@/src/lib/types/monthlyReport";
 
 const FONT_FAMILY = "Times New Roman";
 const SIZE_12PT = 24; // 24 half-points = 12pt

@@ -147,12 +147,23 @@ export function getIndonesianHolidayInfo(dateStr: string): HolidayCheckResult {
   const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
   const weekendName = dayOfWeek === 0 ? "Hari Minggu" : dayOfWeek === 6 ? "Hari Sabtu" : null;
 
-  // Format tanggal Indonesia resmi
-  const formattedDate = dateObj.toLocaleDateString("id-ID", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
+  const MONTH_NAMES_ID = [
+    "Januari",
+    "Februari",
+    "Maret",
+    "April",
+    "Mei",
+    "Juni",
+    "Juli",
+    "Agustus",
+    "September",
+    "Oktober",
+    "November",
+    "Desember",
+  ];
+
+  // Format tanggal Indonesia resmi deterministik (kebal perbedaan ICU/timezone host)
+  const formattedDate = `${day} ${MONTH_NAMES_ID[month - 1] || month} ${year}`;
 
   // Cek exact holiday
   const holidayName = HOLIDAYS_MAP[dateStr];

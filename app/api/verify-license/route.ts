@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { LicenseInfo, ProTier, VerifyLicensePayload } from "@/src/lib/types/modules";
+import { checkRateLimit } from "@/src/lib/security/rateLimiter";
 
 // Master keys default jika belum diatur di environment variable PRO_LICENSE_KEYS
 const DEFAULT_MASTER_KEYS: Record<string, { plan: string; tier: ProTier }> = {
@@ -31,8 +32,13 @@ const FEATURES_SULTAN = [
 
 export async function POST(request: NextRequest) {
   try {
+    const rateLimit = checkRateLimit(request, { limit: 10, windowMs: 60 * 1000 });
+    if (!rateLimit.allowed) {
+      return rateLimit.errorResponse;
+    }
+
     const body = (await request.json()) as Partial<VerifyLicensePayload>;
-    const rawCode = body.code?.trim() || "";
+    const rawCode = (body.code?.trim() || "").slice(0, 64);
 
     if (!rawCode) {
       return NextResponse.json(

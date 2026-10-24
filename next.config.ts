@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   reactStrictMode: true,
   webpack: (config, { isServer, webpack, dev }) => {
     // Matikan cache saat dev mode untuk mencegah RAM leak / allocation error di Windows

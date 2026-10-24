@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
+import { checkRateLimit } from "@/src/lib/security/rateLimiter";
 
 export interface GitHubSyncPayload {
   repoUrlOrOwnerRepo?: string;
@@ -20,17 +21,26 @@ export interface CommitItem {
   url?: string;
 }
 
+const GITHUB_NAME_REGEX = /^[a-zA-Z0-9_.-]+$/;
+
 function parseOwnerAndRepo(input: string): { owner: string; repo: string } | null {
   const cleaned = input.trim().replace(/^https?:\/\/github\.com\//i, "").replace(/\.git$/i, "");
   const parts = cleaned.split("/").filter(Boolean);
   if (parts.length >= 2) {
-    return { owner: parts[0], repo: parts[1] };
+    const owner = parts[0];
+    const repo = parts[1];
+    // Cegah path traversal dan karakter berbahaya
+    if (!GITHUB_NAME_REGEX.test(owner) || !GITHUB_NAME_REGEX.test(repo) || owner === ".." || repo === "..") {
+      return null;
+    }
+    return { owner, repo };
   }
   return null;
 }
 
 function parseRawGitLog(raw: string): CommitItem[] {
-  const lines = raw.split("\n").map((l) => l.trim()).filter(Boolean);
+  const sanitizedRaw = raw.slice(0, 100000);
+  const lines = sanitizedRaw.split("\n").map((l) => l.trim()).filter(Boolean);
   const commits: CommitItem[] = [];
 
   for (const line of lines) {
@@ -42,7 +52,7 @@ function parseRawGitLog(raw: string): CommitItem[] {
       commits.push({
         sha,
         shortSha: sha.slice(0, 7),
-        message: matchShort[2],
+        message: matchShort[2].slice(0, 500),
         author: "Developer",
         date: new Date().toISOString(),
       });
@@ -50,7 +60,7 @@ function parseRawGitLog(raw: string): CommitItem[] {
       commits.push({
         sha: Math.random().toString(16).slice(2, 9),
         shortSha: Math.random().toString(16).slice(2, 9),
-        message: line,
+        message: line.slice(0, 500),
         author: "Developer",
         date: new Date().toISOString(),
       });
@@ -62,11 +72,16 @@ function parseRawGitLog(raw: string): CommitItem[] {
 
 export async function POST(request: NextRequest) {
   try {
+    const rateLimit = checkRateLimit(request, { limit: 12, windowMs: 60 * 1000 });
+    if (!rateLimit.allowed) {
+      return rateLimit.errorResponse;
+    }
+
     const body = (await request.json()) as Partial<GitHubSyncPayload>;
     const { repoUrlOrOwnerRepo, branch, date, username, rawGitLog, peran, tipeKegiatan } = body;
 
     let commits: CommitItem[] = [];
-    let repoName = repoUrlOrOwnerRepo || "Repositori Git";
+    let repoName = repoUrlOrOwnerRepo?.slice(0, 150) || "Repositori Git";
 
     if (repoUrlOrOwnerRepo && repoUrlOrOwnerRepo.trim()) {
       const parsedRepo = parseOwnerAndRepo(repoUrlOrOwnerRepo);

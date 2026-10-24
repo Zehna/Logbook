@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Clock,
   ChevronDown,
@@ -40,6 +40,11 @@ export function AttendanceTracker({
 }: AttendanceTrackerProps) {
   // Collapsed by default for a calm, ultra-compact 1-line strip
   const [isCalendarExpanded, setIsCalendarExpanded] = useState<boolean>(false);
+  const [isMounted, setIsMounted] = useState<boolean>(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Kalkulasi 900 Jam MBKM (1 hari kerja formal = 8 jam kerja)
   const totalDays = history.length;
@@ -66,6 +71,15 @@ export function AttendanceTracker({
   const uniqueness = totalWords === 0 ? 100 : Math.round((uniqueWords / totalWords) * 100);
   const avgWords = totalDays === 0 ? 0 : Math.round(totalWords / totalDays);
 
+  // Helper tanggal deterministik bahasa Indonesia
+  const DAY_SHORT = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
+  const DAY_LONG = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+  const MONTH_SHORT = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agt", "Sep", "Okt", "Nov", "Des"];
+  const MONTH_LONG = [
+    "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+    "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+  ];
+
   // Buat 30 hari kerja terakhir (Senin s/d Jumat)
   const generateRecentWorkDays = (): WorkDayItem[] => {
     const list: WorkDayItem[] = [];
@@ -77,18 +91,14 @@ export function AttendanceTracker({
     while (list.length < 30) {
       const dayOfWeek = cursor.getDay();
       if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-        const iso = cursor.toISOString().slice(0, 10);
-        const dayName = cursor.toLocaleDateString("id-ID", { weekday: "short" });
-        const displayDate = cursor.toLocaleDateString("id-ID", {
-          day: "numeric",
-          month: "short",
-        });
-        const fullDisplayDate = cursor.toLocaleDateString("id-ID", {
-          weekday: "long",
-          day: "numeric",
-          month: "long",
-          year: "numeric",
-        });
+        const year = cursor.getFullYear();
+        const month = cursor.getMonth();
+        const dateNum = cursor.getDate();
+
+        const iso = `${year}-${String(month + 1).padStart(2, "0")}-${String(dateNum).padStart(2, "0")}`;
+        const dayName = DAY_SHORT[dayOfWeek] || "";
+        const displayDate = `${dateNum} ${MONTH_SHORT[month] || ""}`;
+        const fullDisplayDate = `${DAY_LONG[dayOfWeek] || ""}, ${dateNum} ${MONTH_LONG[month] || ""} ${year}`;
 
         const isToday = cursor.getTime() === today.getTime();
 
@@ -98,11 +108,7 @@ export function AttendanceTracker({
           return (
             cleanHistoryDate.includes(displayDate.toLowerCase()) ||
             cleanHistoryDate.includes(iso) ||
-            cleanHistoryDate.includes(
-              cursor
-                .toLocaleDateString("id-ID", { day: "numeric", month: "long" })
-                .toLowerCase()
-            )
+            cleanHistoryDate.includes(`${dateNum} ${MONTH_LONG[month] || ""}`.toLowerCase())
           );
         });
 
@@ -124,9 +130,45 @@ export function AttendanceTracker({
     return list.reverse();
   };
 
-  const workDays = generateRecentWorkDays();
+  const workDays = isMounted ? generateRecentWorkDays() : [];
   const filledCountIn30Days = workDays.filter((d) => d.isFilled).length;
   const missedCountIn30Days = 30 - filledCountIn30Days;
+
+  if (!isMounted) {
+    return (
+      <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 p-3 sm:px-4 shadow-xs transition-colors">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
+              <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                900 Jam MBKM
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="h-1.5 w-24 sm:w-32 rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
+                <div
+                  className="h-full bg-zinc-900 dark:bg-zinc-100 rounded-full transition-all duration-500"
+                  style={{ width: `${percentComplete}%` }}
+                />
+              </div>
+              <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
+                {totalHours}h / 900h ({percentComplete}%)
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5">
+            {Array.from({ length: 30 }).map((_, i) => (
+              <div
+                key={i}
+                className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-[2px] bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700/60 shrink-0"
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 p-3 sm:px-4 shadow-xs transition-colors">

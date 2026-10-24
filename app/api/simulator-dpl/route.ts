@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 import { DplSimulatorResponse } from "@/src/lib/types/modules";
+import { checkRateLimit } from "@/src/lib/security/rateLimiter";
 
 export interface DplSimulatorPayload {
   tipeKegiatan: string;
@@ -79,6 +80,11 @@ const DPL_DEFENSE_SCHEMA = {
 
 export async function POST(request: NextRequest) {
   try {
+    const rateLimit = checkRateLimit(request, { limit: 15, windowMs: 60 * 1000 });
+    if (!rateLimit.allowed) {
+      return rateLimit.errorResponse;
+    }
+
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey || apiKey.trim() === "" || apiKey === "your_gemini_api_key_here") {
@@ -92,12 +98,12 @@ export async function POST(request: NextRequest) {
     }
 
     const body = (await request.json()) as Partial<DplSimulatorPayload>;
-    const tipeKegiatan = body.tipeKegiatan?.trim() || "Magang MBKM";
-    const peran = body.peran?.trim() || "Mahasiswa Peserta Program";
-    const judulLaporan = body.judulLaporan?.trim() || `Laporan Akhir ${tipeKegiatan}`;
-    const mitraPerusahaan = body.mitraPerusahaan?.trim() || "Mitra / Lokasi Kegiatan";
-    const riwayatKegiatan = body.riwayatKegiatan?.trim() || "";
-    const konteksMatkulSks = body.konteksMatkulSks?.trim() || "";
+    const tipeKegiatan = body.tipeKegiatan?.trim().slice(0, 50) || "Magang MBKM";
+    const peran = body.peran?.trim().slice(0, 100) || "Mahasiswa Peserta Program";
+    const judulLaporan = body.judulLaporan?.trim().slice(0, 200) || `Laporan Akhir ${tipeKegiatan}`;
+    const mitraPerusahaan = body.mitraPerusahaan?.trim().slice(0, 150) || "Mitra / Lokasi Kegiatan";
+    const riwayatKegiatan = body.riwayatKegiatan?.trim().slice(0, 50000) || "";
+    const konteksMatkulSks = body.konteksMatkulSks?.trim().slice(0, 10000) || "";
 
     if (!riwayatKegiatan) {
       return NextResponse.json(

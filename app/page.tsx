@@ -55,6 +55,12 @@ import {
   RefreshCw,
   Sun,
   Moon,
+  Bookmark,
+  User,
+  CheckSquare,
+  Square,
+  ListFilter,
+  CheckCheck,
 } from "lucide-react";
 import {
   getIndonesianHolidayInfo,
@@ -76,12 +82,16 @@ import { SksConversionTab } from "@/src/components/SksConversionTab";
 import { AtsResumeTab } from "@/src/components/AtsResumeTab";
 import { DplSimulatorTab } from "@/src/components/DplSimulatorTab";
 import { KknTeamTab } from "@/src/components/KknTeamTab";
-import { ToneType, TONE_OPTIONS, LicenseInfo, KknProkerItem } from "@/src/lib/types/modules";
+import { ToneType, TONE_OPTIONS, LicenseInfo, KknProkerItem, LogbookTemplateSnippet } from "@/src/lib/types/modules";
 import { LicenseModal } from "@/src/components/LicenseModal";
 import { VoiceDictationButton } from "@/src/components/VoiceDictationButton";
 import { SmartIngestionModal } from "@/src/components/SmartIngestionModal";
 import { WorkspaceSyncModal } from "@/src/components/WorkspaceSyncModal";
 import { AuditHistoryPanel } from "@/src/components/AuditHistoryPanel";
+import { TemplateLibraryModal } from "@/src/components/TemplateLibraryModal";
+import { AuthLoginModal } from "@/src/components/AuthLoginModal";
+import { auth, getUserFromFirestore, AppUserProfile } from "@/src/lib/firebase/config";
+import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
 import { MentorAdminData } from "@/src/lib/exporters/exportAdminDocs";
 import {
   autoMigrateFromLocalStorage,
@@ -98,10 +108,11 @@ import {
   saveStoredOfflineDraft,
   removeStoredOfflineDraft,
   clearStoredOfflineDrafts,
+  getStoredTemplates,
   OfflineDraftItem,
   StorageEstimateInfo,
 } from "@/src/lib/storage/indexedDbStore";
-import { MonthlyReportOutput } from "@/app/api/generate-monthly/route";
+import { MonthlyReportOutput } from "@/src/lib/types/monthlyReport";
 
 const MAX_FREE_QUOTA = 3;
 const STORAGE_QUOTA_KEY = "logmagang_free_usage_count";
@@ -416,8 +427,60 @@ export default function HomePage() {
   const [storageInfo, setStorageInfo] = useState<StorageEstimateInfo | null>(null);
   const [extensionSyncAck, setExtensionSyncAck] = useState<boolean>(false);
 
+  // Template Snippets Library State
+  const [isTemplateLibraryOpen, setIsTemplateLibraryOpen] = useState<boolean>(false);
+  const [templateSnippets, setTemplateSnippets] = useState<LogbookTemplateSnippet[]>([]);
+
+  // Firebase Authentication & Firestore User State
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  const [currentUserProfile, setCurrentUserProfile] = useState<AppUserProfile | null>(null);
+  const [currentFbUser, setCurrentFbUser] = useState<FirebaseUser | null>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
+
   // Tahap 6: Dark Mode / Night Mode State
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
+
+  // Bulk Selection & Merged Export States
+  const [isBulkSelectionActive, setIsBulkSelectionActive] = useState<boolean>(false);
+  const [selectedExportEntryIds, setSelectedExportEntryIds] = useState<string[]>([]);
+  const [bulkExportSearchQuery, setBulkExportSearchQuery] = useState<string>("");
+  const [bulkExportFilterType, setBulkExportFilterType] = useState<string>("all");
+
+  // Listener Autentikasi Firebase
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
+      setCurrentFbUser(fbUser);
+      if (fbUser) {
+        try {
+          const profile = await getUserFromFirestore(fbUser.uid);
+          if (profile) {
+            setCurrentUserProfile(profile);
+            setStudentProfile((prev) => ({
+              ...prev,
+              namaMahasiswa: profile.displayName || prev.namaMahasiswa,
+              nim: profile.nim || prev.nim,
+              perguruanTinggi: profile.campus || prev.perguruanTinggi,
+              programStudi: profile.prodi || prev.programStudi,
+            }));
+          } else {
+            setCurrentUserProfile({
+              uid: fbUser.uid,
+              displayName: fbUser.displayName || "Mahasiswa MBKM",
+              email: fbUser.email || "",
+              photoURL: fbUser.photoURL || "",
+            });
+          }
+        } catch (e) {
+          console.warn("Gagal fetch user profile dari Firestore:", e);
+        }
+      } else {
+        setCurrentUserProfile(null);
+      }
+      setIsAuthLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -513,11 +576,12 @@ export default function HomePage() {
     (async () => {
       try {
         await autoMigrateFromLocalStorage();
-        const [idbHistory, idbProfile, idbMentor, idbCourses] = await Promise.all([
+        const [idbHistory, idbProfile, idbMentor, idbCourses, idbTemplates] = await Promise.all([
           getStoredHistory(),
           getStoredProfile(),
           getStoredMentorData(),
           getStoredSksCourses(),
+          getStoredTemplates(),
         ]);
 
         if (!isMounted) return;
@@ -537,6 +601,9 @@ export default function HomePage() {
         if (idbCourses) {
           setSksCoursesContext(idbCourses);
         }
+        if (idbTemplates && idbTemplates.length > 0) {
+          setTemplateSnippets(idbTemplates);
+        }
 
         const est = await getStorageUsageEstimate();
         const drafts = await getStoredOfflineDrafts();
@@ -553,6 +620,26 @@ export default function HomePage() {
       isMounted = false;
     };
   }, []);
+
+  const refreshTemplateSnippets = async () => {
+    try {
+      const data = await getStoredTemplates();
+      setTemplateSnippets(data);
+    } catch (e) {
+      console.warn("Gagal memuat template snippets:", e);
+    }
+  };
+
+  const handleSelectTemplateSnippet = (
+    snippet: string,
+    insertMode: "replace" | "append" = "replace"
+  ) => {
+    if (insertMode === "append" && catatan.trim()) {
+      setCatatan((prev) => `${prev.trim()}\n${snippet}`);
+    } else {
+      setCatatan(snippet);
+    }
+  };
 
   // Listener Status Koneksi Online / Offline untuk Mahasiswa KKN di Pelosok
   useEffect(() => {
@@ -1223,11 +1310,14 @@ export default function HomePage() {
   // Daftar entri yang akan diekspor ke Excel, Word, dan PowerPoint
   const getEntriesForExport = (): LogbookEntry[] => {
     if (history.length > 0) {
-      return history;
+      return history.map((entry, idx) => ({
+        ...entry,
+        id: entry.id || `hist-${idx}-${entry.tanggal || "entry"}`,
+      }));
     }
     if (weeklyResults.length > 0) {
       return weeklyResults.map((day, idx) => ({
-        id: `weekly-${idx}`,
+        id: `weekly-${idx}-${day.tanggal || idx}`,
         tanggal: day.tanggal,
         hari: day.hari,
         tahapFase: day.tahap_fase,
@@ -1243,7 +1333,7 @@ export default function HomePage() {
     if (result) {
       return [
         {
-          id: "current",
+          id: "current-result",
           tanggal: new Date().toLocaleDateString("id-ID", {
             weekday: "long",
             day: "numeric",
@@ -1261,6 +1351,58 @@ export default function HomePage() {
     return [];
   };
 
+  // Mendapatkan entri yang terpilih (baik seluruhnya atau subset hasil bulk selection)
+  const getSelectedEntriesForExport = (): LogbookEntry[] => {
+    const all = getEntriesForExport();
+    if (!isBulkSelectionActive) {
+      return all;
+    }
+    const filtered = all.filter((entry, idx) => {
+      const entryId = entry.id || `entry-${idx}`;
+      return selectedExportEntryIds.includes(entryId);
+    });
+    return filtered;
+  };
+
+  const handleToggleBulkSelectEntry = (id: string) => {
+    setSelectedExportEntryIds((prev) => {
+      if (prev.includes(id)) {
+        return prev.filter((item) => item !== id);
+      } else {
+        return [...prev, id];
+      }
+    });
+  };
+
+  const handleSelectAllExportEntries = () => {
+    const all = getEntriesForExport();
+    const allIds = all.map((e, idx) => e.id || `entry-${idx}`);
+    setSelectedExportEntryIds(allIds);
+    toast.info(`Semua ${allIds.length} entri logbook dipilih.`);
+  };
+
+  const handleDeselectAllExportEntries = () => {
+    setSelectedExportEntryIds([]);
+    toast.info("Pilihan entri logbook dibatalkan (0 dipilih).");
+  };
+
+  const handleSelectRecentExportEntries = (count: number) => {
+    const all = getEntriesForExport();
+    const sliced = all.slice(0, count);
+    const slicedIds = sliced.map((e, idx) => e.id || `entry-${idx}`);
+    setSelectedExportEntryIds(slicedIds);
+    toast.info(`${slicedIds.length} entri terbaru dipilih.`);
+  };
+
+  const handleToggleBulkSelectionMode = () => {
+    const next = !isBulkSelectionActive;
+    setIsBulkSelectionActive(next);
+    if (next && selectedExportEntryIds.length === 0) {
+      const all = getEntriesForExport();
+      setSelectedExportEntryIds(all.map((e, idx) => e.id || `entry-${idx}`));
+    }
+  };
+
   const triggerToast = (msg: string, description?: string) => {
     toast.success(msg, { description });
     setExportSuccessToast(msg);
@@ -1270,14 +1412,19 @@ export default function HomePage() {
   };
 
   const handleExportExcel = async () => {
-    const entries = getEntriesForExport();
-    if (entries.length === 0) return;
+    const entries = getSelectedEntriesForExport();
+    if (entries.length === 0) {
+      toast.error("Pilih minimal 1 entri logbook untuk diekspor ke Excel.");
+      return;
+    }
     setExportingType("excel");
     try {
       const { exportLogbookToExcel } = await import("@/src/lib/exporters/exportExcel");
       await exportLogbookToExcel(entries, studentProfile);
       triggerToast(
-        `Berhasil mengunduh Rekap Excel (.xlsx) berisi ${entries.length} entri logbook!`
+        `Berhasil mengunduh Rekap Excel (.xlsx) gabungan berisi ${entries.length} entri logbook ${
+          isBulkSelectionActive ? "terpilih" : ""
+        }!`
       );
     } catch (err) {
       console.error("Gagal ekspor Excel:", err);
@@ -1288,8 +1435,11 @@ export default function HomePage() {
   };
 
   const handleExportWord = async () => {
-    const entries = getEntriesForExport();
-    if (entries.length === 0) return;
+    const entries = getSelectedEntriesForExport();
+    if (entries.length === 0) {
+      toast.error("Pilih minimal 1 entri logbook untuk diekspor ke Word.");
+      return;
+    }
     setExportingType("word");
     try {
       const { exportLogbookToWord } = await import("@/src/lib/exporters/exportWord");
@@ -1301,7 +1451,9 @@ export default function HomePage() {
       );
       const presetObj = KAMPUS_PRESETS.find((p) => p.value === selectedPreset);
       triggerToast(
-        `Berhasil mengunduh Laporan Resmi [${presetObj?.label}] (.docx) berisi ${entries.length} entri!`
+        `Berhasil mengunduh Laporan Resmi [${presetObj?.label}] (.docx) gabungan berisi ${entries.length} entri ${
+          isBulkSelectionActive ? "terpilih" : ""
+        }!`
       );
     } catch (err) {
       console.error("Gagal ekspor Word:", err);
@@ -1312,9 +1464,9 @@ export default function HomePage() {
   };
 
   const handleSynthesizeAndExportWord = async () => {
-    const entries = getEntriesForExport();
+    const entries = getSelectedEntriesForExport();
     if (entries.length === 0) {
-      alert("Belum ada entri logbook untuk disintesis. Silakan tambahkan atau generate logbook terlebih dahulu.");
+      toast.error("Pilih minimal 1 entri logbook untuk disintesis dan diekspor.");
       return;
     }
 
@@ -1356,7 +1508,7 @@ export default function HomePage() {
 
       const presetObj = KAMPUS_PRESETS.find((p) => p.value === selectedPreset);
       triggerToast(
-        `🧠 Sukses! Bab I–V berhasil disintesis oleh AI & Laporan Lengkap (.docx) telah diunduh!`
+        `🧠 Sukses! Bab I–V berhasil disintesis oleh AI & Laporan Lengkap (.docx) gabungan berisi ${entries.length} entri telah diunduh!`
       );
     } catch (err: unknown) {
       console.error("Gagal sintesis laporan Word:", err);
@@ -1369,8 +1521,11 @@ export default function HomePage() {
   };
 
   const handleExportPowerPoint = async () => {
-    const entries = getEntriesForExport();
-    if (entries.length === 0) return;
+    const entries = getSelectedEntriesForExport();
+    if (entries.length === 0) {
+      toast.error("Pilih minimal 1 entri logbook untuk diekspor ke PowerPoint.");
+      return;
+    }
     setExportingType("pptx");
     try {
       const { exportLogbookToPowerPoint } = await import("@/src/lib/exporters/exportPowerPoint");
@@ -1380,7 +1535,7 @@ export default function HomePage() {
         mentorAdminData || undefined
       );
       triggerToast(
-        "Berhasil mengunduh Slide Presentasi Sidang Akhir (.pptx)!"
+        `Berhasil mengunduh Slide Presentasi Sidang Akhir (.pptx) gabungan berisi ${entries.length} entri!`
       );
     } catch (err) {
       console.error("Gagal ekspor PowerPoint:", err);
@@ -1988,6 +2143,41 @@ export default function HomePage() {
                 </button>
               )}
 
+              {/* User Login / Profile Pill Button */}
+              {currentUserProfile ? (
+                <button
+                  type="button"
+                  onClick={() => setIsAuthModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-200/60 dark:hover:bg-zinc-700/60 transition cursor-pointer max-w-[170px]"
+                  title={`Akun Mahasiswa: ${currentUserProfile.displayName} (${currentUserProfile.email})`}
+                >
+                  {currentUserProfile.photoURL ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={currentUserProfile.photoURL}
+                      alt={currentUserProfile.displayName}
+                      className="w-4 h-4 rounded-full object-cover shrink-0"
+                    />
+                  ) : (
+                    <div className="w-4 h-4 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0">
+                      {currentUserProfile.displayName.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <span className="truncate">{currentUserProfile.displayName.split(" ")[0]}</span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" title="Tersambung ke Firestore Database" />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setIsAuthModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 transition cursor-pointer shadow-2xs"
+                  title="Masuk dengan Akun Google (Tersimpan di Cloud Database)"
+                >
+                  <User className="w-3.5 h-3.5" />
+                  <span>Masuk Akun</span>
+                </button>
+              )}
+
               {/* Tombol Toggle Dark Mode */}
               <button
                 type="button"
@@ -2043,6 +2233,33 @@ export default function HomePage() {
       <main className="flex-1 max-w-5xl w-full mx-auto px-4 pt-5 pb-14 space-y-6">
         {mainTab === "generator" && (
           <>
+            {/* Banner Ajakan Masuk / Sinkronisasi Cloud Firestore jika Belum Login */}
+            {!currentUserProfile && isHydrated && (
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 rounded-xl border border-indigo-200/80 dark:border-indigo-900/60 bg-indigo-50/70 dark:bg-indigo-950/30 text-xs shadow-2xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">
+                    <Sparkles className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-zinc-900 dark:text-zinc-100">
+                      Sinkronkan Identitas Mahasiswa & Logbook ke Cloud Database
+                    </p>
+                    <p className="text-[11px] text-zinc-600 dark:text-zinc-400">
+                      Masuk dengan akun Google untuk menyimpan profil dan riwayat logbook secara aman di Firestore.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsAuthModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white transition cursor-pointer shadow-2xs shrink-0"
+                >
+                  <User className="w-3.5 h-3.5" />
+                  <span>Masuk Akun</span>
+                </button>
+              </div>
+            )}
+
             {/* Attendance Tracker & Heatmap Kehadiran 900 Jam MBKM (GitHub/Linear Strip Style) */}
             <AttendanceTracker
               history={history}
@@ -2456,6 +2673,7 @@ export default function HomePage() {
                         id="input-tanggal-harian"
                         type="date"
                         value={tanggalHarian}
+                        suppressHydrationWarning
                         onChange={(e) => setTanggalHarian(e.target.value)}
                         disabled={isLoading}
                         className="text-xs font-medium px-2.5 py-1.5 rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400 cursor-pointer"
@@ -2463,7 +2681,7 @@ export default function HomePage() {
                     </div>
 
                     {/* Deteksi Hari Libur Nasional & Akhir Pekan Indonesia */}
-                    {(() => {
+                    {isHydrated && (() => {
                       const holidayInfo = getIndonesianHolidayInfo(tanggalHarian);
                       if (!holidayInfo.isHoliday && !holidayInfo.isWeekend) return null;
                       return (
@@ -2614,6 +2832,17 @@ export default function HomePage() {
                               <GitBranch className="w-3.5 h-3.5" />
                               <span className="hidden sm:inline">GitHub / Agenda</span>
                             </button>
+
+                            {/* Template Snippet Library Button */}
+                            <button
+                              type="button"
+                              onClick={() => setIsTemplateLibraryOpen(true)}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 border border-indigo-200/80 dark:border-indigo-800 transition cursor-pointer"
+                              title="Buka Library Templat Snippet (1-Click Insert)"
+                            >
+                              <Bookmark className="w-3.5 h-3.5" />
+                              <span>Templat</span>
+                            </button>
                           </div>
 
                           <button
@@ -2624,6 +2853,57 @@ export default function HomePage() {
                             Isi Contoh
                           </button>
                         </div>
+                      </div>
+
+                      {/* Quick 1-Click Snippet Pills Strip */}
+                      <div className="mt-2 flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+                        <span className="text-[11px] text-zinc-500 dark:text-zinc-400 flex items-center gap-1 shrink-0 font-medium">
+                          <Bookmark className="w-3 h-3 text-indigo-500" />
+                          Snippets:
+                        </span>
+
+                        {templateSnippets
+                          .filter(
+                            (t) =>
+                              t.category === tipeKegiatan ||
+                              t.category === "Umum / Rutinitas" ||
+                              t.isCustom
+                          )
+                          .slice(0, 4)
+                          .map((t) => (
+                            <button
+                              key={t.id}
+                              type="button"
+                              onClick={() => {
+                                handleSelectTemplateSnippet(t.content, "replace");
+                                toast.success(`Templat "${t.title}" disisipkan!`);
+                              }}
+                              className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 hover:text-indigo-600 dark:hover:text-indigo-400 border border-zinc-200 dark:border-zinc-700 transition shrink-0 cursor-pointer"
+                              title={`Klik untuk menyisipkan: "${t.content.slice(0, 70)}..."`}
+                            >
+                              <span>{t.title}</span>
+                            </button>
+                          ))}
+
+                        <button
+                          type="button"
+                          onClick={() => setIsTemplateLibraryOpen(true)}
+                          className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 border border-dashed border-indigo-300 dark:border-indigo-700 transition shrink-0 cursor-pointer"
+                          title="Buka semua koleksi templat snippet"
+                        >
+                          <span>+ Semua ({templateSnippets.length})</span>
+                        </button>
+
+                        {catatan.trim() && (
+                          <button
+                            type="button"
+                            onClick={() => setIsTemplateLibraryOpen(true)}
+                            className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition shrink-0 cursor-pointer"
+                            title="Simpan catatan yang sedang kamu ketik ke library templat"
+                          >
+                            <span>⭐ Simpan Catatan Ini</span>
+                          </button>
+                        )}
                       </div>
                     </div>
 
@@ -2700,6 +2980,7 @@ export default function HomePage() {
                             id="tanggal-mulai"
                             type="date"
                             value={tanggalMulai}
+                            suppressHydrationWarning
                             onChange={(e) => setTanggalMulai(e.target.value)}
                             disabled={isLoading}
                             className="w-full rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2.5 py-1.5 text-xs text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
@@ -2716,6 +2997,7 @@ export default function HomePage() {
                             id="tanggal-selesai"
                             type="date"
                             value={tanggalSelesai}
+                            suppressHydrationWarning
                             onChange={(e) => setTanggalSelesai(e.target.value)}
                             disabled={isLoading}
                             className="w-full rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2.5 py-1.5 text-xs text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400"
@@ -2724,7 +3006,7 @@ export default function HomePage() {
                       </div>
 
                       {/* Deteksi Hari Libur Nasional Mode Borongan */}
-                      {(() => {
+                      {isHydrated && (() => {
                         const weeklyHolidays = checkRangeForHolidays(tanggalMulai, tanggalSelesai);
                         if (weeklyHolidays.length === 0) return null;
                         return (
@@ -3528,11 +3810,33 @@ export default function HomePage() {
                 </p>
               </div>
 
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 text-xs text-zinc-600 dark:text-zinc-300 self-start sm:self-auto">
-                <History className="w-3.5 h-3.5 text-zinc-400" />
-                <span>
-                  {getEntriesForExport().length} Entri Siap Diekspor
-                </span>
+              <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+                <button
+                  type="button"
+                  onClick={handleToggleBulkSelectionMode}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition cursor-pointer ${
+                    isBulkSelectionActive
+                      ? "bg-zinc-900 text-white border-zinc-900 dark:bg-zinc-100 dark:text-zinc-900 dark:border-zinc-100 shadow-2xs"
+                      : "bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-700/60"
+                  }`}
+                >
+                  <CheckSquare className="w-3.5 h-3.5" />
+                  <span>{isBulkSelectionActive ? "Tutup Mode Seleksi" : "Pilih Entri Kustom (Bulk Select)"}</span>
+                  {isBulkSelectionActive && (
+                    <span className="ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] bg-white/20 dark:bg-zinc-900/20">
+                      {getSelectedEntriesForExport().length}/{getEntriesForExport().length}
+                    </span>
+                  )}
+                </button>
+
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 text-xs text-zinc-600 dark:text-zinc-300">
+                  <History className="w-3.5 h-3.5 text-zinc-400" />
+                  <span>
+                    {isBulkSelectionActive
+                      ? `${getSelectedEntriesForExport().length} Terpilih`
+                      : `${getEntriesForExport().length} Entri Siap Diekspor`}
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -3578,6 +3882,270 @@ export default function HomePage() {
                   );
                 })}
               </div>
+            </div>
+
+            {/* Panel Bulk Selection & Filter Entri Logbook */}
+            <div className="rounded-lg bg-zinc-50/50 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800 p-3.5 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <CheckSquare className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">
+                        Seleksi Entri Logbook (Bulk Select)
+                      </span>
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-zinc-200/80 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300">
+                        {isBulkSelectionActive
+                          ? `${getSelectedEntriesForExport().length} dari ${getEntriesForExport().length} dipilih`
+                          : `Semua (${getEntriesForExport().length}) entri`}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                      Pilih beberapa entri spesifik dari riwayat untuk digabungkan menjadi satu file Word (.docx) atau Excel (.xlsx) resmi.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5 self-start sm:self-auto shrink-0">
+                  <button
+                    type="button"
+                    onClick={handleToggleBulkSelectionMode}
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium border transition cursor-pointer ${
+                      isBulkSelectionActive
+                        ? "bg-zinc-900 text-white border-zinc-900 dark:bg-zinc-100 dark:text-zinc-900 dark:border-zinc-100 shadow-2xs"
+                        : "bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                    }`}
+                  >
+                    <ListFilter className="w-3.5 h-3.5" />
+                    <span>{isBulkSelectionActive ? "Sembunyikan Daftar Entri" : "Buka & Kustomisasi Entri"}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Detail Kontrol & Tabel Seleksi Entri saat Mode Aktif */}
+              {isBulkSelectionActive && (
+                <div className="pt-2 border-t border-zinc-200/70 dark:border-zinc-800/80 space-y-2.5">
+                  {/* Bar Pencarian & Tombol Aksi Cepat */}
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
+                    <div className="relative flex-1">
+                      <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400" />
+                      <input
+                        type="text"
+                        placeholder="Cari entri berdasarkan tanggal, kegiatan, atau kata kunci..."
+                        value={bulkExportSearchQuery}
+                        onChange={(e) => setBulkExportSearchQuery(e.target.value)}
+                        className="w-full pl-8 pr-7 py-1.5 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-zinc-400 dark:focus:ring-zinc-600"
+                      />
+                      {bulkExportSearchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => setBulkExportSearchQuery("")}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 text-xs"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0 text-xs">
+                      <button
+                        type="button"
+                        onClick={handleSelectAllExportEntries}
+                        className="px-2 py-1 rounded bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 text-[11px] font-medium transition cursor-pointer"
+                      >
+                        Pilih Semua ({getEntriesForExport().length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleDeselectAllExportEntries}
+                        className="px-2 py-1 rounded bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 text-[11px] font-medium transition cursor-pointer"
+                      >
+                        Batal Semua
+                      </button>
+                      {getEntriesForExport().length > 7 && (
+                        <button
+                          type="button"
+                          onClick={() => handleSelectRecentExportEntries(7)}
+                          className="px-2 py-1 rounded bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 text-[11px] font-medium transition cursor-pointer"
+                        >
+                          7 Terakhir
+                        </button>
+                      )}
+                      {getEntriesForExport().length > 30 && (
+                        <button
+                          type="button"
+                          onClick={() => handleSelectRecentExportEntries(30)}
+                          className="px-2 py-1 rounded bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 text-[11px] font-medium transition cursor-pointer"
+                        >
+                          30 Terakhir
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Filter Kategori Tipe Kegiatan */}
+                  <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 text-[11px]">
+                    <span className="text-zinc-400 dark:text-zinc-500 font-medium shrink-0">Filter:</span>
+                    {[
+                      { id: "all", label: "Semua Program" },
+                      { id: "Magang MBKM", label: "Magang" },
+                      { id: "KKN Tematik", label: "KKN" },
+                      { id: "Studi Independen", label: "Studi Independen" },
+                      { id: "Praktik Kerja Lapangan (PKL)", label: "PKL" },
+                    ].map((tab) => {
+                      const count =
+                        tab.id === "all"
+                          ? getEntriesForExport().length
+                          : getEntriesForExport().filter((e) => e.tipeKegiatan === tab.id).length;
+                      if (count === 0 && tab.id !== "all") return null;
+                      const isActive = bulkExportFilterType === tab.id;
+                      return (
+                        <button
+                          key={tab.id}
+                          type="button"
+                          onClick={() => setBulkExportFilterType(tab.id)}
+                          className={`px-2 py-0.5 rounded-full font-medium transition cursor-pointer shrink-0 ${
+                            isActive
+                              ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
+                              : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200"
+                          }`}
+                        >
+                          {tab.label} ({count})
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Daftar Entri Scrollable dengan Checkbox */}
+                  <div className="max-h-64 sm:max-h-72 overflow-y-auto rounded-lg border border-zinc-200 dark:border-zinc-800 divide-y divide-zinc-100 dark:divide-zinc-800/60 bg-white dark:bg-zinc-900/60 shadow-2xs">
+                    {(() => {
+                      const all = getEntriesForExport();
+                      const query = bulkExportSearchQuery.toLowerCase().trim();
+                      const filtered = all.filter((item) => {
+                        const matchesQuery =
+                          !query ||
+                          item.tanggal?.toLowerCase().includes(query) ||
+                          item.hari?.toLowerCase().includes(query) ||
+                          item.deskripsiKegiatan?.toLowerCase().includes(query) ||
+                          item.kompetensiDikembangkan?.toLowerCase().includes(query) ||
+                          item.tipeKegiatan?.toLowerCase().includes(query) ||
+                          item.tahapFase?.toLowerCase().includes(query);
+
+                        const matchesType =
+                          bulkExportFilterType === "all" ||
+                          item.tipeKegiatan === bulkExportFilterType;
+
+                        return matchesQuery && matchesType;
+                      });
+
+                      if (filtered.length === 0) {
+                        return (
+                          <div className="p-6 text-center text-xs text-zinc-500 dark:text-zinc-400">
+                            Tidak ada entri logbook yang cocok dengan filter atau kata kunci.
+                          </div>
+                        );
+                      }
+
+                      return filtered.map((entry, idx) => {
+                        const entryId = entry.id || `entry-${idx}`;
+                        const isSelected = selectedExportEntryIds.includes(entryId);
+                        return (
+                          <div
+                            key={entryId}
+                            onClick={() => handleToggleBulkSelectEntry(entryId)}
+                            className={`p-3 flex items-start gap-3 transition cursor-pointer select-none ${
+                              isSelected
+                                ? "bg-zinc-50/90 dark:bg-zinc-800/40 hover:bg-zinc-100/70 dark:hover:bg-zinc-800/70"
+                                : "hover:bg-zinc-50/50 dark:hover:bg-zinc-800/20 opacity-75 hover:opacity-100"
+                            }`}
+                          >
+                            <div className="pt-0.5 shrink-0">
+                              <div
+                                className={`w-4 h-4 rounded flex items-center justify-center transition ${
+                                  isSelected
+                                    ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900"
+                                    : "border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800"
+                                }`}
+                              >
+                                {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                              </div>
+                            </div>
+
+                            <div className="flex-1 min-w-0">
+                              <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                                <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                                  {entry.tanggal || `Entri #${idx + 1}`}
+                                </span>
+                                {entry.hari && (
+                                  <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium">
+                                    • {entry.hari}
+                                  </span>
+                                )}
+                                {entry.tipeKegiatan && (
+                                  <span className="px-1.5 py-0.2 rounded text-[10px] font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border border-zinc-200/60 dark:border-zinc-700/60">
+                                    {entry.tipeKegiatan}
+                                  </span>
+                                )}
+                                {entry.tahapFase && (
+                                  <span className="px-1.5 py-0.2 rounded text-[10px] font-medium bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/40">
+                                    {entry.tahapFase}
+                                  </span>
+                                )}
+                                {entry.qualityScore && (
+                                  <span className="px-1.5 py-0.2 rounded text-[10px] font-medium bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/40">
+                                    ★ {entry.qualityScore}/100
+                                  </span>
+                                )}
+                                {entry.fotoBase64 && (
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-medium bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800/40">
+                                    <Camera className="w-2.5 h-2.5" />
+                                    <span>Foto Lampiran</span>
+                                  </span>
+                                )}
+                              </div>
+
+                              <p className="text-[11px] text-zinc-600 dark:text-zinc-400 line-clamp-2 leading-relaxed">
+                                {entry.deskripsiKegiatan || entry.kendalaDihadapi || "Tidak ada detail kegiatan."}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })
+                    })()}
+                  </div>
+
+                  {/* Ringkasan & Tombol Aksi Cepat Unduh Langsung */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1 text-xs">
+                    <div className="flex items-center gap-1.5 text-zinc-500 dark:text-zinc-400 text-[11px]">
+                      <FileCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                      <span>
+                        Dokumen akan menggabungkan <strong>{getSelectedEntriesForExport().length}</strong> entri logbook terpilih secara kronologis ke 1 file tunggal.
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleExportWord}
+                        disabled={exportingType !== null || getSelectedEntriesForExport().length === 0}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        <span>Ekspor Word ({getSelectedEntriesForExport().length})</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleExportExcel}
+                        disabled={exportingType !== null || getSelectedEntriesForExport().length === 0}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+                      >
+                        <FileSpreadsheet className="w-3.5 h-3.5" />
+                        <span>Ekspor Excel ({getSelectedEntriesForExport().length})</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Pengaturan Opsional Biodata Cover Word & Slide Sidang */}
@@ -3760,16 +4328,21 @@ export default function HomePage() {
                   )}
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="text-xs sm:text-sm font-semibold">
                       Sintesis Bab I–V + Unduh Laporan Lengkap (.docx)
                     </span>
                     <span className="px-1.5 py-0.2 rounded text-[10px] font-medium bg-zinc-800 dark:bg-zinc-200 text-zinc-100 dark:text-zinc-900">
                       Academic
                     </span>
+                    {isBulkSelectionActive && (
+                      <span className="px-1.5 py-0.2 rounded text-[10px] font-medium bg-indigo-500/30 text-indigo-200 dark:text-indigo-800 border border-indigo-400/40">
+                        {getSelectedEntriesForExport().length} Entri Tergabung
+                      </span>
+                    )}
                   </div>
                   <p className="text-[11px] text-zinc-400 dark:text-zinc-600 mt-0.5">
-                    Menyusun Bab I (Latar Belakang), Bab II (Teori), Bab IV (Pembahasan), dan Bab V (Saran) langsung ke Word.
+                    Menyusun Bab I (Latar Belakang), Bab II (Teori), Bab IV (Pembahasan), dan Bab V (Saran) langsung ke Word dari {getSelectedEntriesForExport().length} entri.
                   </p>
                 </div>
               </div>
@@ -3784,60 +4357,87 @@ export default function HomePage() {
               <button
                 type="button"
                 onClick={handleExportExcel}
-                disabled={exportingType !== null}
-                className="flex flex-col items-start justify-between p-3.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-900/40 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition cursor-pointer disabled:opacity-60 text-left"
+                disabled={exportingType !== null || getSelectedEntriesForExport().length === 0}
+                className="flex flex-col items-start justify-between p-3.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-900/40 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition cursor-pointer disabled:opacity-50 text-left"
               >
                 <div className="flex items-center justify-between w-full mb-2">
                   <FileSpreadsheet className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                  {exportingType === "excel" && (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-400" />
-                  )}
+                  <div className="flex items-center gap-1.5">
+                    {isBulkSelectionActive && (
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                        {getSelectedEntriesForExport().length} Entri
+                      </span>
+                    )}
+                    {exportingType === "excel" && (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-400" />
+                    )}
+                  </div>
                 </div>
                 <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 leading-snug">
                   Rekap Excel (.xlsx)
                 </span>
                 <span className="text-[11px] text-zinc-500 mt-0.5">
-                  Tabel Formal 8 Kolom
+                  {isBulkSelectionActive
+                    ? `${getSelectedEntriesForExport().length} Entri Tergabung`
+                    : "Tabel Formal 8 Kolom"}
                 </span>
               </button>
 
               <button
                 type="button"
                 onClick={handleExportWord}
-                disabled={exportingType !== null}
-                className="flex flex-col items-start justify-between p-3.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-900/40 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition cursor-pointer disabled:opacity-60 text-left"
+                disabled={exportingType !== null || getSelectedEntriesForExport().length === 0}
+                className="flex flex-col items-start justify-between p-3.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-900/40 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition cursor-pointer disabled:opacity-50 text-left"
               >
                 <div className="flex items-center justify-between w-full mb-2">
                   <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                  {exportingType === "word" && (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-400" />
-                  )}
+                  <div className="flex items-center gap-1.5">
+                    {isBulkSelectionActive && (
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                        {getSelectedEntriesForExport().length} Entri
+                      </span>
+                    )}
+                    {exportingType === "word" && (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-400" />
+                    )}
+                  </div>
                 </div>
                 <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 leading-snug">
                   Laporan Word (.docx)
                 </span>
                 <span className="text-[11px] text-zinc-500 mt-0.5">
-                  TNR 12pt • Cover & Foto
+                  {isBulkSelectionActive
+                    ? `${getSelectedEntriesForExport().length} Entri Tergabung`
+                    : "TNR 12pt • Cover & Foto"}
                 </span>
               </button>
 
               <button
                 type="button"
                 onClick={handleExportPowerPoint}
-                disabled={exportingType !== null}
-                className="flex flex-col items-start justify-between p-3.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-900/40 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition cursor-pointer disabled:opacity-60 text-left"
+                disabled={exportingType !== null || getSelectedEntriesForExport().length === 0}
+                className="flex flex-col items-start justify-between p-3.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-900/40 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition cursor-pointer disabled:opacity-50 text-left"
               >
                 <div className="flex items-center justify-between w-full mb-2">
                   <Presentation className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                  {exportingType === "pptx" && (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-400" />
-                  )}
+                  <div className="flex items-center gap-1.5">
+                    {isBulkSelectionActive && (
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                        {getSelectedEntriesForExport().length} Entri
+                      </span>
+                    )}
+                    {exportingType === "pptx" && (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-400" />
+                    )}
+                  </div>
                 </div>
                 <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 leading-snug">
                   Slide Sidang (.pptx)
                 </span>
                 <span className="text-[11px] text-zinc-500 mt-0.5">
-                  Slide Sidang + Foto
+                  {isBulkSelectionActive
+                    ? `${getSelectedEntriesForExport().length} Entri Tergabung`
+                    : "Slide Sidang + Foto"}
                 </span>
               </button>
             </div>
@@ -4342,6 +4942,41 @@ export default function HomePage() {
         isOpen={isWorkspaceSyncOpen}
         onClose={() => setIsWorkspaceSyncOpen(false)}
         onDataRestored={handleRefreshWorkspaceFromSync}
+      />
+
+      {/* Modal Library Templat Snippet Catatan */}
+      <TemplateLibraryModal
+        isOpen={isTemplateLibraryOpen}
+        onClose={() => {
+          setIsTemplateLibraryOpen(false);
+          refreshTemplateSnippets();
+        }}
+        onSelectTemplate={handleSelectTemplateSnippet}
+        currentCatatan={catatan}
+        activeProgram={tipeKegiatan}
+      />
+
+      {/* Modal Autentikasi Google Login & Sinkronisasi Cloud Firestore */}
+      <AuthLoginModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        currentUser={currentUserProfile}
+        firebaseUser={currentFbUser}
+        onUserChanged={(user) => {
+          setCurrentUserProfile(user);
+          if (user) {
+            setStudentProfile((prev) => ({
+              ...prev,
+              namaMahasiswa: user.displayName || prev.namaMahasiswa,
+              nim: user.nim || prev.nim,
+              perguruanTinggi: user.campus || prev.perguruanTinggi,
+              programStudi: user.prodi || prev.programStudi,
+            }));
+          }
+        }}
+        initialName={studentProfile.namaMahasiswa || ""}
+        initialNim={studentProfile.nim || ""}
+        initialCampus={studentProfile.perguruanTinggi || ""}
       />
 
       {/* Footer */}

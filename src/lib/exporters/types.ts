@@ -31,6 +31,7 @@ export interface LogbookEntry extends LogbookResult {
   catatanAsli?: string;
   fotoBase64?: string;
   fotoMimeType?: string;
+  qualityScore?: number;
 }
 
 export interface StudentProfile {
