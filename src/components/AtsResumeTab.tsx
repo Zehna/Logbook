@@ -126,6 +126,12 @@ export const AtsResumeTab: React.FC<AtsResumeTabProps> = ({
     if (soft.length > 0) setEditableSoftSkills(soft.join(", "));
   };
 
+  const handleFillSampleActivity = () => {
+    setActivityContext(
+      "1. Memimpin tim 4 developer dalam pengembangan modul autentikasi dan otorisasi multi-role untuk platform web enterprise, mengurangi waktu response login sebesar 35%.\n2. Mengintegrasikan Payment Gateway pihak ketiga dengan webhook otomatis, memproses lebih dari 1.200 transaksi pengujian tanpa kendala fatal.\n3. Melakukan refaktorisasi 15 komponen UI kompleks ke format reusable design system berbasis Tailwind CSS dan React, meningkatkan konsistensi UX produk.\n4. Menyusun 25+ test case end-to-end dan unit test dengan coverage 85% untuk mencegah regresi sistem pada rilis produksi mingguan."
+    );
+  };
+
   const handleGenerate = async () => {
     if (!activityContext.trim()) {
       setErrorMsg("Mohon sertakan riwayat aktivitas atau logbook kegiatan Anda.");
@@ -300,21 +306,21 @@ export const AtsResumeTab: React.FC<AtsResumeTabProps> = ({
       </div>
 
       {/* Input Configuration */}
-      <div className="no-print bg-white rounded-2xl shadow-sm border border-slate-200 p-5 sm:p-6 space-y-4">
+      <div className="no-print bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-slate-200 dark:border-zinc-800 p-5 sm:p-6 space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+            <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider mb-1">
               Peran Asal Magang / KKN:
             </label>
             <input
               type="text"
               readOnly
               value={`${peran} (${tipeKegiatan})`}
-              className="w-full text-sm p-3 rounded-xl border border-slate-200 bg-slate-50 font-medium text-slate-700"
+              className="w-full text-sm p-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/60 font-medium text-slate-700 dark:text-zinc-300"
             />
           </div>
           <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+            <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider mb-1">
               Target Posisi Karier Impian:
             </label>
             <input
@@ -322,29 +328,38 @@ export const AtsResumeTab: React.FC<AtsResumeTabProps> = ({
               value={targetRole}
               onChange={(e) => setTargetRole(e.target.value)}
               placeholder="misal: Junior Product Manager, Frontend Developer..."
-              className="w-full text-sm p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-medium text-slate-800"
+              className="w-full text-sm p-3 rounded-xl border border-slate-300 dark:border-zinc-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-medium text-slate-800 dark:text-zinc-100 bg-white dark:bg-zinc-800/60"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-            Riwayat Logbook / Catatan Kerja yang Dianalisis:
-          </label>
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider">
+              Riwayat Logbook / Catatan Kerja yang Dianalisis:
+            </label>
+            <button
+              type="button"
+              onClick={handleFillSampleActivity}
+              className="text-xs text-blue-600 dark:text-blue-400 hover:underline cursor-pointer font-medium"
+            >
+              Isi Contoh Pengalaman
+            </button>
+          </div>
           <textarea
             rows={4}
             value={activityContext}
             onChange={(e) => setActivityContext(e.target.value)}
             placeholder="Ketik atau biarkan terisi dari riwayat logbook aplikasi..."
-            className="w-full text-sm p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-slate-50/50"
+            className="w-full text-sm p-3 rounded-xl border border-slate-300 dark:border-zinc-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-slate-50/50 dark:bg-zinc-800/60 text-slate-800 dark:text-zinc-100"
           />
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">
             💡 AI akan mengekstrak metrik keberhasilan, instrumen kerja, dan solusi yang pernah Anda terapkan menjadi data resume konkret.
           </p>
         </div>
 
         {errorMsg && (
-          <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl">
+          <div className="p-3 bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs rounded-xl">
             {errorMsg}
           </div>
         )}
@@ -373,15 +388,15 @@ export const AtsResumeTab: React.FC<AtsResumeTabProps> = ({
       {result && (
         <div className="space-y-6">
           {/* View Mode Toggle & Export Toolbar */}
-          <div className="no-print flex flex-col sm:flex-row items-center justify-between gap-3 p-3 bg-white rounded-2xl border border-slate-200 shadow-xs">
-            <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl w-full sm:w-auto">
+          <div className="no-print flex flex-col sm:flex-row items-center justify-between gap-3 p-3 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200 dark:border-zinc-800 shadow-xs">
+            <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-zinc-800 rounded-xl w-full sm:w-auto">
               <button
                 type="button"
                 onClick={() => setActiveView("analysis")}
                 className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition cursor-pointer ${
                   activeView === "analysis"
-                    ? "bg-white text-blue-700 shadow-xs"
-                    : "text-slate-600 hover:text-slate-900"
+                    ? "bg-white dark:bg-zinc-700 text-blue-700 dark:text-blue-300 shadow-xs"
+                    : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100"
                 }`}
               >
                 <Sparkles className="w-3.5 h-3.5" />
@@ -392,8 +407,8 @@ export const AtsResumeTab: React.FC<AtsResumeTabProps> = ({
                 onClick={() => setActiveView("preview")}
                 className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition cursor-pointer ${
                   activeView === "preview"
-                    ? "bg-white text-indigo-700 shadow-xs"
-                    : "text-slate-600 hover:text-slate-900"
+                    ? "bg-white dark:bg-zinc-700 text-indigo-700 dark:text-indigo-300 shadow-xs"
+                    : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100"
                 }`}
               >
                 <FileText className="w-3.5 h-3.5" />
@@ -431,20 +446,20 @@ export const AtsResumeTab: React.FC<AtsResumeTabProps> = ({
           {activeView === "analysis" && (
             <div className="space-y-6">
               {/* ATS Bullets */}
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 sm:p-6 space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+              <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-slate-200 dark:border-zinc-800 p-5 sm:p-6 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-zinc-800 pb-4">
                   <div>
-                    <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800">
+                    <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300">
                       HARVARD CV FORMAT (STAR METHOD)
                     </div>
-                    <h3 className="text-lg font-bold text-slate-900 mt-1">
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-zinc-100 mt-1">
                       Bullet Points Pengalaman Kerja ({result.targetRole})
                     </h3>
                   </div>
                   <button
                     type="button"
                     onClick={handleCopyAllBullets}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 dark:bg-zinc-100 hover:bg-slate-800 dark:hover:bg-zinc-200 text-white dark:text-zinc-900 text-xs font-semibold shadow-xs transition-colors cursor-pointer"
                   >
                     {copiedSection === "all-bullets" ? (
                       <>
@@ -453,7 +468,7 @@ export const AtsResumeTab: React.FC<AtsResumeTabProps> = ({
                       </>
                     ) : (
                       <>
-                        <Copy className="w-4 h-4 text-slate-300" />
+                        <Copy className="w-4 h-4 text-slate-300 dark:text-zinc-600" />
                         <span>Salin Semua Bullets</span>
                       </>
                     )}
@@ -464,42 +479,42 @@ export const AtsResumeTab: React.FC<AtsResumeTabProps> = ({
                   {result.resumeBullets.map((b, idx) => (
                     <div
                       key={idx}
-                      className="p-4 rounded-xl border border-slate-200 bg-slate-50/60 hover:bg-white hover:shadow-md transition-all space-y-2.5"
+                      className="p-4 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/60 dark:bg-zinc-800/40 hover:bg-white dark:hover:bg-zinc-800/80 hover:shadow-md transition-all space-y-2.5"
                     >
                       <div className="flex items-start justify-between gap-3">
-                        <p className="text-sm font-semibold text-slate-900 leading-relaxed">
+                        <p className="text-sm font-semibold text-slate-900 dark:text-zinc-100 leading-relaxed">
                           • {b.bulletText}
                         </p>
                         <button
                           type="button"
                           onClick={() => copyToClipboard(`• ${b.bulletText}`, `bullet-${idx}`)}
-                          className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 transition-colors shrink-0 cursor-pointer"
+                          className="p-1.5 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-300 transition-colors shrink-0 cursor-pointer"
                           title="Salin bullet ini"
                         >
                           {copiedSection === `bullet-${idx}` ? (
-                            <Check className="w-4 h-4 text-emerald-600" />
+                            <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                           ) : (
                             <Copy className="w-4 h-4" />
                           )}
                         </button>
                       </div>
 
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-200/60 text-[11px]">
-                        <div className="p-2 rounded-lg bg-white border border-slate-200">
-                          <span className="font-bold text-slate-500 block">S (Situation):</span>
-                          <span className="text-slate-700">{b.starFramework.situation}</span>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-200/60 dark:border-zinc-700/60 text-[11px]">
+                        <div className="p-2 rounded-lg bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700">
+                          <span className="font-bold text-slate-500 dark:text-zinc-400 block">S (Situation):</span>
+                          <span className="text-slate-700 dark:text-zinc-300">{b.starFramework.situation}</span>
                         </div>
-                        <div className="p-2 rounded-lg bg-white border border-slate-200">
-                          <span className="font-bold text-slate-500 block">T (Task):</span>
-                          <span className="text-slate-700">{b.starFramework.task}</span>
+                        <div className="p-2 rounded-lg bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700">
+                          <span className="font-bold text-slate-500 dark:text-zinc-400 block">T (Task):</span>
+                          <span className="text-slate-700 dark:text-zinc-300">{b.starFramework.task}</span>
                         </div>
-                        <div className="p-2 rounded-lg bg-white border border-slate-200">
-                          <span className="font-bold text-slate-500 block">A (Action):</span>
-                          <span className="text-slate-700">{b.starFramework.action}</span>
+                        <div className="p-2 rounded-lg bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700">
+                          <span className="font-bold text-slate-500 dark:text-zinc-400 block">A (Action):</span>
+                          <span className="text-slate-700 dark:text-zinc-300">{b.starFramework.action}</span>
                         </div>
-                        <div className="p-2 rounded-lg bg-emerald-50 border border-emerald-200">
-                          <span className="font-bold text-emerald-700 block">R (Result & Metric):</span>
-                          <span className="text-emerald-900 font-semibold">{b.metric}</span>
+                        <div className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800">
+                          <span className="font-bold text-emerald-700 dark:text-emerald-300 block">R (Result & Metric):</span>
+                          <span className="text-emerald-900 dark:text-emerald-100 font-semibold">{b.metric}</span>
                         </div>
                       </div>
                     </div>
@@ -508,13 +523,13 @@ export const AtsResumeTab: React.FC<AtsResumeTabProps> = ({
               </div>
 
               {/* LinkedIn Storytelling */}
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 sm:p-6 space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-slate-200 dark:border-zinc-800 p-5 sm:p-6 space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-4">
                   <div>
-                    <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full text-xs font-bold bg-sky-100 text-sky-800">
+                    <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full text-xs font-bold bg-sky-100 dark:bg-sky-950/60 text-sky-800 dark:text-sky-300">
                       LINKEDIN STORYTELLING
                     </div>
-                    <h3 className="text-lg font-bold text-slate-900 mt-1">
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-zinc-100 mt-1">
                       Draf Postingan Reflektif & Personal Branding
                     </h3>
                   </div>
@@ -537,7 +552,7 @@ export const AtsResumeTab: React.FC<AtsResumeTabProps> = ({
                   </button>
                 </div>
 
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-sm leading-relaxed text-slate-800 whitespace-pre-wrap font-sans">
+                <div className="p-4 rounded-xl bg-slate-50 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700 text-sm leading-relaxed text-slate-800 dark:text-zinc-200 whitespace-pre-wrap font-sans">
                   {result.linkedInPost.fullText}
                 </div>
 
@@ -545,7 +560,7 @@ export const AtsResumeTab: React.FC<AtsResumeTabProps> = ({
                   {result.linkedInPost.hashtags.map((tag, idx) => (
                     <span
                       key={idx}
-                      className="px-2.5 py-1 rounded-md text-xs font-medium bg-sky-50 text-sky-700 border border-sky-200"
+                      className="px-2.5 py-1 rounded-md text-xs font-medium bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800"
                     >
                       {tag}
                     </span>
@@ -554,26 +569,26 @@ export const AtsResumeTab: React.FC<AtsResumeTabProps> = ({
               </div>
 
               {/* Top Skills */}
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 sm:p-6 space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-slate-200 dark:border-zinc-800 p-5 sm:p-6 space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-3">
                   <div>
-                    <h3 className="text-lg font-bold text-slate-900">
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-zinc-100">
                       Top 5 Skills untuk Profil LinkedIn
                     </h3>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-slate-500 dark:text-zinc-400">
                       Diverifikasi langsung berdasarkan rekaman aktivitas logbook Anda.
                     </p>
                   </div>
                   <button
                     type="button"
                     onClick={handleCopySkills}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-medium transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-300 text-xs font-medium transition-colors cursor-pointer"
                   >
                     {copiedSection === "skills" ? (
-                      <span className="text-emerald-600 font-bold">Tersalin!</span>
+                      <span className="text-emerald-600 dark:text-emerald-400 font-bold">Tersalin!</span>
                     ) : (
                       <>
-                        <Copy className="w-3.5 h-3.5 text-slate-500" />
+                        <Copy className="w-3.5 h-3.5 text-slate-500 dark:text-zinc-400" />
                         <span>Salin Daftar</span>
                       </>
                     )}
@@ -584,15 +599,15 @@ export const AtsResumeTab: React.FC<AtsResumeTabProps> = ({
                   {result.topSkills.map((sk, idx) => (
                     <div
                       key={idx}
-                      className="p-3.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-white hover:border-blue-300 transition-all space-y-1"
+                      className="p-3.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-800/50 hover:bg-white dark:hover:bg-zinc-800 hover:border-blue-300 dark:hover:border-blue-700 transition-all space-y-1"
                     >
                       <div className="flex items-center justify-between">
-                        <span className="font-bold text-sm text-slate-900">{sk.name}</span>
-                        <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-800">
+                        <span className="font-bold text-sm text-slate-900 dark:text-zinc-100">{sk.name}</span>
+                        <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300">
                           {sk.category}
                         </span>
                       </div>
-                      <p className="text-xs text-slate-600 leading-relaxed pt-1">
+                      <p className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed pt-1">
                         {sk.relevance}
                       </p>
                     </div>
@@ -605,9 +620,9 @@ export const AtsResumeTab: React.FC<AtsResumeTabProps> = ({
           {/* VIEW 2: LIVE EDITABLE HARVARD ATS RESUME PREVIEW (A4 SHEET) */}
           {activeView === "preview" && (
             <div className="space-y-4">
-              <div className="no-print p-3 rounded-xl bg-indigo-50 border border-indigo-200 text-xs text-indigo-900 flex items-center justify-between">
+              <div className="no-print p-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-xs text-indigo-900 dark:text-indigo-200 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Edit3 className="w-4 h-4 text-indigo-600 shrink-0" />
+                  <Edit3 className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
                   <span>
                     <strong>Mode Live Editing Aktif:</strong> Anda dapat mengedit langsung nama, kontak, ringkasan, dan poin peluru (bullet) di lembar kertas di bawah ini sebelum mengunduh.
                   </span>

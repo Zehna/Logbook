@@ -18,11 +18,12 @@ import {
   Award,
   ExternalLink,
   FileSpreadsheet,
+  Folder,
 } from "lucide-react";
 import { toast } from "sonner";
 import { KknProkerItem, KknTeamData } from "@/src/lib/types/modules";
 
-const INITIAL_PROKERS: KknProkerItem[] = [
+const SAMPLE_PROKERS: KknProkerItem[] = [
   {
     id: "p1",
     namaProker: "Sosialisasi Sanitasi & Pemilahan Sampah Rumah Tangga",
@@ -75,7 +76,7 @@ interface KknRabItem {
   nomorBuktiNota: string;
 }
 
-const INITIAL_RAB_ITEMS: KknRabItem[] = [
+const SAMPLE_RAB_ITEMS: KknRabItem[] = [
   {
     id: "rab-1",
     prokerTerkait: "Sosialisasi Sanitasi & Pemilahan Sampah Rumah Tangga",
@@ -123,7 +124,50 @@ interface KknLuaranWajibItem {
   tautanBukti: string;
 }
 
-const INITIAL_LUARAN_WAJIB: KknLuaranWajibItem[] = [
+const DEFAULT_LUARAN_WAJIB_CLEAN: KknLuaranWajibItem[] = [
+  {
+    id: "lw-1",
+    kategori: "Buku Saku / Modul Masyarakat",
+    judulLuaran: "",
+    targetSpesifikasi: "PDF Ber-ISBN / HKI Kampus • 32 Halaman Full Color",
+    status: "Belum Dimulai",
+    tautanBukti: "",
+  },
+  {
+    id: "lw-2",
+    kategori: "Video Dokumenter & Profil Desa",
+    judulLuaran: "",
+    targetSpesifikasi: "Resolusi 1080p • Durasi 10–15 Menit • YouTube Resmi",
+    status: "Belum Dimulai",
+    tautanBukti: "",
+  },
+  {
+    id: "lw-3",
+    kategori: "Publikasi Media Massa Online",
+    judulLuaran: "",
+    targetSpesifikasi: "Portal Berita Nasional / Daerah Terverifikasi Dewan Pers",
+    status: "Belum Dimulai",
+    tautanBukti: "",
+  },
+  {
+    id: "lw-4",
+    kategori: "Artikel Jurnal Pengabdian (SINTA)",
+    judulLuaran: "",
+    targetSpesifikasi: "Format IMRAD • Target Submit Jurnal Pengabdian SINTA 4",
+    status: "Belum Dimulai",
+    tautanBukti: "",
+  },
+  {
+    id: "lw-5",
+    kategori: "Peta Monografi / Infografis Desa",
+    judulLuaran: "",
+    targetSpesifikasi: "Banner Cetak A1 Balai Desa & File Vektor",
+    status: "Belum Dimulai",
+    tautanBukti: "",
+  },
+];
+
+const SAMPLE_LUARAN_WAJIB: KknLuaranWajibItem[] = [
   {
     id: "lw-1",
     kategori: "Buku Saku / Modul Masyarakat",
@@ -179,12 +223,12 @@ export const KknTeamTab: React.FC<KknTeamTabProps> = ({
   const [subTab, setSubTab] = useState<"proker" | "rab" | "luaran">("proker");
 
   const [teamData, setTeamData] = useState<KknTeamData>({
-    namaDesa: "Desa Sukamaju, Kec. Cisarua, Kab. Bogor",
-    kecamatanKabupaten: "Kecamatan Cisarua, Jawa Barat",
-    namaUnit: "Unit KKN-T 104 'Sinergi Berkelanjutan'",
-    dplNama: "Dr. Ir. Hendra Saputra, M.Si.",
-    ketuaKelompok: "Farhan Ardiansyah",
-    daftarProker: INITIAL_PROKERS,
+    namaDesa: "",
+    kecamatanKabupaten: "",
+    namaUnit: "",
+    dplNama: "",
+    ketuaKelompok: "",
+    daftarProker: [],
   });
 
   const [newProker, setNewProker] = useState<Partial<KknProkerItem>>({
@@ -201,19 +245,47 @@ export const KknTeamTab: React.FC<KknTeamTabProps> = ({
   const [copiedReport, setCopiedReport] = useState(false);
 
   // State RAB & LPJ Keuangan
-  const [rabItems, setRabItems] = useState<KknRabItem[]>(INITIAL_RAB_ITEMS);
+  const [rabItems, setRabItems] = useState<KknRabItem[]>([]);
   const [showAddRab, setShowAddRab] = useState(false);
   const [newRab, setNewRab] = useState<Omit<KknRabItem, "id">>({
-    prokerTerkait: INITIAL_PROKERS[0].namaProker,
+    prokerTerkait: "Umum / Operasional Unit",
     uraianPengeluaran: "",
     sumberDana: "LPPM Kampus",
-    anggaranRencana: 500000,
-    realisasiPengeluaran: 480000,
-    nomorBuktiNota: "KW/KKN/005",
+    anggaranRencana: 0,
+    realisasiPengeluaran: 0,
+    nomorBuktiNota: "",
   });
 
   // State Luaran Wajib LPPM
-  const [luaranItems, setLuaranItems] = useState<KknLuaranWajibItem[]>(INITIAL_LUARAN_WAJIB);
+  const [luaranItems, setLuaranItems] = useState<KknLuaranWajibItem[]>(DEFAULT_LUARAN_WAJIB_CLEAN);
+
+  const handleLoadSampleKknData = () => {
+    setTeamData({
+      namaDesa: "Desa Sukamaju, Kec. Cisarua, Kab. Bogor",
+      kecamatanKabupaten: "Kecamatan Cisarua, Jawa Barat",
+      namaUnit: "Unit KKN-T 104 'Sinergi Berkelanjutan'",
+      dplNama: "Dr. Ir. Hendra Saputra, M.Si.",
+      ketuaKelompok: "Farhan Ardiansyah",
+      daftarProker: [...SAMPLE_PROKERS],
+    });
+    setRabItems([...SAMPLE_RAB_ITEMS]);
+    setLuaranItems([...SAMPLE_LUARAN_WAJIB]);
+    toast.success("Data percontohan KKN berhasil dimuat!");
+  };
+
+  const handleResetKknForm = () => {
+    setTeamData({
+      namaDesa: "",
+      kecamatanKabupaten: "",
+      namaUnit: "",
+      dplNama: "",
+      ketuaKelompok: "",
+      daftarProker: [],
+    });
+    setRabItems([]);
+    setLuaranItems(DEFAULT_LUARAN_WAJIB_CLEAN);
+    toast.info("Formulir tim KKN telah dikosongkan.");
+  };
 
   // Kalkulasi Ringkasan Keuangan RAB
   const financialSummary = useMemo(() => {
@@ -427,9 +499,29 @@ ${luaranItems
       <div className="bg-zinc-900 dark:bg-zinc-900 text-white rounded-2xl p-6 border border-zinc-800 shadow-sm">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="max-w-2xl">
-            <p className="text-xs text-zinc-400 font-medium">
-              Manajemen Program Kerja, RAB Keuangan &amp; Luaran Wajib LPPM
-            </p>
+            <div className="flex flex-wrap items-center gap-2 mb-1.5">
+              <span className="text-xs text-zinc-400 font-medium">
+                Manajemen Program Kerja, RAB Keuangan &amp; Luaran Wajib LPPM
+              </span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={handleLoadSampleKknData}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-zinc-700 bg-zinc-800/90 hover:bg-zinc-700 hover:text-white text-[11px] font-medium text-zinc-300 transition cursor-pointer"
+                  title="Muat data percontohan KKN"
+                >
+                  <span>🧪 Muat Data Contoh KKN</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleResetKknForm}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-zinc-700 bg-zinc-800/90 hover:bg-rose-950/40 hover:border-rose-800 hover:text-rose-300 text-[11px] font-medium text-zinc-300 transition cursor-pointer"
+                  title="Kosongkan seluruh isian formulir KKN"
+                >
+                  <span>🗑️ Kosongkan Formulir</span>
+                </button>
+              </div>
+            </div>
             <h2 className="text-xl sm:text-2xl font-bold tracking-tight mt-1">
               Pusat Komando Tim KKN Desa &amp; Laporan LPJ Kolektif
             </h2>
@@ -442,19 +534,19 @@ ${luaranItems
           <div className="grid grid-cols-3 gap-2.5 shrink-0 text-center">
             <div className="p-3 rounded-xl bg-zinc-800/90 border border-zinc-700/80">
               <div className="text-lg font-bold font-mono tabular-nums text-white">
-                {teamData.daftarProker.length}
+                {teamData.daftarProker.length} Proker
               </div>
               <div className="text-[11px] text-zinc-400">Total Proker</div>
             </div>
             <div className="p-3 rounded-xl bg-zinc-800/90 border border-zinc-700/80">
               <div className="text-lg font-bold font-mono tabular-nums text-emerald-400">
-                {financialSummary.serapanPersen}%
+                {financialSummary.serapanPersen}% Serapan
               </div>
               <div className="text-[11px] text-zinc-400">Serapan RAB</div>
             </div>
             <div className="p-3 rounded-xl bg-zinc-800/90 border border-zinc-700/80">
               <div className="text-lg font-bold font-mono tabular-nums text-white">
-                {completedLuaranCount}/{luaranItems.length}
+                {completedLuaranCount}/{luaranItems.length} Luaran
               </div>
               <div className="text-[11px] text-zinc-400">Luaran Tuntas</div>
             </div>
@@ -520,6 +612,7 @@ ${luaranItems
               type="text"
               value={teamData.namaDesa}
               onChange={(e) => setTeamData({ ...teamData, namaDesa: e.target.value })}
+              placeholder="Contoh: Desa Sumbermulyo, Kec. Bambanglipuro, Kab. Bantul"
               className="w-full text-xs sm:text-sm p-2.5 rounded-xl border border-slate-300 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-slate-800"
             />
           </div>
@@ -531,6 +624,7 @@ ${luaranItems
               type="text"
               value={teamData.namaUnit}
               onChange={(e) => setTeamData({ ...teamData, namaUnit: e.target.value })}
+              placeholder="Contoh: Unit KKN-PPM 04 Sub-Unit 1"
               className="w-full text-xs sm:text-sm p-2.5 rounded-xl border border-slate-300 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-slate-800"
             />
           </div>
@@ -542,6 +636,7 @@ ${luaranItems
               type="text"
               value={teamData.dplNama}
               onChange={(e) => setTeamData({ ...teamData, dplNama: e.target.value })}
+              placeholder="Contoh: Dr. Ir. Budi Santoso, M.T."
               className="w-full text-xs sm:text-sm p-2.5 rounded-xl border border-slate-300 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-slate-800"
             />
           </div>
@@ -671,77 +766,93 @@ ${luaranItems
             </div>
           )}
 
-          {/* List Card Proker */}
-          <div className="space-y-3">
-            {teamData.daftarProker.map((p, idx) => (
-              <div
-                key={p.id}
-                className="p-4 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/60 dark:bg-zinc-800/40 hover:bg-white dark:hover:bg-zinc-800 transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
-              >
-                <div className="space-y-1 flex-1">
-                  <div className="flex flex-wrap items-center gap-2 text-xs">
-                    <span className="font-bold font-mono text-slate-400">#{idx + 1}</span>
-                    <span className="font-bold text-slate-900 dark:text-zinc-100">
-                      {p.namaProker}
-                    </span>
-                    <span className="text-slate-400">·</span>
-                    <span className="font-medium text-emerald-700 dark:text-emerald-400">
-                      {p.divisi}
-                    </span>
-                    <span className="text-slate-400">·</span>
-                    <span
-                      className={`font-semibold ${
-                        p.status === "Selesai 100%"
-                          ? "text-emerald-600 dark:text-emerald-400"
-                          : p.status === "Terkendala"
-                          ? "text-rose-600 dark:text-rose-400"
-                          : "text-amber-600 dark:text-amber-400"
-                      }`}
-                    >
-                      {p.status}
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed">
-                    <strong className="text-slate-700 dark:text-zinc-300">Sasaran:</strong>{" "}
-                    {p.sasaranWarga} ·{" "}
-                    <strong className="text-slate-700 dark:text-zinc-300">PJ:</strong>{" "}
-                    {p.penanggungJawab}
-                  </p>
-                  <p className="text-xs text-slate-700 dark:text-zinc-300 leading-relaxed pt-1">
-                    {p.capaianDanOutput}
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (onConvertToDailyLogbook) {
-                        onConvertToDailyLogbook(p, {
-                          namaDesa: teamData.namaDesa,
-                          unit: teamData.namaUnit,
-                        });
-                      }
-                    }}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-xs font-bold transition cursor-pointer"
-                    title="Jadikan Proker ini sebagai catatan Logbook Harian"
-                  >
-                    <FileText className="w-3.5 h-3.5" />
-                    <span>Jadikan Logbook Harian</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteProker(p.id)}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-                    title="Hapus proker"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
+          {/* List Card Proker / Clean Empty State */}
+          {teamData.daftarProker.length === 0 ? (
+            <div className="py-12 px-6 rounded-2xl border-2 border-dashed border-slate-200 dark:border-zinc-800 text-center space-y-3 bg-slate-50/50 dark:bg-zinc-800/20">
+              <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500 flex items-center justify-center mx-auto">
+                <Folder className="w-6 h-6" />
               </div>
-            ))}
-          </div>
+              <div className="max-w-md mx-auto space-y-1">
+                <p className="text-sm font-semibold text-slate-800 dark:text-zinc-200">
+                  Belum ada program kerja yang ditambahkan.
+                </p>
+                <p className="text-xs text-slate-500 dark:text-zinc-400">
+                  Klik tombol &apos;+ Tambah Proker Baru&apos; untuk mencatat kegiatan tim KKN desa.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {teamData.daftarProker.map((p, idx) => (
+                <div
+                  key={p.id}
+                  className="p-4 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/60 dark:bg-zinc-800/40 hover:bg-white dark:hover:bg-zinc-800 transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
+                >
+                  <div className="space-y-1 flex-1">
+                    <div className="flex flex-wrap items-center gap-2 text-xs">
+                      <span className="font-bold font-mono text-slate-400">#{idx + 1}</span>
+                      <span className="font-bold text-slate-900 dark:text-zinc-100">
+                        {p.namaProker}
+                      </span>
+                      <span className="text-slate-400">·</span>
+                      <span className="font-medium text-emerald-700 dark:text-emerald-400">
+                        {p.divisi}
+                      </span>
+                      <span className="text-slate-400">·</span>
+                      <span
+                        className={`font-semibold ${
+                          p.status === "Selesai 100%"
+                            ? "text-emerald-600 dark:text-emerald-400"
+                            : p.status === "Terkendala"
+                            ? "text-rose-600 dark:text-rose-400"
+                            : "text-amber-600 dark:text-amber-400"
+                        }`}
+                      >
+                        {p.status}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed">
+                      <strong className="text-slate-700 dark:text-zinc-300">Sasaran:</strong>{" "}
+                      {p.sasaranWarga} ·{" "}
+                      <strong className="text-slate-700 dark:text-zinc-300">PJ:</strong>{" "}
+                      {p.penanggungJawab}
+                    </p>
+                    <p className="text-xs text-slate-700 dark:text-zinc-300 leading-relaxed pt-1">
+                      {p.capaianDanOutput}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (onConvertToDailyLogbook) {
+                          onConvertToDailyLogbook(p, {
+                            namaDesa: teamData.namaDesa,
+                            unit: teamData.namaUnit,
+                          });
+                        }
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-xs font-bold transition cursor-pointer"
+                      title="Jadikan Proker ini sebagai catatan Logbook Harian"
+                    >
+                      <FileText className="w-3.5 h-3.5" />
+                      <span>Jadikan Logbook Harian</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteProker(p.id)}
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                      title="Hapus proker"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -817,11 +928,15 @@ ${luaranItems
                     onChange={(e) => setNewRab({ ...newRab, prokerTerkait: e.target.value })}
                     className="w-full p-2 rounded-lg border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900"
                   >
-                    {teamData.daftarProker.map((p) => (
-                      <option key={p.id} value={p.namaProker}>
-                        {p.namaProker}
-                      </option>
-                    ))}
+                    {teamData.daftarProker.length > 0 ? (
+                      teamData.daftarProker.map((p) => (
+                        <option key={p.id} value={p.namaProker}>
+                          {p.namaProker}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="Umum / Operasional Unit">Umum / Operasional Unit</option>
+                    )}
                   </select>
                 </div>
                 <div>
@@ -928,7 +1043,14 @@ ${luaranItems
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-zinc-800">
-                {rabItems.map((r) => {
+                {rabItems.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="p-8 text-center text-slate-400 dark:text-zinc-500 text-xs">
+                      Belum ada rincian RAB pengeluaran. Klik tombol &quot;+ Tambah Item RAB&quot; untuk mencatat keuangan kelompok.
+                    </td>
+                  </tr>
+                ) : (
+                  rabItems.map((r) => {
                   const sisa = r.anggaranRencana - r.realisasiPengeluaran;
                   return (
                     <tr key={r.id} className="hover:bg-slate-50/70 dark:hover:bg-zinc-800/40">
@@ -965,7 +1087,7 @@ ${luaranItems
                       </td>
                     </tr>
                   );
-                })}
+                }))}
               </tbody>
             </table>
           </div>

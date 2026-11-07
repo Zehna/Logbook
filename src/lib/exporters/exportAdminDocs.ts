@@ -282,13 +282,15 @@ export function generateQrStampBase64(docTitle: string, regNumber?: string): str
 // Blok Kop Surat Resmi Mitra dengan Garis Ganda (Double Line)
 function createKopSuratTable(student: Partial<StudentProfile>, kop?: KopSuratMitra): Table {
   const instansiName =
-    kop?.namaInstansi?.trim() || student.namaMitra || "MITRA INDUSTRI KAMPUS MERDEKA";
+    kop?.namaInstansi?.trim() ||
+    (student.namaMitra && !student.namaMitra.startsWith("[") ? student.namaMitra.trim() : "") ||
+    "..................................................";
   const alamat =
     kop?.alamatKantor?.trim() ||
-    "Gedung Pusat Bisnis & Teknologi, Jl. Jend. Sudirman Kav. 21, Jakarta Selatan 12920";
+    "....................................................................................................";
   const kontak =
     kop?.kontakWebsiteEmail?.trim() ||
-    "Website: www.mitraindustri.co.id | Email: hr-internship@mitraindustri.co.id | Telp: (021) 555-0199";
+    "....................................................................................................";
 
   const doubleBottomBorder = {
     style: BorderStyle.DOUBLE,
@@ -477,21 +479,40 @@ function createSignatureSectionWithQr(params: {
     );
   }
 
+  const cleanMentorName =
+    !params.mentorName || !params.mentorName.trim() || params.mentorName.trim().startsWith("[")
+      ? "( .................................................. )"
+      : params.mentorName.trim().startsWith("(")
+      ? params.mentorName.trim()
+      : `( ${params.mentorName.trim()} )`;
+
+  const cleanMentorTitle =
+    !params.mentorTitle || !params.mentorTitle.trim() || params.mentorTitle.trim().startsWith("[")
+      ? "Jabatan: ( .................................................. )"
+      : params.mentorTitle.trim().startsWith("Jabatan:")
+      ? params.mentorTitle.trim()
+      : `Jabatan: ${params.mentorTitle.trim()}`;
+
   const rightCellChildren: Paragraph[] = [
     createDocParagraph(
       `${params.lokasiSurat ? params.lokasiSurat + ", " : ""}${params.tanggalSurat}`,
       { alignment: AlignmentType.RIGHT, after: 40 }
     ),
-    createDocParagraph(params.roleText, {
+    createDocParagraph(
+      params.roleText && !params.roleText.startsWith("[") && !params.roleText.includes("PT Mitra Industri Nusantara")
+        ? params.roleText
+        : "Mitra Lapangan,",
+      {
+        bold: true,
+        alignment: AlignmentType.RIGHT,
+        after: 700, // Ruang tanda tangan
+      }
+    ),
+    createDocParagraph(cleanMentorName, {
       bold: true,
       alignment: AlignmentType.RIGHT,
-      after: 700, // Ruang tanda tangan
     }),
-    createDocParagraph(`( ${params.mentorName} )`, {
-      bold: true,
-      alignment: AlignmentType.RIGHT,
-    }),
-    createDocParagraph(`Jabatan: ${params.mentorTitle}`, {
+    createDocParagraph(cleanMentorTitle, {
       italics: true,
       alignment: AlignmentType.RIGHT,
     }),
@@ -529,12 +550,14 @@ export async function exportLembarPenilaianMentor(
 ): Promise<void> {
   const student = { ...DEFAULT_STUDENT_PROFILE, ...profile };
   const scores = adminData.scores || DEFAULT_EVALUATION_SCORES;
-  const mentorName = adminData.namaMentor || student.namaPembimbing || "Nama Mentor Lapangan";
-  const mentorTitle = adminData.jabatanMentor || "Supervisor / Senior Specialist";
-  const divisi = adminData.divisi || "Divisi Operasional & Rekayasa Produk";
+  const mentorName =
+    adminData.namaMentor?.trim() ||
+    (student.namaPembimbing && !student.namaPembimbing.startsWith("[") ? student.namaPembimbing.trim() : "");
+  const mentorTitle = adminData.jabatanMentor?.trim() || "";
+  const divisi = adminData.divisi?.trim() || "";
   const catatan =
-    adminData.catatanEvaluasi ||
-    "Mahasiswa menunjukkan dedikasi kerja yang luar biasa, cepat beradaptasi dengan alur kerja tim, serta konsisten memberikan hasil terbaik dalam penugasan proyek magang.";
+    adminData.catatanEvaluasi?.trim() ||
+    "......................................................................................................................................................";
 
   const totalNilai = scores.reduce(
     (acc, curr) => acc + (curr.nilai * curr.bobot) / 100,
@@ -725,12 +748,15 @@ export async function exportLembarPenilaianMentor(
             before: 100,
             after: 40,
           }),
-          createDocParagraph(`MITRA INDUSTRI: ${student.namaMitra.toUpperCase()}`, {
-            bold: true,
-            size: SIZE_12PT,
-            alignment: AlignmentType.CENTER,
-            after: 260,
-          }),
+          createDocParagraph(
+            `MITRA INDUSTRI: ${student.namaMitra && !student.namaMitra.startsWith("[") ? student.namaMitra.toUpperCase() : ".................................................."}`,
+            {
+              bold: true,
+              size: SIZE_12PT,
+              alignment: AlignmentType.CENTER,
+              after: 260,
+            }
+          ),
 
           createDocParagraph("I. BIODATA MAHASISWA & PEMBIMBING LAPANGAN", {
             bold: true,
@@ -739,12 +765,12 @@ export async function exportLembarPenilaianMentor(
             after: 100,
           }),
 
-          createDocParagraph(`Nama Mahasiswa    : ${student.namaMahasiswa}`, { bold: true }),
-          createDocParagraph(`NIM Mahasiswa     : ${student.nim}`),
-          createDocParagraph(`Program Studi     : ${student.programStudi} — ${student.perguruanTinggi}`),
-          createDocParagraph(`Perusahaan Mitra  : ${student.namaMitra}`),
-          createDocParagraph(`Mentor / Penilai  : ${mentorName} (${mentorTitle} - ${divisi})`),
-          createDocParagraph(`Periode Magang    : ${student.periodeKegiatan}`, { after: 200 }),
+          createDocParagraph(`Nama Mahasiswa    : ${student.namaMahasiswa || ".................................................."}`, { bold: true }),
+          createDocParagraph(`NIM Mahasiswa     : ${student.nim || ".................................................."}`),
+          createDocParagraph(`Program Studi     : ${student.programStudi || ".................................................."} — ${student.perguruanTinggi || ".................................................."}`),
+          createDocParagraph(`Perusahaan Mitra  : ${student.namaMitra || ".................................................."}`),
+          createDocParagraph(`Mentor / Penilai  : ${mentorName || ".................................................."} (${mentorTitle || "Jabatan"} ${divisi ? `- ${divisi}` : ""})`),
+          createDocParagraph(`Periode Magang    : ${student.periodeKegiatan || ".................................................."}`, { after: 200 }),
 
           createDocParagraph("II. TABEL RUBRIK EVALUASI KINERJA", {
             bold: true,
@@ -800,13 +826,15 @@ export async function exportSuratKeteranganSelesaiMagang(
   adminData: Partial<MentorAdminData>
 ): Promise<void> {
   const student = { ...DEFAULT_STUDENT_PROFILE, ...profile };
-  const mentorName = adminData.namaMentor || student.namaPembimbing || "Nama Pimpinan / HRD";
-  const mentorTitle = adminData.jabatanMentor || "Human Resources Director";
+  const mentorName =
+    adminData.namaMentor?.trim() ||
+    (student.namaPembimbing && !student.namaPembimbing.startsWith("[") ? student.namaPembimbing.trim() : "");
+  const mentorTitle = adminData.jabatanMentor?.trim() || "";
   const nomorSurat =
-    adminData.nomorSurat ||
-    `SKSM/${student.namaMitra.slice(0, 3).toUpperCase()}/${new Date().getFullYear()}/089`;
+    adminData.nomorSurat?.trim() ||
+    "..................................................";
   const tanggalSurat =
-    adminData.tanggalSurat ||
+    adminData.tanggalSurat?.trim() ||
     new Date().toLocaleDateString("id-ID", {
       day: "numeric",
       month: "long",
@@ -840,13 +868,13 @@ export async function exportSuratKeteranganSelesaiMagang(
           }),
 
           createDocParagraph("Yang bertanda tangan di bawah ini menerangkan bahwa:"),
-          createDocParagraph(`Nama Mahasiswa    : ${student.namaMahasiswa}`, { bold: true }),
-          createDocParagraph(`NIM               : ${student.nim}`),
-          createDocParagraph(`Program Studi     : ${student.programStudi}`),
-          createDocParagraph(`Perguruan Tinggi  : ${student.perguruanTinggi}`, { after: 240 }),
+          createDocParagraph(`Nama Mahasiswa    : ${student.namaMahasiswa || ".................................................."}`, { bold: true }),
+          createDocParagraph(`NIM               : ${student.nim || ".................................................."}`),
+          createDocParagraph(`Program Studi     : ${student.programStudi || ".................................................."}`),
+          createDocParagraph(`Perguruan Tinggi  : ${student.perguruanTinggi || ".................................................."}`, { after: 240 }),
 
           createDocParagraph(
-            `Telah secara resmi menyelesaikan program Praktik Kerja Lapangan / Magang Mandiri / MBKM di ${student.namaMitra} pada periode ${student.periodeKegiatan}.`
+            `Telah secara resmi menyelesaikan program Praktik Kerja Lapangan / Magang Mandiri / MBKM di ${student.namaMitra || "( .................................................. )"} pada periode ${student.periodeKegiatan || ".................................................."}.`
           ),
           createDocParagraph(
             `Selama menjalankan penugasan di instansi kami, yang bersangkutan telah menunjukkan dedikasi, integritas, kedisiplinan, serta etika kerja yang SANGAT BAIK, serta mampu menyelesaikan seluruh target luaran pekerjaan secara optimal.`
@@ -859,12 +887,12 @@ export async function exportSuratKeteranganSelesaiMagang(
           createSignatureSectionWithQr({
             tanggalSurat,
             lokasiSurat: "Lokasi Mitra",
-            roleText: `${student.namaMitra},`,
-            mitraName: student.namaMitra,
+            roleText: `${student.namaMitra || "Mitra Lapangan"},`,
+            mitraName: student.namaMitra || "..................................................",
             mentorName,
             mentorTitle,
             docTitle: "Surat Keterangan Selesai Magang",
-            regNumber: nomorSurat,
+            regNumber: nomorSurat.includes("...") ? undefined : nomorSurat,
           }),
         ],
       },
@@ -882,15 +910,22 @@ export async function exportSuratRekomendasiKerja(
   adminData: Partial<MentorAdminData>
 ): Promise<void> {
   const student = { ...DEFAULT_STUDENT_PROFILE, ...profile };
-  const mentorName = adminData.namaMentor || student.namaPembimbing || "Nama Mentor / Lead";
-  const mentorTitle = adminData.jabatanMentor || "Head of Department / Lead Engineer";
+  const mentorName =
+    adminData.namaMentor?.trim() ||
+    (student.namaPembimbing && !student.namaPembimbing.startsWith("[") ? student.namaPembimbing.trim() : "");
+  const mentorTitle = adminData.jabatanMentor?.trim() || "";
   const tanggalSurat =
-    adminData.tanggalSurat ||
+    adminData.tanggalSurat?.trim() ||
     new Date().toLocaleDateString("id-ID", {
       day: "numeric",
       month: "long",
       year: "numeric",
     });
+
+  const mitraName = student.namaMitra?.trim() || "( .................................................. )";
+  const mhsName = student.namaMahasiswa?.trim() || "..................................................";
+  const mentorDisplay = mentorName || "( .................................................. )";
+  const titleDisplay = mentorTitle || "( .................................................. )";
 
   const doc = new Document({
     creator: "LogMagang OS",
@@ -927,20 +962,20 @@ export async function exportSuratRekomendasiKerja(
           createDocParagraph("Di Tempat", { after: 240 }),
 
           createDocParagraph(
-            `Saya yang bertanda tangan di bawah ini, ${mentorName}, bertindak selaku ${mentorTitle} di ${student.namaMitra}, dengan bangga memberikan rekomendasi kerja profesional yang kuat kepada:`
+            `Saya yang bertanda tangan di bawah ini, ${mentorDisplay}, bertindak selaku ${titleDisplay} di ${mitraName}, dengan bangga memberikan rekomendasi kerja profesional yang kuat kepada:`
           ),
-          createDocParagraph(`Nama Lengkap   : ${student.namaMahasiswa}`, { bold: true }),
-          createDocParagraph(`NIM            : ${student.nim}`),
+          createDocParagraph(`Nama Lengkap   : ${mhsName}`, { bold: true }),
+          createDocParagraph(`NIM            : ${student.nim || ".................................................."}`),
           createDocParagraph(
-            `Almamater      : ${student.perguruanTinggi} (${student.programStudi})`,
+            `Almamater      : ${student.perguruanTinggi || ".................................................."} (${student.programStudi || ".................................................."})`,
             { after: 240 }
           ),
 
           createDocParagraph(
-            `Selama ${student.namaMahasiswa} menjalani program magang di tim kami pada periode ${student.periodeKegiatan}, saya mengamati secara langsung etos kerja, ketelitian, dan kemampuan pemecahan masalah (problem solving) yang luar biasa. Mahasiswa ini tidak hanya menguasai teori perkuliahan, namun mampu mengeksekusi tanggung jawab industri dengan hasil berkualitas tinggi dan proaktif berkolaborasi lintas tim.`
+            `Selama ${student.namaMahasiswa || "mahasiswa"} menjalani program magang di tim kami pada periode ${student.periodeKegiatan || ".................................................."}, saya mengamati secara langsung etos kerja, ketelitian, dan kemampuan pemecahan masalah (problem solving) yang luar biasa. Mahasiswa ini tidak hanya menguasai teori perkuliahan, namun mampu mengeksekusi tanggung jawab industri dengan hasil berkualitas tinggi dan proaktif berkolaborasi lintas tim.`
           ),
           createDocParagraph(
-            `Karakter kepemimpinan, komitmen terhadap deadline, serta kemauan belajar hal baru yang dimilikinya menjadikan saya tanpa ragu merekomendasikan ${student.namaMahasiswa} untuk posisi profesional penuh waktu (Full-time) di institusi Anda.`
+            `Karakter kepemimpinan, komitmen terhadap deadline, serta kemauan belajar hal baru yang dimilikinya menjadikan saya tanpa ragu merekomendasikan ${student.namaMahasiswa || "mahasiswa ini"} untuk posisi profesional penuh waktu (Full-time) di institusi Anda.`
           ),
           createDocParagraph(
             `Saya yakin yang bersangkutan akan segera menjadi aset yang sangat berharga dan berdaya guna bagi organisasi Anda. Apabila Bapak/Ibu membutuhkan informasi atau konfirmasi tambahan, saya dengan senang hati dapat dihubungi.`,
@@ -949,8 +984,8 @@ export async function exportSuratRekomendasiKerja(
 
           createSignatureSectionWithQr({
             tanggalSurat,
-            roleText: `${student.namaMitra},`,
-            mitraName: student.namaMitra,
+            roleText: `${student.namaMitra || "Mitra Lapangan"},`,
+            mitraName: student.namaMitra || "..................................................",
             mentorName,
             mentorTitle,
             docTitle: "Surat Rekomendasi Kerja Profesional",

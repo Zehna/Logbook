@@ -125,6 +125,11 @@ function createImageParagraph(base64Data: string, width = 140, height = 95): Par
 }
 
 function createBioRow(label: string, value: string): TableRow {
+  const displayVal =
+    !value || !value.trim() || value.trim().startsWith("[")
+      ? ".................................................."
+      : value.trim();
+
   const noBorder = {
     style: BorderStyle.NONE,
     size: 0,
@@ -174,7 +179,7 @@ function createBioRow(label: string, value: string): TableRow {
           right: noBorder,
         },
         children: [
-          createAcademicParagraph(value, {
+          createAcademicParagraph(displayVal, {
             alignment: AlignmentType.LEFT,
             after: 60,
           }),
@@ -580,7 +585,12 @@ export async function exportLogbookToWord(
                 children: [
                   createAcademicParagraph("Menyetujui,", { alignment: AlignmentType.CENTER, after: 40 }),
                   createAcademicParagraph("Dosen Pembimbing KP,", { bold: true, alignment: AlignmentType.CENTER, after: 850 }),
-                  createAcademicParagraph(`(${student.namaPembimbing})`, { bold: true, alignment: AlignmentType.CENTER }),
+                  createAcademicParagraph(
+                    student.namaPembimbing && !student.namaPembimbing.startsWith("[")
+                      ? `(${student.namaPembimbing})`
+                      : "( .................................................. )",
+                    { bold: true, alignment: AlignmentType.CENTER }
+                  ),
                   createAcademicParagraph("NIP. ___________________", { italics: true, size: 20, alignment: AlignmentType.CENTER }),
                 ],
               }),
@@ -595,7 +605,12 @@ export async function exportLogbookToWord(
                 children: [
                   createAcademicParagraph("Menyetujui,", { alignment: AlignmentType.CENTER, after: 40 }),
                   createAcademicParagraph("Pembimbing Lapangan / Mentor Mitra,", { bold: true, alignment: AlignmentType.CENTER, after: 850 }),
-                  createAcademicParagraph(`( Mentor ${student.namaMitra} )`, { bold: true, alignment: AlignmentType.CENTER }),
+                  createAcademicParagraph(
+                    student.namaMitra && !student.namaMitra.startsWith("[")
+                      ? `( Mentor ${student.namaMitra} )`
+                      : "( .................................................. )",
+                    { bold: true, alignment: AlignmentType.CENTER }
+                  ),
                   createAcademicParagraph("NIP / ID. _______________", { italics: true, size: 20, alignment: AlignmentType.CENTER }),
                 ],
               }),
@@ -1026,10 +1041,15 @@ export async function exportLogbookToWord(
         alignment: AlignmentType.RIGHT,
         after: 960,
       }),
-      createAcademicParagraph(`(${student.namaPembimbing})`, {
-        bold: true,
-        alignment: AlignmentType.RIGHT,
-      })
+      createAcademicParagraph(
+        student.namaPembimbing && !student.namaPembimbing.startsWith("[")
+          ? `(${student.namaPembimbing})`
+          : "( .................................................. )",
+        {
+          bold: true,
+          alignment: AlignmentType.RIGHT,
+        }
+      )
     );
   }
 
@@ -1038,8 +1058,13 @@ export async function exportLogbookToWord(
     const totalWeighted = Math.round(
       mentorAdminData.scores.reduce((acc, curr) => acc + (curr.nilai * curr.bobot) / 100, 0) * 10
     ) / 10;
-    const mentorName = mentorAdminData.namaMentor || student.namaPembimbing || "Mentor Mitra";
-    const mentorRole = mentorAdminData.jabatanMentor || "Supervisor / Pembimbing Lapangan";
+    const mentorName =
+      mentorAdminData.namaMentor?.trim() ||
+      (student.namaPembimbing && !student.namaPembimbing.startsWith("[") ? student.namaPembimbing : "") ||
+      "( .................................................. )";
+    const mentorRole =
+      mentorAdminData.jabatanMentor?.trim() ||
+      "..................................................";
 
     docChildren.push(
       new Paragraph({ children: [new PageBreak()] }),
@@ -1132,8 +1157,14 @@ export async function exportLogbookToWord(
       createAcademicParagraph("Catatan Kualitatif Mentor:", { bold: true, before: 240, after: 60 }),
       createAcademicParagraph(mentorAdminData.catatanEvaluasi || "Mahasiswa menunjukkan dedikasi dan performa yang sangat baik.", { italics: true, after: 360 }),
       createAcademicParagraph("Disahkan oleh Mentor Lapangan,", { alignment: AlignmentType.RIGHT, after: 60 }),
-      createAcademicParagraph(`( ${mentorName} )`, { bold: true, alignment: AlignmentType.RIGHT, before: 700 }),
-      createAcademicParagraph(mentorRole, { italics: true, alignment: AlignmentType.RIGHT })
+      createAcademicParagraph(
+        mentorName.startsWith("(") ? mentorName : `( ${mentorName} )`,
+        { bold: true, alignment: AlignmentType.RIGHT, before: 700 }
+      ),
+      createAcademicParagraph(
+        mentorRole.startsWith(".") ? `Jabatan: ${mentorRole}` : mentorRole,
+        { italics: true, alignment: AlignmentType.RIGHT }
+      )
     );
   }
 

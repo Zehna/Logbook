@@ -50,13 +50,13 @@ export interface StudentProfile {
 }
 
 export const DEFAULT_STUDENT_PROFILE: StudentProfile = {
-  namaMahasiswa: "[Nama Lengkap Mahasiswa]",
-  nim: "[NIM Mahasiswa]",
-  programStudi: "S1 Teknik Informatika / Manajemen",
-  perguruanTinggi: "Universitas Indonesia Merdeka",
-  namaMitra: "PT Mitra Industri Nusantara / Desa Binaan",
-  namaPembimbing: "[Nama Dosen Pembimbing / Mentor]",
-  periodeKegiatan: "Semester Gasal 2026/2027",
+  namaMahasiswa: "",
+  nim: "",
+  programStudi: "",
+  perguruanTinggi: "",
+  namaMitra: "",
+  namaPembimbing: "",
+  periodeKegiatan: "",
   kampusPreset: "dikti",
 };
 

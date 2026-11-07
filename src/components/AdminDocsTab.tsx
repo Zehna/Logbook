@@ -138,35 +138,30 @@ export const AdminDocsTab: React.FC<AdminDocsTabProps> = ({
       return {
         ...initialData,
         kopSurat: initialData.kopSurat || {
-          namaInstansi: profile.namaMitra || "PT Inovasi Teknologi Indonesia",
-          alamatKantor:
-            "Gedung Cyber 2 Lantai 18, Jl. H.R. Rasuna Said Blok X-5 Kav. 13, Jakarta Selatan 12950",
-          kontakWebsiteEmail:
-            "Website: https://mitra.co.id | Email: hr@mitra.co.id | Telp: (021) 5299-1000",
+          namaInstansi: profile.namaMitra || "",
+          alamatKantor: "",
+          kontakWebsiteEmail: "",
           logoMitraBase64: "",
         },
       };
     }
     return {
-      namaMentor: profile.namaPembimbing || "Ir. Budi Santoso, M.Kom.",
-      jabatanMentor: "Engineering Manager / Lead Mentor",
-      divisi: "Digital Technology & Product Division",
-      nomorSurat: `SKSM/${profile.namaMitra ? profile.namaMitra.slice(0, 3).toUpperCase() : "MIT"}/${new Date().getFullYear()}/042`,
+      namaMentor: profile.namaPembimbing || "",
+      jabatanMentor: "",
+      divisi: "",
+      nomorSurat: "",
       tanggalSurat: new Date().toLocaleDateString("id-ID", {
         day: "numeric",
         month: "long",
         year: "numeric",
       }),
       scores: [...DEFAULT_EVALUATION_SCORES],
-      catatanEvaluasi:
-        "Mahasiswa menunjukkan dedikasi, inisiatif, dan etos kerja yang luar biasa. Mampu menyelesaikan target pekerjaan tepat waktu dengan kualitas industri serta proaktif berkolaborasi dalam tim.",
+      catatanEvaluasi: "",
       predikat: "Sangat Memuaskan (A)",
       kopSurat: {
-        namaInstansi: profile.namaMitra || "PT Inovasi Teknologi Indonesia",
-        alamatKantor:
-          "Gedung Cyber 2 Lantai 18, Jl. H.R. Rasuna Said Blok X-5 Kav. 13, Jakarta Selatan 12950",
-        kontakWebsiteEmail:
-          "Website: https://mitra.co.id | Email: hr@mitra.co.id | Telp: (021) 5299-1000",
+        namaInstansi: profile.namaMitra || "",
+        alamatKantor: "",
+        kontakWebsiteEmail: "",
         logoMitraBase64: "",
       },
     };
@@ -900,7 +895,7 @@ DAFTAR PUSTAKA (REFERENCES)
                     onChange={(e) =>
                       updateAdminDataState({ ...adminData, namaMentor: e.target.value })
                     }
-                    placeholder="e.g. Ir. Budi Santoso, M.Kom."
+                    placeholder="Nama Pembimbing Lapangan / Atasan Langsung"
                     className="w-full text-xs px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
@@ -915,7 +910,7 @@ DAFTAR PUSTAKA (REFERENCES)
                     onChange={(e) =>
                       updateAdminDataState({ ...adminData, jabatanMentor: e.target.value })
                     }
-                    placeholder="e.g. Lead Software Engineer / Head of HR"
+                    placeholder="Contoh: Project Manager / Koordinator Lapangan"
                     className="w-full text-xs px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
@@ -928,7 +923,7 @@ DAFTAR PUSTAKA (REFERENCES)
                     type="text"
                     value={adminData.divisi}
                     onChange={(e) => updateAdminDataState({ ...adminData, divisi: e.target.value })}
-                    placeholder="e.g. Technology & Product Development"
+                    placeholder="Contoh: Divisi Operasional & Logistik"
                     className="w-full text-xs px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
@@ -943,7 +938,7 @@ DAFTAR PUSTAKA (REFERENCES)
                     onChange={(e) =>
                       updateAdminDataState({ ...adminData, nomorSurat: e.target.value })
                     }
-                    placeholder="e.g. SKSM/HRD/2026/089"
+                    placeholder="Contoh: SKSM/HRD/XI/2026/042"
                     className="w-full text-xs px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
@@ -958,14 +953,14 @@ DAFTAR PUSTAKA (REFERENCES)
                     onChange={(e) =>
                       updateAdminDataState({ ...adminData, tanggalSurat: e.target.value })
                     }
-                    placeholder="e.g. 14 Oktober 2026"
+                    placeholder="Contoh: 14 Oktober 2026"
                     className="w-full text-xs px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
 
                 <div className="pt-2 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400">
-                  Nama mahasiswa ({profile.namaMahasiswa}), NIM ({profile.nim}), dan mitra (
-                  {profile.namaMitra}) diambil otomatis dari Profil Mahasiswa.
+                  Nama mahasiswa ({profile.namaMahasiswa || "—"}), NIM ({profile.nim || "—"}), dan mitra (
+                  {profile.namaMitra || "—"}) diambil otomatis dari Profil Mahasiswa.
                 </div>
               </div>
 
@@ -984,6 +979,7 @@ DAFTAR PUSTAKA (REFERENCES)
                   onChange={(e) =>
                     updateAdminDataState({ ...adminData, catatanEvaluasi: e.target.value })
                   }
+                  placeholder="Tuliskan catatan kualitatif, evaluasi kinerja, etos kerja, dan rekomendasi mentor pembimbing..."
                   className="w-full text-xs p-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none leading-relaxed"
                 />
               </div>

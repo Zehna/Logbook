@@ -65,12 +65,18 @@ export const SksConversionTab: React.FC<SksConversionTabProps> = ({
   mentorAdminData,
   onSksMatrixGenerated,
 }) => {
-  const [coursesText, setCoursesText] = useState(TEMPLATE_MATKUL_PRESETS[0].courses);
+  const [coursesText, setCoursesText] = useState("");
   const [activityContext, setActivityContext] = useState(riwayatLogbookText);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [result, setResult] = useState<SksMappingResponse | null>(null);
   const [copiedState, setCopiedState] = useState(false);
+
+  const handleFillSampleActivity = () => {
+    setActivityContext(
+      "1. Merancang dan mengimplementasikan arsitektur database relasional serta RESTful API backend menggunakan Node.js dan TypeScript.\n2. Melakukan optimasi query database dan integrasi sistem autentikasi JWT berbasis role permission.\n3. Berkolaborasi dalam tim agile melalui daily standup, sprint planning, code review mingguan, dan pengujian unit test (Jest/Vitest).\n4. Menyusun dokumentasi teknis sistem dan mempresentasikan capaian modul kepada mentor lapangan dan stakeholder."
+    );
+  };
 
   // Sync if prop updates and local state is empty
   React.useEffect(() => {
@@ -194,21 +200,21 @@ ${result.rekomendasiUntukDosen}`;
 
       {/* Integrated Mentor Evaluation Badge */}
       {mentorAdminData && mentorAdminData.scores && mentorAdminData.scores.length > 0 && (
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-950">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-2xl text-emerald-950 dark:text-emerald-100">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-700 font-black shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/60 flex items-center justify-center text-emerald-700 dark:text-emerald-300 font-black shrink-0">
               🏅
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-extrabold text-xs text-emerald-900">
+                <span className="font-extrabold text-xs text-emerald-900 dark:text-emerald-200">
                   Evaluasi Kinerja Mentor Terintegrasi
                 </span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-200 text-emerald-900">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-200 dark:bg-emerald-800 text-emerald-900 dark:text-emerald-100">
                   {mentorAdminData.predikat}
                 </span>
               </div>
-              <p className="text-xs text-emerald-700 mt-0.5">
+              <p className="text-xs text-emerald-700 dark:text-emerald-300 mt-0.5">
                 Skor Akhir: <strong>{Math.round(mentorAdminData.scores.reduce((a, c) => a + (c.nilai * c.bobot) / 100, 0) * 10) / 10}/100</strong> oleh {mentorAdminData.namaMentor} ({mentorAdminData.jabatanMentor}). Nilai ini otomatis memperkuat rekomendasi nilai dan justifikasi CPL akademis Anda.
               </p>
             </div>
@@ -217,9 +223,9 @@ ${result.rekomendasiUntukDosen}`;
       )}
 
       {/* Main Form Box */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 sm:p-6 space-y-5">
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-slate-200 dark:border-zinc-800 p-5 sm:p-6 space-y-5">
         <div>
-          <label className="block text-sm font-bold text-slate-800 mb-1">
+          <label className="block text-sm font-bold text-slate-800 dark:text-zinc-200 mb-1">
             1. Template Cepat Daftar Mata Kuliah (Pilih Prodi Anda):
           </label>
           <div className="flex flex-wrap gap-2 mb-3">
@@ -228,7 +234,7 @@ ${result.rekomendasiUntukDosen}`;
                 key={idx}
                 type="button"
                 onClick={() => setCoursesText(p.courses)}
-                className="text-xs px-3 py-1.5 rounded-lg border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-900 font-medium transition-colors"
+                className="text-xs px-3 py-1.5 rounded-lg border border-amber-200 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/60 text-amber-900 dark:text-amber-200 font-medium transition-colors cursor-pointer"
               >
                 {p.label}
               </button>
@@ -239,36 +245,45 @@ ${result.rekomendasiUntukDosen}`;
             value={coursesText}
             onChange={(e) => setCoursesText(e.target.value)}
             placeholder="Tuliskan nama mata kuliah dan bobot SKS-nya..."
-            className="w-full text-sm font-mono p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 bg-slate-50/50"
+            className="w-full text-sm font-mono p-3 rounded-xl border border-slate-300 dark:border-zinc-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 bg-slate-50/50 dark:bg-zinc-800/60 text-slate-900 dark:text-zinc-100"
           />
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">
             💡 Tulis 1 mata kuliah per baris lengkap dengan bobot SKS dalam kurung. Total ideal adalah 20 SKS.
           </p>
         </div>
 
         <div>
           <div className="flex items-center justify-between mb-1">
-            <label className="block text-sm font-bold text-slate-800">
+            <label className="block text-sm font-bold text-slate-800 dark:text-zinc-200">
               2. Bukti Aktivitas / Riwayat Logbook Terkini:
             </label>
-            <span className="text-xs text-emerald-600 font-medium bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
-              Sinkron dengan Data Logbook Anda
-            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleFillSampleActivity}
+                className="text-xs text-amber-700 dark:text-amber-400 hover:underline cursor-pointer font-medium"
+              >
+                Isi Contoh Bukti
+              </button>
+              <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium bg-emerald-50 dark:bg-emerald-950/50 px-2.5 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+                Sinkron dengan Data Logbook Anda
+              </span>
+            </div>
           </div>
           <textarea
             rows={4}
             value={activityContext}
             onChange={(e) => setActivityContext(e.target.value)}
             placeholder="Masukkan rangkuman apa saja yang Anda kerjakan selama magang/KKN..."
-            className="w-full text-sm p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 bg-slate-50/50"
+            className="w-full text-sm p-3 rounded-xl border border-slate-300 dark:border-zinc-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 bg-slate-50/50 dark:bg-zinc-800/60 text-slate-900 dark:text-zinc-100"
           />
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">
             Semakin detail aktivitas yang disertakan, semakin kuat justifikasi ilmiah Taksonomi Bloom yang dihasilkan AI.
           </p>
         </div>
 
         {errorMsg && (
-          <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl">
+          <div className="p-3 bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs rounded-xl">
             {errorMsg}
           </div>
         )}
@@ -277,7 +292,7 @@ ${result.rekomendasiUntukDosen}`;
           type="button"
           onClick={handleGenerate}
           disabled={isLoading}
-          className="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white font-bold text-sm shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+          className="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white font-bold text-sm shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
         >
           {isLoading ? (
             <>
@@ -295,22 +310,22 @@ ${result.rekomendasiUntukDosen}`;
 
       {/* Results View */}
       {result && (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 sm:p-6 space-y-6">
+        <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-slate-200 dark:border-zinc-800 p-5 sm:p-6 space-y-6">
           {/* Summary Box */}
-          <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 border border-amber-200 dark:border-amber-800/80 rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2">
                 <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500 text-white">
                   STATUS VERIFIKASI OBE
                 </span>
-                <span className="text-xs font-semibold text-amber-800">
+                <span className="text-xs font-semibold text-amber-800 dark:text-amber-300">
                   Total Disetujui: {result.totalSksDisetujui} / {result.totalSksDiajukan} SKS
                 </span>
               </div>
-              <h3 className="text-lg font-bold text-slate-900 mt-1">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-zinc-100 mt-1">
                 Matriks Justifikasi Konversi SKS Resmi
               </h3>
-              <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-2xl">
+              <p className="text-xs sm:text-sm text-slate-600 dark:text-zinc-400 mt-1 max-w-2xl">
                 {result.ringkasanJustifikasi}
               </p>
             </div>
@@ -318,16 +333,16 @@ ${result.rekomendasiUntukDosen}`;
               <button
                 type="button"
                 onClick={handleCopyMarkdown}
-                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-sm transition-colors"
+                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-white dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 text-xs font-semibold shadow-sm transition-colors cursor-pointer"
               >
                 {copiedState ? (
                   <>
-                    <Check className="w-4 h-4 text-emerald-600" />
-                    <span className="text-emerald-700">Tersalin!</span>
+                    <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                    <span className="text-emerald-700 dark:text-emerald-400">Tersalin!</span>
                   </>
                 ) : (
                   <>
-                    <Copy className="w-4 h-4 text-slate-500" />
+                    <Copy className="w-4 h-4 text-slate-500 dark:text-zinc-400" />
                     <span>Salin Matriks</span>
                   </>
                 )}
@@ -335,7 +350,7 @@ ${result.rekomendasiUntukDosen}`;
               <button
                 type="button"
                 onClick={handleDownloadCsv}
-                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold shadow-sm transition-colors"
+                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold shadow-sm transition-colors cursor-pointer"
               >
                 <Download className="w-4 h-4" />
                 <span>Unduh CSV</span>
@@ -344,10 +359,10 @@ ${result.rekomendasiUntukDosen}`;
           </div>
 
           {/* Table */}
-          <div className="overflow-x-auto rounded-xl border border-slate-200">
+          <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-zinc-800">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
-                <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+                <tr className="bg-slate-100 dark:bg-zinc-800/80 text-slate-700 dark:text-zinc-200 font-bold border-b border-slate-200 dark:border-zinc-800">
                   <th className="p-3 w-10 text-center">No</th>
                   <th className="p-3 w-44">Mata Kuliah & Bobot</th>
                   <th className="p-3 w-56">Capaian Pembelajaran (CPL/CPMK)</th>
@@ -356,25 +371,25 @@ ${result.rekomendasiUntukDosen}`;
                   <th className="p-3 w-32 text-center">Rekomendasi</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 text-slate-700">
+              <tbody className="divide-y divide-slate-100 dark:divide-zinc-800/80 text-slate-700 dark:text-zinc-300">
                 {result.matriks.map((row, idx) => (
-                  <tr key={idx} className="hover:bg-amber-50/40 transition-colors">
-                    <td className="p-3 text-center font-bold text-slate-400">{idx + 1}</td>
-                    <td className="p-3 font-semibold text-slate-900">
+                  <tr key={idx} className="hover:bg-amber-50/40 dark:hover:bg-amber-950/20 transition-colors">
+                    <td className="p-3 text-center font-bold text-slate-400 dark:text-zinc-500">{idx + 1}</td>
+                    <td className="p-3 font-semibold text-slate-900 dark:text-zinc-100">
                       {row.mataKuliah}
-                      <span className="block text-[11px] font-normal text-amber-600">
+                      <span className="block text-[11px] font-normal text-amber-600 dark:text-amber-400">
                         {row.sks} SKS
                       </span>
                     </td>
-                    <td className="p-3 leading-relaxed text-slate-600">{row.cplTerpenuhi}</td>
-                    <td className="p-3 leading-relaxed text-slate-700 font-medium">
+                    <td className="p-3 leading-relaxed text-slate-600 dark:text-zinc-400">{row.cplTerpenuhi}</td>
+                    <td className="p-3 leading-relaxed text-slate-700 dark:text-zinc-200 font-medium">
                       {row.aktivitasLogbook}
                     </td>
-                    <td className="p-3 leading-relaxed text-slate-600 italic">
+                    <td className="p-3 leading-relaxed text-slate-600 dark:text-zinc-400 italic">
                       {row.justifikasiAkademis}
                     </td>
                     <td className="p-3 text-center">
-                      <span className="inline-block px-2 py-1 rounded-md text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                      <span className="inline-block px-2 py-1 rounded-md text-[11px] font-bold bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800">
                         {row.rekomendasiNilai}
                       </span>
                     </td>
@@ -385,9 +400,9 @@ ${result.rekomendasiUntukDosen}`;
           </div>
 
           {/* Dosen Recommendation Card */}
-          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600 space-y-1">
-            <div className="font-bold text-slate-800 flex items-center gap-1.5">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+          <div className="p-4 rounded-xl bg-slate-50 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-800 text-xs text-slate-600 dark:text-zinc-300 space-y-1">
+            <div className="font-bold text-slate-800 dark:text-zinc-200 flex items-center gap-1.5">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               <span>Rekomendasi Resmi untuk Dosen Pembimbing Akademik / Kaprodi:</span>
             </div>
             <p className="leading-relaxed pl-5.5">{result.rekomendasiUntukDosen}</p>

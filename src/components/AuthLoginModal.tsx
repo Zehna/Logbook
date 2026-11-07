@@ -14,7 +14,11 @@ import {
   Database,
   ArrowRight,
   Mail,
-  Calendar,
+  AlertTriangle,
+  ExternalLink,
+  UserCheck,
+  Copy,
+  Check,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -36,6 +40,13 @@ interface AuthLoginModalProps {
   initialCampus?: string;
 }
 
+interface AuthErrorInfo {
+  code: string;
+  title: string;
+  message: string;
+  isUnauthorizedDomain: boolean;
+}
+
 export function AuthLoginModal({
   isOpen,
   onClose,
@@ -51,11 +62,24 @@ export function AuthLoginModal({
   const [campusBeforeLogin, setCampusBeforeLogin] = useState(initialCampus);
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [authError, setAuthError] = useState<AuthErrorInfo | null>(null);
+  const [hasCopiedDomain, setHasCopiedDomain] = useState(false);
 
   if (!isOpen) return null;
 
+  const currentHostname =
+    typeof window !== "undefined" ? window.location.hostname : "localhost";
+
+  const handleCopyHostname = () => {
+    navigator.clipboard.writeText(currentHostname);
+    setHasCopiedDomain(true);
+    toast.success(`Domain "${currentHostname}" disalin ke clipboard!`);
+    setTimeout(() => setHasCopiedDomain(false), 2000);
+  };
+
   const handleGoogleSignIn = async () => {
     setIsSigningIn(true);
+    setAuthError(null);
     try {
       const result = await signInWithPopup(auth, googleProvider);
       const fbUser = result.user;
@@ -76,24 +100,92 @@ export function AuthLoginModal({
       });
       onClose();
     } catch (err: unknown) {
-      console.error("Gagal login Google:", err);
-      const msg = err instanceof Error ? err.message : "Terjadi kesalahan saat masuk.";
-      toast.error(`Gagal masuk dengan Google: ${msg}`);
+      // Gunakan safe type checking agar tidak memicu unhandled console.error di Next.js dev overlay
+      const fbError = err as { code?: string; message?: string };
+      const errorCode = fbError?.code || "";
+      const errorMsg = fbError?.message || "";
+
+      if (
+        errorCode === "auth/unauthorized-domain" ||
+        errorMsg.includes("auth/unauthorized-domain")
+      ) {
+        console.warn(
+          `Domain "${currentHostname}" belum diizinkan di Firebase Authentication Authorized Domains.`
+        );
+        setAuthError({
+          code: "auth/unauthorized-domain",
+          title: "Domain Belum Terdaftar di Firebase",
+          message: `Origin "${currentHostname}" belum ditambahkan ke daftar Authorized Domains pada proyek Firebase. Silakan tambahkan domain ini di Firebase Console atau gunakan Mode Profil Lokal di bawah.`,
+          isUnauthorizedDomain: true,
+        });
+        toast.error("Domain belum diizinkan di Firebase Auth.", {
+          description:
+            "Gunakan tombol 'Mode Profil Lokal' di bawah untuk langsung menggunakan aplikasi tanpa konfigurasi Firebase.",
+          duration: 6000,
+        });
+      } else if (
+        errorCode === "auth/popup-closed-by-user" ||
+        errorCode === "auth/cancelled-popup-request"
+      ) {
+        // Pengguna sengaja menutup jendela popup Google login
+        console.warn("Login popup ditutup oleh pengguna.");
+      } else {
+        console.warn("Gagal login Google:", err);
+        const msg =
+          err instanceof Error ? err.message : "Terjadi kendala saat masuk.";
+        setAuthError({
+          code: errorCode || "unknown",
+          title: "Gagal Masuk dengan Google",
+          message: msg,
+          isUnauthorizedDomain: false,
+        });
+        toast.error(`Gagal masuk: ${msg}`);
+      }
     } finally {
       setIsSigningIn(false);
     }
   };
 
+  const handleLoginAsLocalGuest = () => {
+    const fallbackName =
+      nameBeforeLogin.trim() || initialName.trim() || "Mahasiswa MBKM";
+    const guestProfile: AppUserProfile = {
+      uid: "local-user-" + Date.now().toString(36),
+      displayName: fallbackName,
+      email: `${fallbackName.toLowerCase().replace(/[^a-z0-9]/g, ".")}@kampus.ac.id`,
+      photoURL: "",
+      nim: nimBeforeLogin.trim() || initialNim.trim() || "220101019",
+      campus:
+        campusBeforeLogin.trim() ||
+        initialCampus.trim() ||
+        "Universitas Indonesia",
+      prodi: "Teknik Informatika",
+      createdAt: new Date().toISOString(),
+      lastLoginAt: new Date().toISOString(),
+    };
+
+    onUserChanged(guestProfile);
+    toast.success(`Berhasil masuk sebagai ${guestProfile.displayName}!`, {
+      description:
+        "Mode Profil Lokal aktif. Seluruh fitur logbook, konversi SKS, simulator sidang, dan ekspor dokumen siap digunakan penuh.",
+    });
+    onClose();
+  };
+
   const handleSignOut = async () => {
     setIsSigningOut(true);
     try {
-      await signOut(auth);
+      if (firebaseUser) {
+        await signOut(auth);
+      }
       onUserChanged(null);
       toast.info("Anda telah keluar dari akun.");
       onClose();
     } catch (err) {
-      console.error("Gagal logout:", err);
-      toast.error("Gagal keluar akun.");
+      console.warn("Gagal logout:", err);
+      onUserChanged(null);
+      toast.info("Anda telah keluar dari akun.");
+      onClose();
     } finally {
       setIsSigningOut(false);
     }
@@ -113,7 +205,11 @@ export function AuthLoginModal({
                 {currentUser ? "Akun Mahasiswa" : "Masuk ke LogMagang OS"}
               </h3>
               <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                {currentUser ? "Tersambung ke Cloud Firestore" : "Autentikasi & Basis Data Cloud Real"}
+                {currentUser
+                  ? firebaseUser
+                    ? "Tersambung ke Cloud Firestore"
+                    : "Profil Lokal (Offline / Dev Mode)"
+                  : "Autentikasi & Basis Data Mahasiswa"}
               </p>
             </div>
           </div>
@@ -129,7 +225,7 @@ export function AuthLoginModal({
 
         {/* Modal Body */}
         <div className="p-5 space-y-4">
-          {currentUser && firebaseUser ? (
+          {currentUser ? (
             /* User Status Screen (Sudah Login) */
             <div className="space-y-4">
               <div className="flex items-center gap-3.5 p-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/70 dark:bg-zinc-800/40">
@@ -159,17 +255,24 @@ export function AuthLoginModal({
                 </div>
               </div>
 
-              {/* Data Tersimpan di Firestore */}
+              {/* Data Identitas Tersimpan */}
               <div className="space-y-2 rounded-xl border border-zinc-200 dark:border-zinc-800 p-3.5 bg-white dark:bg-zinc-900 text-xs">
                 <div className="flex items-center justify-between pb-2 border-b border-zinc-100 dark:border-zinc-800">
-                  <span className="text-zinc-500 flex items-center gap-1.5">
+                  <span className="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
                     <Database className="w-3.5 h-3.5 text-indigo-500" />
-                    <span>Status Database</span>
+                    <span>Status Basis Data</span>
                   </span>
-                  <span className="font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    Tersinkronisasi Realtime
-                  </span>
+                  {firebaseUser ? (
+                    <span className="font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1 text-[11px]">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      Tersinkronisasi Realtime
+                    </span>
+                  ) : (
+                    <span className="font-medium text-indigo-600 dark:text-indigo-400 flex items-center gap-1 text-[11px]">
+                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                      Mode Profil Lokal (Aktif)
+                    </span>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 pt-1 text-[11px]">
@@ -186,9 +289,11 @@ export function AuthLoginModal({
                     </span>
                   </div>
                   <div className="col-span-2 pt-1 border-t border-zinc-100 dark:border-zinc-800/80">
-                    <span className="text-zinc-400 block">ID Dokumen Firestore:</span>
+                    <span className="text-zinc-400 block">Identitas Penyimpanan:</span>
                     <span className="font-mono text-[10px] text-zinc-600 dark:text-zinc-400 truncate block">
-                      users/{currentUser.uid}
+                      {firebaseUser
+                        ? `users/${currentUser.uid}`
+                        : `local-browser/${currentUser.uid}`}
                     </span>
                   </div>
                 </div>
@@ -225,12 +330,64 @@ export function AuthLoginModal({
               <div className="p-3.5 rounded-xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/60 text-xs text-indigo-900 dark:text-indigo-200 space-y-1">
                 <div className="flex items-center gap-1.5 font-semibold">
                   <Sparkles className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-                  <span>Kustomisasi Identitas Sebelum Masuk</span>
+                  <span>Kustomisasi Identitas Mahasiswa</span>
                 </div>
                 <p className="text-[11px] text-indigo-700 dark:text-indigo-300/90 leading-relaxed">
-                  Isi nama atau identitas Anda terlebih dahulu. Saat login dengan Google, profil akan langsung diintegrasikan dan disimpan permanen di database Firestore.
+                  Isi identitas Anda di bawah. Anda dapat masuk langsung menggunakan Akun Google (Cloud Firestore) atau Mode Profil Lokal instan.
                 </p>
               </div>
+
+              {/* Alert jika terjadi kendala auth/unauthorized-domain */}
+              {authError && (
+                <div className="p-3.5 rounded-xl border border-amber-300 dark:border-amber-800/80 bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 text-xs space-y-2.5">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                    <div className="space-y-1.5 min-w-0 flex-1">
+                      <p className="font-semibold text-xs text-amber-950 dark:text-amber-100">
+                        {authError.title}
+                      </p>
+                      <p className="text-[11px] text-amber-800 dark:text-amber-300/90 leading-relaxed">
+                        {authError.message}
+                      </p>
+
+                      {authError.isUnauthorizedDomain && (
+                        <div className="pt-1.5 space-y-1.5 text-[11px]">
+                          <div className="flex items-center gap-2 p-1.5 rounded-lg bg-amber-100/70 dark:bg-amber-900/40 border border-amber-200 dark:border-amber-800">
+                            <span className="text-[10px] text-amber-700 dark:text-amber-300">
+                              Domain yang perlu didaftarkan:
+                            </span>
+                            <code className="font-mono font-bold text-amber-900 dark:text-amber-100 text-xs">
+                              {currentHostname}
+                            </code>
+                            <button
+                              type="button"
+                              onClick={handleCopyHostname}
+                              className="ml-auto inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-100 text-[10px] font-medium hover:bg-amber-300 transition"
+                            >
+                              {hasCopiedDomain ? (
+                                <Check className="w-2.5 h-2.5 text-emerald-600" />
+                              ) : (
+                                <Copy className="w-2.5 h-2.5" />
+                              )}
+                              <span>{hasCopiedDomain ? "Tersalin" : "Salin"}</span>
+                            </button>
+                          </div>
+
+                          <a
+                            href="https://console.firebase.google.com/project/gen-lang-client-0128547553/authentication/settings"
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-900 dark:text-amber-100 underline hover:text-amber-700 transition pt-0.5"
+                          >
+                            <span>Buka Pengaturan Firebase Console</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Form Input Nama Sebelum Masuk */}
               <div className="space-y-2.5">
@@ -286,7 +443,7 @@ export function AuthLoginModal({
               </div>
 
               {/* Primary Google Login Button */}
-              <div className="pt-2">
+              <div className="space-y-2 pt-1">
                 <button
                   type="button"
                   onClick={handleGoogleSignIn}
@@ -301,7 +458,7 @@ export function AuthLoginModal({
                   ) : (
                     <>
                       {/* Google Logo SVG */}
-                      <svg className="w-4 h-4" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
                         <path
                           fill="#4285F4"
                           d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"
@@ -323,12 +480,33 @@ export function AuthLoginModal({
                     </>
                   )}
                 </button>
+
+                {/* Divider */}
+                <div className="relative flex py-1 items-center">
+                  <div className="flex-grow border-t border-zinc-200 dark:border-zinc-800"></div>
+                  <span className="shrink-0 px-2.5 text-[10px] uppercase font-semibold text-zinc-400 dark:text-zinc-500">
+                    Atau Coba Langsung
+                  </span>
+                  <div className="flex-grow border-t border-zinc-200 dark:border-zinc-800"></div>
+                </div>
+
+                {/* Local Guest / Offline Mode Login Button */}
+                <button
+                  type="button"
+                  onClick={handleLoginAsLocalGuest}
+                  className="w-full py-2.5 px-4 rounded-xl border border-indigo-200 dark:border-indigo-900/60 bg-indigo-50/70 dark:bg-indigo-950/30 hover:bg-indigo-100/70 dark:hover:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 text-xs font-semibold flex items-center justify-center gap-2 transition cursor-pointer shadow-2xs"
+                >
+                  <UserCheck className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                  <span>Gunakan Mode Profil Lokal (Tamu / Offline)</span>
+                </button>
               </div>
 
               {/* Security info footer */}
               <div className="flex items-center justify-center gap-1.5 text-[10px] text-zinc-400 pt-1">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                <span>Data profil tersimpan aman di Firestore Database gen-lang</span>
+                <span>
+                  Mode Profil Lokal menyimpan data di browser secara aman tanpa perlu login.
+                </span>
               </div>
             </div>
           )}

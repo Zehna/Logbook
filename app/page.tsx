@@ -272,9 +272,9 @@ const SECTIONS_CONFIG: {
     title: "Deskripsi Kegiatan",
     badge: "C3–C4 • Pelaksanaan & Analisis",
     icon: FileText,
-    accentClass: "text-indigo-600 bg-indigo-50 border-indigo-200",
-    bgClass: "bg-indigo-50/40",
-    borderClass: "border-indigo-100",
+    accentClass: "text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 border-indigo-200 dark:border-indigo-800",
+    bgClass: "bg-indigo-50/40 dark:bg-indigo-950/20",
+    borderClass: "border-indigo-100 dark:border-indigo-900/40",
   },
   {
     key: "kompetensiDikembangkan",
@@ -283,9 +283,9 @@ const SECTIONS_CONFIG: {
     title: "Kompetensi yang Dikembangkan",
     badge: "Hard Skills & Soft Skills",
     icon: Award,
-    accentClass: "text-emerald-600 bg-emerald-50 border-emerald-200",
-    bgClass: "bg-emerald-50/40",
-    borderClass: "border-emerald-100",
+    accentClass: "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-800",
+    bgClass: "bg-emerald-50/40 dark:bg-emerald-950/20",
+    borderClass: "border-emerald-100 dark:border-emerald-900/40",
   },
   {
     key: "kendalaDihadapi",
@@ -294,9 +294,9 @@ const SECTIONS_CONFIG: {
     title: "Kendala yang Dihadapi",
     badge: "C4 • Identifikasi Masalah",
     icon: AlertTriangle,
-    accentClass: "text-amber-600 bg-amber-50 border-amber-200",
-    bgClass: "bg-amber-50/40",
-    borderClass: "border-amber-100",
+    accentClass: "text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 border-amber-200 dark:border-amber-800",
+    bgClass: "bg-amber-50/40 dark:bg-amber-950/20",
+    borderClass: "border-amber-100 dark:border-amber-900/40",
   },
   {
     key: "solusiTindakan",
@@ -305,9 +305,9 @@ const SECTIONS_CONFIG: {
     title: "Solusi & Tindakan",
     badge: "C5–C6 • Problem Solving",
     icon: Wrench,
-    accentClass: "text-blue-600 bg-blue-50 border-blue-200",
-    bgClass: "bg-blue-50/40",
-    borderClass: "border-blue-100",
+    accentClass: "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 border-blue-200 dark:border-blue-800",
+    bgClass: "bg-blue-50/40 dark:bg-blue-950/20",
+    borderClass: "border-blue-100 dark:border-blue-900/40",
   },
   {
     key: "refleksiPembelajaran",
@@ -316,9 +316,9 @@ const SECTIONS_CONFIG: {
     title: "Refleksi Pembelajaran",
     badge: "C5 • Evaluasi & Tindak Lanjut",
     icon: Lightbulb,
-    accentClass: "text-purple-600 bg-purple-50 border-purple-200",
-    bgClass: "bg-purple-50/40",
-    borderClass: "border-purple-100",
+    accentClass: "text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/50 border-purple-200 dark:border-purple-800",
+    bgClass: "bg-purple-50/40 dark:bg-purple-950/20",
+    borderClass: "border-purple-100 dark:border-purple-900/40",
   },
 ];
 
@@ -342,6 +342,8 @@ export default function HomePage() {
   });
   const [catatan, setCatatan] = useState<string>("");
   const [lastAutoSavedAt, setLastAutoSavedAt] = useState<string | null>(null);
+  const [areAllSectionsCollapsed, setAreAllSectionsCollapsed] = useState<boolean>(false);
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
   const catatanRef = useRef<string>("");
   const lastSavedCatatanRef = useRef<string>("");
   const [result, setResult] = useState<LogbookResult | null>(null);
@@ -467,8 +469,28 @@ export default function HomePage() {
   const [isCalendarHubOpen, setIsCalendarHubOpen] = useState<boolean>(false);
   const [calendarHubTab, setCalendarHubTab] = useState<"calendar" | "competency" | "signature">("calendar");
 
-  // Listener Autentikasi Firebase
+  // Listener Autentikasi Firebase & Profil Lokal
   useEffect(() => {
+    // Muat profil lokal yang tersimpan jika ada
+    if (typeof window !== "undefined") {
+      const savedLocal = localStorage.getItem("logmagang_local_user");
+      if (savedLocal) {
+        try {
+          const parsed = JSON.parse(savedLocal);
+          setCurrentUserProfile(parsed);
+          setStudentProfile((prev) => ({
+            ...prev,
+            namaMahasiswa: parsed.displayName || prev.namaMahasiswa,
+            nim: parsed.nim || prev.nim,
+            perguruanTinggi: parsed.campus || prev.perguruanTinggi,
+            programStudi: parsed.prodi || prev.programStudi,
+          }));
+        } catch {
+          // ignore corrupted local user
+        }
+      }
+    }
+
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       setCurrentFbUser(fbUser);
       if (fbUser) {
@@ -476,6 +498,9 @@ export default function HomePage() {
           const profile = await getUserFromFirestore(fbUser.uid);
           if (profile) {
             setCurrentUserProfile(profile);
+            if (typeof window !== "undefined") {
+              localStorage.setItem("logmagang_local_user", JSON.stringify(profile));
+            }
             setStudentProfile((prev) => ({
               ...prev,
               namaMahasiswa: profile.displayName || prev.namaMahasiswa,
@@ -484,18 +509,30 @@ export default function HomePage() {
               programStudi: profile.prodi || prev.programStudi,
             }));
           } else {
-            setCurrentUserProfile({
+            const fallbackProfile: AppUserProfile = {
               uid: fbUser.uid,
               displayName: fbUser.displayName || "Mahasiswa MBKM",
               email: fbUser.email || "",
               photoURL: fbUser.photoURL || "",
-            });
+            };
+            setCurrentUserProfile(fallbackProfile);
+            if (typeof window !== "undefined") {
+              localStorage.setItem("logmagang_local_user", JSON.stringify(fallbackProfile));
+            }
           }
         } catch (e) {
           console.warn("Gagal fetch user profile dari Firestore:", e);
         }
       } else {
-        setCurrentUserProfile(null);
+        // Jika tidak ada user Firebase, cek apakah user sedang login dengan profil lokal
+        if (typeof window !== "undefined") {
+          const savedLocal = localStorage.getItem("logmagang_local_user");
+          if (!savedLocal) {
+            setCurrentUserProfile(null);
+          }
+        } else {
+          setCurrentUserProfile(null);
+        }
       }
       setIsAuthLoading(false);
     });
@@ -959,8 +996,8 @@ export default function HomePage() {
   };
 
   // Handler Generate Mode Harian (1 Hari) dengan Multimodal Vision
-  const handleGenerateDaily = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleGenerateDaily = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     setErrorMsg(null);
 
     if (isQuotaExhausted) {
@@ -1098,8 +1135,8 @@ export default function HomePage() {
   };
 
   // Handler Generate Mode Borongan (1 Pekan)
-  const handleGenerateWeekly = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleGenerateWeekly = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     setErrorMsg(null);
 
     if (isQuotaExhausted) {
@@ -2183,8 +2220,11 @@ export default function HomePage() {
   const hasAnyOutput =
     (mode === "daily" && result !== null) ||
     (mode === "weekly" && weeklyResults.length > 0) ||
+    (mode === "monthly" && monthlyResult !== null) ||
     result !== null ||
-    weeklyResults.length > 0;
+    weeklyResults.length > 0 ||
+    monthlyResult !== null ||
+    history.length > 0;
 
   return (
     <div className="min-h-screen flex flex-col bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 transition-colors">
@@ -2300,10 +2340,10 @@ export default function HomePage() {
         </div>
 
         {/* 6 Tabs Navigation Bar (Dub.co Minimalist Underline Style) */}
-        <div className="border-t border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-zinc-950/50">
-          <div className="max-w-5xl mx-auto px-4 flex items-center gap-6 overflow-x-auto no-scrollbar">
+        <div className="border-t border-zinc-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-950/70 backdrop-blur-xs relative">
+          <div className="max-w-5xl mx-auto px-4 flex items-center gap-1 sm:gap-6 overflow-x-auto no-scrollbar scroll-smooth">
             {[
-              { id: "generator", label: "Generator & Dokumen", icon: FileText },
+              { id: "generator", label: "Generator & Dokumen", icon: FileText, count: history.length > 0 ? history.length : undefined },
               { id: "sks", label: "Konversi 20 SKS", icon: GraduationCap },
               { id: "resume", label: "CV ATS & LinkedIn", icon: Briefcase },
               { id: "simulator", label: "Simulasi Sidang DPL", icon: Mic },
@@ -2317,14 +2357,19 @@ export default function HomePage() {
                   key={tab.id}
                   type="button"
                   onClick={() => setMainTab(tab.id as typeof mainTab)}
-                  className={`inline-flex items-center gap-2 py-2.5 text-xs sm:text-sm transition-all whitespace-nowrap cursor-pointer border-b-2 -mb-px ${
+                  className={`inline-flex items-center gap-2 py-2.5 px-2 sm:px-0 text-xs sm:text-sm transition-all whitespace-nowrap cursor-pointer border-b-2 -mb-px group ${
                     isActive
-                      ? "border-zinc-900 dark:border-zinc-100 text-zinc-900 dark:text-zinc-100 font-medium"
-                      : "border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300 font-normal"
+                      ? "border-zinc-900 dark:border-zinc-100 text-zinc-900 dark:text-zinc-100 font-semibold"
+                      : "border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 font-medium"
                   }`}
                 >
-                  <Icon className="w-3.5 h-3.5" />
+                  <Icon className={`w-3.5 h-3.5 ${isActive ? "text-indigo-600 dark:text-indigo-400" : "text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-300"}`} />
                   <span>{tab.label}</span>
+                  {tab.count !== undefined && (
+                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${isActive ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"}`}>
+                      {tab.count}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -2928,6 +2973,14 @@ export default function HomePage() {
                           rows={4}
                           value={catatan}
                           onChange={(e) => setCatatan(e.target.value)}
+                          onKeyDown={(e) => {
+                            if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+                              e.preventDefault();
+                              if (!isLoading && (catatan.trim() || fotoBase64)) {
+                                handleGenerateDaily();
+                              }
+                            }
+                          }}
                           placeholder={
                             fotoBase64
                               ? "Catatan santai pelengkap (AI juga akan menganalisis dari fotomu)..."
@@ -2997,13 +3050,18 @@ export default function HomePage() {
                             </button>
                           </div>
 
-                          <button
-                            type="button"
-                            onClick={handleFillSample}
-                            className="text-xs font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition cursor-pointer px-1.5 py-0.5"
-                          >
-                            Isi Contoh
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[11px] text-zinc-400 dark:text-zinc-500 font-mono hidden sm:inline-flex items-center gap-1">
+                              Tekan <kbd className="px-1.5 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border border-zinc-300 dark:border-zinc-700 text-[10px]">Ctrl</kbd> + <kbd className="px-1.5 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border border-zinc-300 dark:border-zinc-700 text-[10px]">Enter</kbd>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={handleFillSample}
+                              className="text-xs font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition cursor-pointer px-1.5 py-0.5"
+                            >
+                              Isi Contoh
+                            </button>
+                          </div>
                         </div>
                       </div>
 
@@ -3198,6 +3256,14 @@ export default function HomePage() {
                           rows={4}
                           value={ringkasanMingguan}
                           onChange={(e) => setRingkasanMingguan(e.target.value)}
+                          onKeyDown={(e) => {
+                            if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+                              e.preventDefault();
+                              if (!isLoading && ringkasanMingguan.trim()) {
+                                handleGenerateWeekly();
+                              }
+                            }
+                          }}
                           placeholder="Ceritakan secara santai apa saja yang kamu kerjakan selama 1 pekan ini..."
                           disabled={isLoading}
                           className="w-full bg-transparent p-3.5 pb-12 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none resize-y leading-relaxed border-0"
@@ -3222,9 +3288,14 @@ export default function HomePage() {
                             </button>
                           </div>
 
-                          <span className="text-[11px] text-zinc-400">
-                            Alur 5 hari otomatis disusun AI
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[11px] text-zinc-400 dark:text-zinc-500 font-mono hidden sm:inline-flex items-center gap-1">
+                              Tekan <kbd className="px-1.5 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border border-zinc-300 dark:border-zinc-700 text-[10px]">Ctrl</kbd> + <kbd className="px-1.5 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border border-zinc-300 dark:border-zinc-700 text-[10px]">Enter</kbd>
+                            </span>
+                            <span className="text-[11px] text-zinc-400">
+                              Alur 5 hari otomatis disusun AI
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -3305,6 +3376,14 @@ export default function HomePage() {
                           rows={4}
                           value={monthlyNotes}
                           onChange={(e) => setMonthlyNotes(e.target.value)}
+                          onKeyDown={(e) => {
+                            if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+                              e.preventDefault();
+                              if (!isLoading) {
+                                handleGenerateMonthly();
+                              }
+                            }
+                          }}
                           placeholder="Tambahkan catatan khusus, misal: 'Fokus bulan ini menyelesaikan modul backend dan integrasi gateway' atau biarkan kosong agar AI merangkum seluruh logbook..."
                           disabled={isLoading}
                           className="w-full bg-transparent p-3.5 pb-12 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none resize-y leading-relaxed border-0"
@@ -3321,9 +3400,14 @@ export default function HomePage() {
                               }
                             />
                           </div>
-                          <span className="text-[11px] text-zinc-400">
-                            Merangkum IKU, Milestone, Evaluasi & Target 4 Pekan
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[11px] text-zinc-400 dark:text-zinc-500 font-mono hidden sm:inline-flex items-center gap-1">
+                              Tekan <kbd className="px-1.5 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border border-zinc-300 dark:border-zinc-700 text-[10px]">Ctrl</kbd> + <kbd className="px-1.5 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border border-zinc-300 dark:border-zinc-700 text-[10px]">Enter</kbd>
+                            </span>
+                            <span className="text-[11px] text-zinc-400">
+                              Merangkum IKU, Milestone, Evaluasi & Target 4 Pekan
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -3487,7 +3571,7 @@ export default function HomePage() {
                     className={`px-3 py-1.5 rounded-xl text-xs font-bold border whitespace-nowrap transition cursor-pointer ${
                       isSelected
                         ? "bg-indigo-600 text-white border-indigo-600 shadow-2xs"
-                        : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                        : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-200/70 dark:hover:bg-zinc-700"
                     }`}
                   >
                     Hari {idx + 1}: {dayItem.hari}
@@ -3506,8 +3590,8 @@ export default function HomePage() {
                     key={`${dayItem.tanggal}-acc-${idx}`}
                     className={`rounded-2xl border transition-all overflow-hidden ${
                       isExpanded
-                        ? "border-indigo-300 bg-white shadow-xs"
-                        : "border-slate-200 bg-slate-50/70 hover:bg-slate-50"
+                        ? "border-indigo-300 dark:border-indigo-700 bg-white dark:bg-zinc-900 shadow-xs"
+                        : "border-zinc-200 dark:border-zinc-800 bg-zinc-50/70 dark:bg-zinc-900/60 hover:bg-zinc-50 dark:hover:bg-zinc-900"
                     }`}
                   >
                     <div className="p-4 flex items-center justify-between gap-3">
@@ -3522,21 +3606,21 @@ export default function HomePage() {
                           className={`w-9 h-9 rounded-xl flex items-center justify-center font-extrabold text-xs shrink-0 ${
                             isExpanded
                               ? "bg-indigo-600 text-white"
-                              : "bg-indigo-100 text-indigo-700"
+                              : "bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300"
                           }`}
                         >
                           H-{idx + 1}
                         </div>
                         <div>
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-extrabold text-sm text-slate-900">
+                            <span className="font-extrabold text-sm text-zinc-900 dark:text-zinc-100">
                               {dayItem.tanggal}
                             </span>
-                            <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 border border-amber-200">
+                            <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
                               {dayItem.tahap_fase}
                             </span>
                           </div>
-                          <p className="text-xs text-slate-500 line-clamp-1 mt-0.5">
+                          <p className="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-1 mt-0.5">
                             {dayItem.deskripsi_kegiatan}
                           </p>
                         </div>
@@ -3551,7 +3635,7 @@ export default function HomePage() {
                           className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer ${
                             isDayCopied
                               ? "bg-emerald-600 text-white border-emerald-600"
-                              : "bg-white hover:bg-slate-100 text-slate-700 border-slate-200"
+                              : "bg-white dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 border-zinc-200 dark:border-zinc-700"
                           }`}
                         >
                           {isDayCopied ? (
@@ -3572,7 +3656,7 @@ export default function HomePage() {
                           onClick={() =>
                             setExpandedDayIdx(isExpanded ? -1 : idx)
                           }
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 cursor-pointer"
+                          className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 cursor-pointer"
                         >
                           {isExpanded ? (
                             <ChevronUp className="w-4 h-4" />
@@ -3584,7 +3668,7 @@ export default function HomePage() {
                     </div>
 
                     {isExpanded && (
-                      <div className="px-4 pb-4 pt-2 border-t border-slate-100 space-y-3">
+                      <div className="px-4 pb-4 pt-2 border-t border-zinc-100 dark:border-zinc-800 space-y-3">
                         {SECTIONS_CONFIG.map((sec) => {
                           const Icon = sec.icon;
                           const content = dayItem[sec.weeklyKey];
@@ -3600,15 +3684,15 @@ export default function HomePage() {
                                   <Icon className="w-3.5 h-3.5" />
                                 </div>
                                 <div>
-                                  <span className="text-xs font-bold text-slate-900">
+                                  <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
                                     {sec.number}. {sec.title}
                                   </span>
-                                  <span className="text-[10px] text-slate-500 block">
+                                  <span className="text-[10px] text-zinc-500 dark:text-zinc-400 block">
                                     {sec.badge}
                                   </span>
                                 </div>
                               </div>
-                              <p className="text-xs sm:text-sm text-slate-700 leading-relaxed whitespace-pre-line pl-0 sm:pl-9">
+                              <p className="text-xs sm:text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed whitespace-pre-line pl-0 sm:pl-9">
                                 {content}
                               </p>
                             </div>
@@ -3846,6 +3930,33 @@ export default function HomePage() {
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
+                  onClick={() => {
+                    const nextState = !areAllSectionsCollapsed;
+                    setAreAllSectionsCollapsed(nextState);
+                    const updated: Record<string, boolean> = {};
+                    SECTIONS_CONFIG.forEach((s) => {
+                      updated[s.key] = nextState;
+                    });
+                    setCollapsedSections(updated);
+                  }}
+                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition cursor-pointer bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700 shadow-2xs"
+                  title={areAllSectionsCollapsed ? "Buka seluruh rincian kartu Bloom" : "Lipat ringkas seluruh kartu Bloom"}
+                >
+                  {areAllSectionsCollapsed ? (
+                    <>
+                      <ChevronDown className="w-3.5 h-3.5" />
+                      <span>Buka Semua</span>
+                    </>
+                  ) : (
+                    <>
+                      <ChevronUp className="w-3.5 h-3.5" />
+                      <span>Tutup Semua</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
                   onClick={handleOpenLivePreview}
                   className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition cursor-pointer bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700 shadow-2xs"
                 >
@@ -3875,8 +3986,8 @@ export default function HomePage() {
 
             {/* Bukti Dokumentasi Kegiatan (Jika ada foto yang dianalisis) */}
             {resultPhoto && (
-              <div className="rounded-xl p-3.5 bg-indigo-50/50 border border-indigo-200 flex flex-col sm:flex-row items-center gap-4">
-                <div className="w-full sm:w-36 h-28 rounded-lg overflow-hidden border border-indigo-200 bg-white shrink-0 shadow-2xs">
+              <div className="rounded-xl p-3.5 bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-200 dark:border-indigo-800/60 flex flex-col sm:flex-row items-center gap-4">
+                <div className="w-full sm:w-36 h-28 rounded-lg overflow-hidden border border-indigo-200 dark:border-indigo-800 bg-white dark:bg-zinc-900 shrink-0 shadow-2xs">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={resultPhoto}
@@ -3885,11 +3996,11 @@ export default function HomePage() {
                   />
                 </div>
                 <div className="flex-1 space-y-1 text-center sm:text-left">
-                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold bg-indigo-100 text-indigo-800">
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold bg-indigo-100 dark:bg-indigo-900/60 text-indigo-800 dark:text-indigo-200">
                     <ImageIcon className="w-3.5 h-3.5" />
                     <span>Bukti Dokumentasi Kegiatan Terverifikasi</span>
                   </span>
-                  <p className="text-xs text-slate-600 leading-relaxed">
+                  <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
                     Narasi di bawah ini telah disinkronkan secara multimodal
                     berdasarkan pengamatan visual foto dokumentasimu. Foto ini
                     juga akan otomatis tersemat di Laporan Word (.docx) & Slide
@@ -3904,6 +4015,7 @@ export default function HomePage() {
               {SECTIONS_CONFIG.map((sec) => {
                 const Icon = sec.icon;
                 const isCopied = copiedSection === sec.key;
+                const isCollapsed = Boolean(collapsedSections[sec.key]);
                 const content = result[sec.key];
 
                 return (
@@ -3912,7 +4024,17 @@ export default function HomePage() {
                     className={`rounded-xl p-4 border transition ${sec.bgClass} ${sec.borderClass}`}
                   >
                     <div className="flex items-start justify-between gap-2 mb-2">
-                      <div className="flex items-center gap-2.5">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCollapsedSections((prev) => ({
+                            ...prev,
+                            [sec.key]: !prev[sec.key],
+                          }))
+                        }
+                        className="flex items-center gap-2.5 text-left cursor-pointer flex-1 group"
+                        title={isCollapsed ? "Klik untuk membuka rincian" : "Klik untuk melipat"}
+                      >
                         <div
                           className={`w-8 h-8 rounded-lg border flex items-center justify-center shrink-0 ${sec.accentClass}`}
                         >
@@ -3920,18 +4042,23 @@ export default function HomePage() {
                         </div>
                         <div>
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="text-xs font-extrabold text-slate-400">
+                            <span className="text-xs font-extrabold text-zinc-400 dark:text-zinc-500">
                               {sec.number}.
                             </span>
-                            <h3 className="text-xs sm:text-sm font-bold text-slate-900">
+                            <h3 className="text-xs sm:text-sm font-bold text-zinc-900 dark:text-zinc-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
                               {sec.title}
                             </h3>
+                            {isCollapsed ? (
+                              <ChevronDown className="w-3.5 h-3.5 text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-200 transition-transform" />
+                            ) : (
+                              <ChevronUp className="w-3.5 h-3.5 text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-200 transition-transform" />
+                            )}
                           </div>
-                          <span className="text-[10px] font-medium text-slate-500 block">
+                          <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 block">
                             {sec.badge}
                           </span>
                         </div>
-                      </div>
+                      </button>
 
                       {/* Tombol Salin per Bagian */}
                       <button
@@ -3940,7 +4067,7 @@ export default function HomePage() {
                         className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition shrink-0 cursor-pointer ${
                           isCopied
                             ? "bg-emerald-600 text-white border-emerald-600"
-                            : "bg-white hover:bg-slate-50 text-slate-700 border-slate-200/90 shadow-2xs"
+                            : "bg-white dark:bg-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 border-zinc-200 dark:border-zinc-700 shadow-2xs"
                         }`}
                       >
                         {isCopied ? (
@@ -3957,9 +4084,15 @@ export default function HomePage() {
                       </button>
                     </div>
 
-                    <p className="text-xs sm:text-sm text-slate-700 leading-relaxed whitespace-pre-line pl-0 sm:pl-10">
-                      {content}
-                    </p>
+                    {!isCollapsed ? (
+                      <p className="text-xs sm:text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed whitespace-pre-line pl-0 sm:pl-10">
+                        {content}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400 italic line-clamp-1 pl-0 sm:pl-10">
+                        {content}
+                      </p>
+                    )}
                   </div>
                 );
               })}
@@ -5170,6 +5303,9 @@ export default function HomePage() {
         onUserChanged={(user) => {
           setCurrentUserProfile(user);
           if (user) {
+            if (typeof window !== "undefined") {
+              localStorage.setItem("logmagang_local_user", JSON.stringify(user));
+            }
             setStudentProfile((prev) => ({
               ...prev,
               namaMahasiswa: user.displayName || prev.namaMahasiswa,
@@ -5177,6 +5313,10 @@ export default function HomePage() {
               perguruanTinggi: user.campus || prev.perguruanTinggi,
               programStudi: user.prodi || prev.programStudi,
             }));
+          } else {
+            if (typeof window !== "undefined") {
+              localStorage.removeItem("logmagang_local_user");
+            }
           }
         }}
         initialName={studentProfile.namaMahasiswa || ""}
