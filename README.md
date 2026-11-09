@@ -1,13 +1,13 @@
 # 🚀 LogMagang OS
 
 > **The Ultimate All-in-One Academic & Career Platform for Indonesian Internship & KKN Students**  
-> *Transform catatan harian santai menjadi laporan akademik berbobot, konversi 20 SKS CPL, resume ATS standar Harvard, dan simulasi sidang DPL interaktif bertenaga Google Gemini 3.8 Flash.*
+> *Transform catatan harian santai menjadi laporan akademik berbobot, konversi 20 SKS CPL, resume ATS standar Harvard, dan simulasi sidang DPL interaktif bertenaga Google Gemini — model per-route, lihat Tech Stack.*
 
 <div align="center">
 
 ![Next.js](https://img.shields.io/badge/Next.js-15.5-black?style=for-the-badge&logo=next.js&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript&logoColor=white)
-![Google Gemini](https://img.shields.io/badge/Gemini_3.8_Flash-AI-orange?style=for-the-badge&logo=googlegemini&logoColor=white)
+![Google Gemini](https://img.shields.io/badge/Google_Gemini-AI-orange?style=for-the-badge&logo=googlegemini&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
 ![IndexedDB](https://img.shields.io/badge/Storage-IndexedDB_Native-green?style=for-the-badge&logo=databricks&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-purple?style=for-the-badge)
@@ -101,11 +101,12 @@ Mahasiswa peserta **Magang MBKM, MSIB, Praktik Kerja Lapangan (PKL/KP), dan Kuli
 - **Framework**: [Next.js 15.5](https://nextjs.org/) (App Router, Server Actions, Route Handlers)
 - **Language**: [TypeScript 5](https://www.typescriptlang.org/)
 - **Styling**: [Tailwind CSS v4](https://tailwindcss.com/)
-- **AI Core**: [Google Gemini 3.8 Flash](https://ai.google.dev/) via `@google/genai` SDK (Structured JSON Schema)
+- **AI Core**: [Google Gemini](https://ai.google.dev/) via `@google/genai` SDK (Structured JSON Schema). String model yang dipakai di kode: `gemini-3.8-flash` di 8 route AI (`generate`, `generate-weekly`, `generate-resume`, `map-sks`, `simulator-dpl`, `evaluate-defense`, `synthesize-report`, `sync-github`) dan `gemini-2.5-flash` di `generate-monthly`. Dua route lain (`download-extension`, `verify-license`) tidak memanggil Gemini. Pastikan string model ini cocok dengan model yang aktif di akun Google AI Studio Anda; bila API mengembalikan error model tidak ditemukan, sesuaikan di `app/api/*/route.ts`.
 - **Doc Exporters**: `docx` (Word), `exceljs` (Excel), `pptxgenjs` (PowerPoint), `file-saver`
 - **Speech API**: Web Speech API (`SpeechRecognition` & `SpeechSynthesis`)
-- **Storage**: Browser IndexedDB Native API
+- **Storage**: Browser IndexedDB Native API untuk logbook & draf offline, plus Firebase Auth + Cloud Firestore untuk profil pengguna dan sinkronisasi (lihat bagian Privasi di bawah)
 - **Icons**: [Lucide React](https://lucide.dev/)
+- **Testing & CI**: Vitest (unit test, `npm test`), Playwright (e2e, `npm run test:e2e`), GitHub Actions (`.github/workflows/ci.yml`: lint, typecheck, unit test, build)
 
 ---
 
@@ -152,15 +153,31 @@ npm start
 
 ---
 
+## 🧪 Pengembangan & Pengujian
+
+```bash
+npm run dev        # development server di http://localhost:3000
+npm run lint       # ESLint
+npx tsc --noEmit   # typecheck TypeScript
+npm test           # unit test Vitest (src/**/*.test.ts, offline/murni)
+npm run test:e2e   # end-to-end Playwright
+npm run build      # production build (butuh GEMINI_API_KEY, placeholder cukup untuk build)
+```
+
+CI GitHub Actions (`.github/workflows/ci.yml`) menjalankan lint, typecheck, unit test, dan build di setiap push/PR ke `main`.
+
+**Catatan refactor fondasi (Nov 2026):** `app/page.tsx` dipecah dari 5.462 baris (±250 KB) menjadi ~4.577 baris — konfigurasi (`src/lib/config/`), formatter & selektor ekspor murni (`src/lib/utils/logbookFormatting.ts`, `exportEntries.ts`, `textSimilarity.ts`, `dates.ts`), dan tiga section hasil (`DailyResultSection`, `WeeklyResultsSection`, `MonthlyResultsSection`) dipindah ke modulnya masing-masing tanpa mengubah perilaku/UI. Kartu form input dan Hub Ekspor masih berada di `page.tsx` karena sangat terikat dengan puluhan state di dalamnya — pemecahannya ditunda ke tahap berikutnya agar tidak berisiko merusak.
+
 ## 📁 Struktur Direktori Proyek
 
 ```
-LogMagang/
+Logbook/
 ├── app/
 │   ├── api/
 │   │   ├── download-extension/   # Generator zip Chrome Extension Manifest V3
 │   │   ├── evaluate-defense/     # AI Two-Way Defense Evaluator
 │   │   ├── generate/             # Generator Logbook Harian + Multimodal Vision
+│   │   ├── generate-monthly/     # Generator Laporan Bulanan Monev
 │   │   ├── generate-resume/      # Generator Harvard ATS Resume & LinkedIn
 │   │   ├── generate-weekly/      # Generator Logbook Mode Borongan 1 Pekan
 │   │   ├── map-sks/              # Engine Pemetaan Konversi 20 SKS CPL
@@ -170,6 +187,7 @@ LogMagang/
 │   │   └── verify-license/       # Verifikasi Lisensi Pro
 │   ├── globals.css               # Styling Tailwind CSS & Print Rules
 │   ├── layout.tsx                # Metadata & Root Layout
+│   ├── not-found.tsx             # Halaman 404
 │   └── page.tsx                  # Dashboard Utama & State Coordinator
 ├── src/
 │   ├── components/
@@ -177,24 +195,44 @@ LogMagang/
 │   │   ├── AtsResumeTab.tsx      # Live Editable Harvard ATS CV Sheet & LinkedIn
 │   │   ├── AttendanceTracker.tsx # Heatmap Kehadiran & Kalkulator 900 Jam
 │   │   ├── AuditHistoryPanel.tsx # Panel Audit Kualitas & 1-Click AI Auto-Fix
+│   │   ├── DailyResultSection.tsx    # Hasil logbook harian (5 kartu Bloom)
 │   │   ├── DplSimulatorTab.tsx   # Two-Way DPL Simulator & Voice Examiner
 │   │   ├── KknTeamTab.tsx        # Manajemen Tim KKN Desa & Proker
+│   │   ├── MonthlyResultsSection.tsx # Hasil laporan bulanan Monev
 │   │   ├── SksConversionTab.tsx  # Matriks Konversi 20 SKS & CPL
-│   │   └── VoiceDictationButton.tsx # Dikte Suara Web Speech API (id-ID)
+│   │   ├── WeeklyResultsSection.tsx  # Hasil logbook borongan 1 pekan
+│   │   ├── VoiceDictationButton.tsx # Dikte Suara Web Speech API (id-ID)
+│   │   └── ... (modal: Auth, License, LivePreview, QrScanner,
+│   │        CalendarCompetency, SmartIngestion, WorkspaceSync,
+│   │        TemplateLibrary)
 │   ├── lib/
+│   │   ├── config/               # programOptions, sections (Bloom), storageKeys
 │   │   ├── exporters/            # Generator Word, Excel, PPTX, & ATS CV
+│   │   ├── firebase/             # Firebase Auth + Firestore (config.ts)
 │   │   ├── media/
 │   │   │   └── imageProcessor.ts # Kompresi Canvas & Watermark Stamper
+│   │   ├── security/
+│   │   │   └── rateLimiter.ts    # Sliding-window rate limit API (20/menit/IP)
 │   │   ├── storage/
 │   │   │   └── indexedDbStore.ts # Mesin Penyimpanan IndexedDB Native
-│   │   └── types/                # Definisi TypeScript Data & Schema
+│   │   ├── types/                # Definisi TypeScript Data & Schema
+│   │   └── utils/                # dates, exportEntries, logbookFormatting,
+│   │                             # textSimilarity, indonesianHolidays
+│   ├── lib/utils.ts              # cn() (clsx + tailwind-merge)
+│   └── ...
+├── e2e/                          # Tes end-to-end Playwright
+├── extension/                    # Sumber Chrome Extension (Manifest V3)
+├── .github/workflows/ci.yml      # CI: lint, typecheck, unit test, build
+├── firestore.rules               # Aturan Firestore: default-deny, owner-only
+├── firebase-applet-config.json   # Konfigurasi Firebase (bukan secret)
+├── LICENSE                       # Lisensi MIT
 └── public/                       # Aset Statis, Logo, & Icons
 ```
 
 ---
 
 ## 🔒 Privasi & Keamanan Data Mahasiswa
-- **Local-First Architecture**: Seluruh riwayat logbook, nilai mentor, foto base64, dan draf CV tersimpan secara privat di IndexedDB browser Anda. Tidak ada data logbook yang disimpan di database server terpusat.
+- **Penyimpanan Hibrida (bukan local-first murni)**: Riwayat logbook, draf offline, dan foto bukti tersimpan di IndexedDB browser Anda. Profil pengguna dan sinkronisasi antar-perangkat memakai Firebase Auth + Cloud Firestore (`src/lib/firebase/config.ts`, `firestore.rules` dengan default-deny dan akses owner-only per `users/{userId}`). Data yang dikirim ke Gemini hanya terjadi saat Anda menekan Generate — lewat route API server (`app/api/*`) dengan rate limit dan pemotongan panjang input.
 - **Client-Side Image Compression**: Pemrosesan resolusi foto dan pembubuhan watermark dilakukan sepenuhnya pada HTML5 Canvas browser Anda sebelum dikirimkan ke model vision.
 
 ---

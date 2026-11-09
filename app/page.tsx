@@ -121,206 +121,31 @@ import {
   StorageEstimateInfo,
 } from "@/src/lib/storage/indexedDbStore";
 import { MonthlyReportOutput } from "@/src/lib/types/monthlyReport";
+import {
+  MAX_FREE_QUOTA,
+  STORAGE_HISTORY_KEY,
+  STORAGE_LICENSE_KEY,
+  STORAGE_PROFILE_KEY,
+  STORAGE_PRO_KEY,
+  STORAGE_QUOTA_KEY,
+} from "@/src/lib/config/storageKeys";
+import { getCurrentWeekMondayAndFriday } from "@/src/lib/utils/dates";
+import { PROGRAM_OPTIONS } from "@/src/lib/config/programOptions";
+import {
+  getEntriesForExport as getEntriesForExportPure,
+  getSelectedEntriesForExport as getSelectedEntriesForExportPure,
+} from "@/src/lib/utils/exportEntries";
+import {
+  buildCanvaPosterDraft as buildCanvaPosterDraftPure,
+  buildSheetsTsv,
+  formatDailyLogbookCopy,
+  formatWeeklyDayCopy,
+  formatWeeklyMarkdown,
+} from "@/src/lib/utils/logbookFormatting";
+import { WeeklyResultsSection } from "@/src/components/WeeklyResultsSection";
+import { MonthlyResultsSection } from "@/src/components/MonthlyResultsSection";
+import { DailyResultSection } from "@/src/components/DailyResultSection";
 
-const MAX_FREE_QUOTA = 3;
-const STORAGE_QUOTA_KEY = "logmagang_free_usage_count";
-const STORAGE_PRO_KEY = "logmagang_is_pro_active";
-const STORAGE_LICENSE_KEY = "logmagang_license_info";
-const STORAGE_HISTORY_KEY = "logmagang_entries_history";
-const STORAGE_PROFILE_KEY = "logmagang_student_profile";
-
-function getCurrentWeekMondayAndFriday(): { monday: string; friday: string } {
-  const now = new Date();
-  const day = now.getDay();
-  const diffToMonday = day === 0 ? -6 : 1 - day;
-
-  const mondayDate = new Date(now);
-  mondayDate.setDate(now.getDate() + diffToMonday);
-
-  const fridayDate = new Date(mondayDate);
-  fridayDate.setDate(mondayDate.getDate() + 4);
-
-  const toIsoDate = (d: Date) => {
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, "0");
-    const dt = String(d.getDate()).padStart(2, "0");
-    return `${year}-${month}-${dt}`;
-  };
-
-  return {
-    monday: toIsoDate(mondayDate),
-    friday: toIsoDate(fridayDate),
-  };
-}
-
-const PROGRAM_OPTIONS: {
-  value: TipeKegiatan;
-  label: string;
-  subtitle: string;
-  icon: React.ComponentType<{ className?: string }>;
-  roleExamples: string[];
-  noteExample: string;
-  weeklyExamples: { label: string; summary: string }[];
-}[] = [
-  {
-    value: "Magang MBKM",
-    label: "Magang MBKM",
-    subtitle: "Magang Bersertifikat / Mandiri",
-    icon: Briefcase,
-    roleExamples: [
-      "Social Media Specialist",
-      "Staff Operasional",
-      "Software Engineer Intern",
-      "Finance & Admin Intern",
-    ],
-    noteExample:
-      "hari ini bantu rekap nota masuk ke excel sama packing barang, tadi sempet ada 2 nota yang nominalnya gak sinkron sama mutasi tapi udah dicek ulang bareng supervisor",
-    weeklyExamples: [
-      {
-        label: "📱 Kampanye Konten Medsos",
-        summary:
-          "pekan ini garap konten feeds & reels instagram buat kampanye produk baru, mulai dari riset tren kompetitor, bikin content calendar, take video & desain di canva, revisi copywriting dari mentor, sampai jadwalin posting & rekap insight mingguan",
-      },
-      {
-        label: "📦 Rekap Operasional & Gudang",
-        summary:
-          "minggu ini beresin audit stok barang gudang dan rekap nota transaksi bulanan ke excel, sempet nemu selisih stok 5 item terus dicek ulang bareng tim gudang dan akhirnya bikin template kontrol stok baru",
-      },
-      {
-        label: "💻 Pengembangan Fitur Web",
-        summary:
-          "pekan ini ngerjain fitur halaman dashboard laporan user, mulai dari baca dokumentasi API, slicing komponen tabel dan filter di Next.js, integrasi endpoint backend, benerin bug pagination, sampai code review bareng senior",
-      },
-    ],
-  },
-  {
-    value: "MSIB",
-    label: "MSIB",
-    subtitle: "Studi Independen Bersertifikat",
-    icon: GraduationCap,
-    roleExamples: [
-      "Fullstack Web Track",
-      "Data Analytics Mentee",
-      "UI/UX Product Design",
-      "AI & Cloud Computing",
-    ],
-    noteExample:
-      "hari ini ikut sesi mentoring live bahas REST API dan lanjut ngerjain tugas kelompok bikin endpoint autentikasi, sempet error CORS pas disambungin ke frontend tapi berhasil beres",
-    weeklyExamples: [
-      {
-        label: "🚀 Sprint Capstone Project",
-        summary:
-          "pekan ini sprint 2 capstone project bareng kelompok: senin ikut sesi ILT mentor, selasa bikin rancangan database & wireframe, rabu coding modul autentikasi & CRUD, kamis testing bug bareng tim QA, jumat presentasi progres mingguan ke mentor",
-      },
-      {
-        label: "📊 Eksplorasi & Visualisasi Data",
-        summary:
-          "minggu ini belajar materi data cleaning & visualisasi pakai Python dan Looker Studio, bersihin dataset transaksi yang banyak missing value, bikin dashboard interaktif, lalu kumpulin tugas hands-on tepat waktu",
-      },
-    ],
-  },
-  {
-    value: "KKN",
-    label: "KKN",
-    subtitle: "Kuliah Kerja Nyata Pengabdian",
-    icon: Users,
-    roleExamples: [
-      "Koordinator Divisi Pendidikan",
-      "Divisi Ekonomi Kreatif UMKM",
-      "Humas & Publikasi Desa",
-      "Sekretaris Posko KKN",
-    ],
-    noteExample:
-      "hari ini sosialisasi pembuatan katalog digital sama foto produk keripik ibu-ibu PKK di balai desa, awalnya terkendala pencahayaan kurang terang jadi pindah ke teras balai desa",
-    weeklyExamples: [
-      {
-        label: "🏪 Pendampingan Digitalisasi UMKM Desa",
-        summary:
-          "pekan ini jalankan proker pendampingan UMKM warga desa: mulai dari survei 8 pelaku usaha keripik & batik, menyiapkan materi modul katalog digital & QRIS, praktik foto produk di balai desa, pendaftaran akun Google Maps & e-commerce, sampai evaluasi bareng perangkat desa",
-      },
-      {
-        label: "📚 Bimbingan Belajar & Literasi Anak",
-        summary:
-          "minggu ini ngadain program pojok baca dan bimbel sore untuk anak SD di posko desa, koordinasi dengan kepala sekolah, merapikan buku donasi, ngajarin calistung & bahasa inggris dasar pakai kuis interaktif, dan evaluasi antusiasme peserta",
-      },
-    ],
-  },
-];
-
-const SECTIONS_CONFIG: {
-  key: keyof LogbookResult;
-  weeklyKey: keyof Pick<
-    WeeklyLogbookDayItem,
-    | "deskripsi_kegiatan"
-    | "kompetensi_dikembangkan"
-    | "kendala_dihadapi"
-    | "solusi_tindakan"
-    | "refleksi_pembelajaran"
-  >;
-  number: string;
-  title: string;
-  badge: string;
-  icon: React.ComponentType<{ className?: string }>;
-  accentClass: string;
-  bgClass: string;
-  borderClass: string;
-}[] = [
-  {
-    key: "deskripsiKegiatan",
-    weeklyKey: "deskripsi_kegiatan",
-    number: "01",
-    title: "Deskripsi Kegiatan",
-    badge: "C3–C4 • Pelaksanaan & Analisis",
-    icon: FileText,
-    accentClass: "text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 border-indigo-200 dark:border-indigo-800",
-    bgClass: "bg-indigo-50/40 dark:bg-indigo-950/20",
-    borderClass: "border-indigo-100 dark:border-indigo-900/40",
-  },
-  {
-    key: "kompetensiDikembangkan",
-    weeklyKey: "kompetensi_dikembangkan",
-    number: "02",
-    title: "Kompetensi yang Dikembangkan",
-    badge: "Hard Skills & Soft Skills",
-    icon: Award,
-    accentClass: "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-800",
-    bgClass: "bg-emerald-50/40 dark:bg-emerald-950/20",
-    borderClass: "border-emerald-100 dark:border-emerald-900/40",
-  },
-  {
-    key: "kendalaDihadapi",
-    weeklyKey: "kendala_dihadapi",
-    number: "03",
-    title: "Kendala yang Dihadapi",
-    badge: "C4 • Identifikasi Masalah",
-    icon: AlertTriangle,
-    accentClass: "text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 border-amber-200 dark:border-amber-800",
-    bgClass: "bg-amber-50/40 dark:bg-amber-950/20",
-    borderClass: "border-amber-100 dark:border-amber-900/40",
-  },
-  {
-    key: "solusiTindakan",
-    weeklyKey: "solusi_tindakan",
-    number: "04",
-    title: "Solusi & Tindakan",
-    badge: "C5–C6 • Problem Solving",
-    icon: Wrench,
-    accentClass: "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 border-blue-200 dark:border-blue-800",
-    bgClass: "bg-blue-50/40 dark:bg-blue-950/20",
-    borderClass: "border-blue-100 dark:border-blue-900/40",
-  },
-  {
-    key: "refleksiPembelajaran",
-    weeklyKey: "refleksi_pembelajaran",
-    number: "05",
-    title: "Refleksi Pembelajaran",
-    badge: "C5 • Evaluasi & Tindak Lanjut",
-    icon: Lightbulb,
-    accentClass: "text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/50 border-purple-200 dark:border-purple-800",
-    bgClass: "bg-purple-50/40 dark:bg-purple-950/20",
-    borderClass: "border-purple-100 dark:border-purple-900/40",
-  },
-];
 
 export default function HomePage() {
   const [mainTab, setMainTab] = useState<
@@ -1423,62 +1248,24 @@ export default function HomePage() {
   };
 
   // Daftar entri yang akan diekspor ke Excel, Word, dan PowerPoint
-  const getEntriesForExport = (): LogbookEntry[] => {
-    if (history.length > 0) {
-      return history.map((entry, idx) => ({
-        ...entry,
-        id: entry.id || `hist-${idx}-${entry.tanggal || "entry"}`,
-      }));
-    }
-    if (weeklyResults.length > 0) {
-      return weeklyResults.map((day, idx) => ({
-        id: `weekly-${idx}-${day.tanggal || idx}`,
-        tanggal: day.tanggal,
-        hari: day.hari,
-        tahapFase: day.tahap_fase,
-        tipeKegiatan,
-        peran: peran || "Mahasiswa Peserta Program",
-        deskripsiKegiatan: day.deskripsi_kegiatan,
-        kompetensiDikembangkan: day.kompetensi_dikembangkan,
-        kendalaDihadapi: day.kendala_dihadapi,
-        solusiTindakan: day.solusi_tindakan,
-        refleksiPembelajaran: day.refleksi_pembelajaran,
-      }));
-    }
-    if (result) {
-      return [
-        {
-          id: "current-result",
-          tanggal: new Date().toLocaleDateString("id-ID", {
-            weekday: "long",
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-          }),
-          tipeKegiatan,
-          peran: peran || "Mahasiswa Peserta Program",
-          fotoBase64: resultPhoto || undefined,
-          fotoMimeType: resultPhoto ? fotoMimeType : undefined,
-          ...result,
-        },
-      ];
-    }
-    return [];
-  };
+  const getEntriesForExport = (): LogbookEntry[] =>
+    getEntriesForExportPure({
+      history,
+      weeklyResults,
+      result,
+      resultPhoto,
+      fotoMimeType,
+      tipeKegiatan,
+      peran,
+    });
 
   // Mendapatkan entri yang terpilih (baik seluruhnya atau subset hasil bulk selection)
-  const getSelectedEntriesForExport = (): LogbookEntry[] => {
-    const all = getEntriesForExport();
-    if (!isBulkSelectionActive) {
-      return all;
-    }
-    const filtered = all.filter((entry, idx) => {
-      const entryId = entry.id || `entry-${idx}`;
-      return selectedExportEntryIds.includes(entryId);
-    });
-    return filtered;
-  };
-
+  const getSelectedEntriesForExport = (): LogbookEntry[] =>
+    getSelectedEntriesForExportPure(
+      getEntriesForExport(),
+      isBulkSelectionActive,
+      selectedExportEntryIds
+    );
   const handleToggleBulkSelectEntry = (id: string) => {
     setSelectedExportEntryIds((prev) => {
       if (prev.includes(id)) {
@@ -1696,40 +1483,6 @@ export default function HomePage() {
     }
   };
 
-  // Audit Kualitas & Anti-Duplikasi Logbook Helpers
-  const getWordList = (text: string): string[] => {
-    return text
-      .toLowerCase()
-      .replace(/[^a-z0-9\s]/gi, " ")
-      .split(/\s+/)
-      .filter((w) => w.length > 2);
-  };
-
-  const getWordSet = (text: string): Set<string> => {
-    return new Set(getWordList(text));
-  };
-
-  const computeJaccardSimilarity = (textA: string, textB: string): number => {
-    const setA = getWordSet(textA);
-    const setB = getWordSet(textB);
-    if (setA.size === 0 || setB.size === 0) return 0;
-    let intersection = 0;
-    setA.forEach((w) => {
-      if (setB.has(w)) intersection++;
-    });
-    const union = new Set([...setA, ...setB]).size;
-    return union === 0 ? 0 : Math.round((intersection / union) * 100);
-  };
-
-  const computeOverallUniqueness = (entriesList: LogbookEntry[]): number => {
-    if (entriesList.length === 0) return 100;
-    const allWords = entriesList.flatMap((e) =>
-      getWordList(e.deskripsiKegiatan || "")
-    );
-    if (allWords.length === 0) return 100;
-    const uniqueCount = new Set(allWords).size;
-    return Math.round((uniqueCount / allWords.length) * 100);
-  };
 
   const handleDeleteHistoryEntry = async (id: string) => {
     const updated = history.filter((e) => e.id !== id);
@@ -1882,30 +1635,9 @@ export default function HomePage() {
   const handleCopySheetsRowTsv = async () => {
     const entries = getEntriesForExport();
     if (entries.length === 0) return;
-    const header = [
-      "No",
-      "Tanggal",
-      "Peran",
-      "Deskripsi Kegiatan",
-      "Kompetensi",
-      "Kendala",
-      "Solusi",
-      "Refleksi Pembelajaran",
-    ].join("\t");
-    const rows = entries.map((e, i) =>
-      [
-        i + 1,
-        e.tanggal,
-        e.peran,
-        e.deskripsiKegiatan.replace(/\s+/g, " "),
-        e.kompetensiDikembangkan.replace(/\s+/g, " "),
-        e.kendalaDihadapi.replace(/\s+/g, " "),
-        e.solusiTindakan.replace(/\s+/g, " "),
-        e.refleksiPembelajaran.replace(/\s+/g, " "),
-      ].join("\t")
-    );
+    const tsv = buildSheetsTsv(entries);
     try {
-      await navigator.clipboard.writeText([header, ...rows].join("\n"));
+      await navigator.clipboard.writeText(tsv);
       setCopiedSheetsTsv(true);
       setTimeout(() => setCopiedSheetsTsv(false), 2500);
     } catch {
@@ -1913,28 +1645,8 @@ export default function HomePage() {
     }
   };
 
-  const buildCanvaPosterDraft = (): string => {
-    const entries = getEntriesForExport();
-    const active = entries[0];
-    if (!active) return "";
-    return [
-      `🎯 POSTER PUBLIKASI / LUARAN KEGIATAN ${tipeKegiatan.toUpperCase()}`,
-      `👤 Penyusun: ${studentProfile.namaMahasiswa} (${studentProfile.nim})`,
-      `🏢 Peran & Mitra: ${active.peran} — ${studentProfile.namaMitra}`,
-      "",
-      "📌 RINGKASAN AKTIVITAS UTAMA:",
-      active.deskripsiKegiatan,
-      "",
-      "🏆 CAPAIAN KOMPETENSI:",
-      active.kompetensiDikembangkan,
-      "",
-      "💡 INOVASI & SOLUSI PEMECAHAN MASALAH:",
-      active.solusiTindakan,
-      "",
-      "🌟 REFLEKSI & DAMPAK KEGIATAN:",
-      active.refleksiPembelajaran,
-    ].join("\n");
-  };
+  const buildCanvaPosterDraft = (): string =>
+    buildCanvaPosterDraftPure(getEntriesForExport(), tipeKegiatan, studentProfile);
 
   const handleOpenCanvaPoster = async () => {
     const draft = buildCanvaPosterDraft();
@@ -2012,31 +1724,7 @@ export default function HomePage() {
 
   const handleCopyAll = async () => {
     if (!result) return;
-    const formattedAll = [
-      `LOGBOOK HARIAN ${tipeKegiatan.toUpperCase()}`,
-      `Peran / Posisi: ${peran}`,
-      `Tanggal: ${new Date().toLocaleDateString("id-ID", {
-        weekday: "long",
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      })}`,
-      "",
-      `1. Deskripsi Kegiatan:`,
-      result.deskripsiKegiatan,
-      "",
-      `2. Kompetensi yang Dikembangkan:`,
-      result.kompetensiDikembangkan,
-      "",
-      `3. Kendala yang Dihadapi:`,
-      result.kendalaDihadapi,
-      "",
-      `4. Solusi & Tindakan:`,
-      result.solusiTindakan,
-      "",
-      `5. Refleksi Pembelajaran:`,
-      result.refleksiPembelajaran,
-    ].join("\n");
+    const formattedAll = formatDailyLogbookCopy(result, tipeKegiatan, peran);
 
     try {
       await navigator.clipboard.writeText(formattedAll);
@@ -2054,26 +1742,7 @@ export default function HomePage() {
     day: WeeklyLogbookDayItem,
     index: number
   ) => {
-    const formattedDay = [
-      `LOGBOOK HARIAN ${tipeKegiatan.toUpperCase()} — ${day.tanggal.toUpperCase()}`,
-      `Peran / Posisi: ${peran}`,
-      `Fase Kegiatan: ${day.tahap_fase}`,
-      "",
-      `1. Deskripsi Kegiatan:`,
-      day.deskripsi_kegiatan,
-      "",
-      `2. Kompetensi yang Dikembangkan:`,
-      day.kompetensi_dikembangkan,
-      "",
-      `3. Kendala yang Dihadapi:`,
-      day.kendala_dihadapi,
-      "",
-      `4. Solusi & Tindakan:`,
-      day.solusi_tindakan,
-      "",
-      `5. Refleksi Pembelajaran:`,
-      day.refleksi_pembelajaran,
-    ].join("\n");
+    const formattedDay = formatWeeklyDayCopy(day, tipeKegiatan, peran);
 
     try {
       await navigator.clipboard.writeText(formattedDay);
@@ -2092,25 +1761,7 @@ export default function HomePage() {
   const handleCopyAllWeeklyMarkdown = async () => {
     if (weeklyResults.length === 0) return;
 
-    const blocks = weeklyResults.map((day, idx) =>
-      [
-        `## Hari Ke-${idx + 1}: ${day.tanggal} (${day.tahap_fase})`,
-        `- **Program & Peran:** ${tipeKegiatan} — ${peran}`,
-        `- **1. Deskripsi Kegiatan:**\n  ${day.deskripsi_kegiatan}`,
-        `- **2. Kompetensi yang Dikembangkan:**\n  ${day.kompetensi_dikembangkan}`,
-        `- **3. Kendala yang Dihadapi:**\n  ${day.kendala_dihadapi}`,
-        `- **4. Solusi & Tindakan:**\n  ${day.solusi_tindakan}`,
-        `- **5. Refleksi Pembelajaran:**\n  ${day.refleksi_pembelajaran}`,
-      ].join("\n")
-    );
-
-    const fullMarkdown = [
-      `# REKAP LOGBOOK 1 PEKAN — ${tipeKegiatan.toUpperCase()}`,
-      `**Peran / Posisi:** ${peran}`,
-      `**Rentang Waktu:** ${weeklyResults[0]?.tanggal} s/d ${weeklyResults[weeklyResults.length - 1]?.tanggal}`,
-      "",
-      ...blocks.join("\n\n---\n\n").split("\n"),
-    ].join("\n");
+    const fullMarkdown = formatWeeklyMarkdown(weeklyResults, tipeKegiatan, peran);
 
     try {
       await navigator.clipboard.writeText(fullMarkdown);
@@ -3510,594 +3161,58 @@ export default function HomePage() {
 
         {/* TAMPILAN HASIL MODE BORONGAN (1 PEKAN) */}
         {mode === "weekly" && weeklyResults.length > 0 && !isLoading && (
-          <section
-            ref={resultRef}
-            className="bg-white dark:bg-zinc-900 rounded-xl p-5 sm:p-6 border border-zinc-200 dark:border-zinc-800 shadow-xs space-y-4 scroll-mt-16"
-          >
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-zinc-100 dark:border-zinc-800">
-              <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700">
-                    <Layers className="w-3.5 h-3.5 text-zinc-500" />
-                    <span>Batch {weeklyResults.length} Hari Kerja</span>
-                  </span>
-                  <span className="text-xs text-zinc-500">
-                    {tipeKegiatan} • {peran}
-                  </span>
-                </div>
-                <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 mt-1">
-                  Hasil Logbook 1 Pekan
-                </h2>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleOpenLivePreview}
-                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition cursor-pointer bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700 shadow-2xs"
-                >
-                  <Eye className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-                  <span>Live Preview</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleCopyAllWeeklyMarkdown}
-                  className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium transition cursor-pointer bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-zinc-200 text-white dark:text-zinc-900 shadow-xs"
-                >
-                  {copiedWeeklyAll ? (
-                    <>
-                      <Check className="w-3.5 h-3.5" />
-                      <span>Rekap Tersalin!</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-3.5 h-3.5" />
-                      <span>Salin Rekap (Markdown)</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-              {weeklyResults.map((dayItem, idx) => {
-                const isSelected = expandedDayIdx === idx;
-                return (
-                  <button
-                    key={`${dayItem.tanggal}-${idx}`}
-                    type="button"
-                    onClick={() => setExpandedDayIdx(idx)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold border whitespace-nowrap transition cursor-pointer ${
-                      isSelected
-                        ? "bg-indigo-600 text-white border-indigo-600 shadow-2xs"
-                        : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-200/70 dark:hover:bg-zinc-700"
-                    }`}
-                  >
-                    Hari {idx + 1}: {dayItem.hari}
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="space-y-3">
-              {weeklyResults.map((dayItem, idx) => {
-                const isExpanded = expandedDayIdx === idx;
-                const isDayCopied = copiedDayIdx === idx;
-
-                return (
-                  <div
-                    key={`${dayItem.tanggal}-acc-${idx}`}
-                    className={`rounded-2xl border transition-all overflow-hidden ${
-                      isExpanded
-                        ? "border-indigo-300 dark:border-indigo-700 bg-white dark:bg-zinc-900 shadow-xs"
-                        : "border-zinc-200 dark:border-zinc-800 bg-zinc-50/70 dark:bg-zinc-900/60 hover:bg-zinc-50 dark:hover:bg-zinc-900"
-                    }`}
-                  >
-                    <div className="p-4 flex items-center justify-between gap-3">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setExpandedDayIdx(isExpanded ? -1 : idx)
-                        }
-                        className="flex-1 flex items-start sm:items-center gap-3 text-left cursor-pointer"
-                      >
-                        <div
-                          className={`w-9 h-9 rounded-xl flex items-center justify-center font-extrabold text-xs shrink-0 ${
-                            isExpanded
-                              ? "bg-indigo-600 text-white"
-                              : "bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300"
-                          }`}
-                        >
-                          H-{idx + 1}
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-extrabold text-sm text-zinc-900 dark:text-zinc-100">
-                              {dayItem.tanggal}
-                            </span>
-                            <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
-                              {dayItem.tahap_fase}
-                            </span>
-                          </div>
-                          <p className="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-1 mt-0.5">
-                            {dayItem.deskripsi_kegiatan}
-                          </p>
-                        </div>
-                      </button>
-
-                      <div className="flex items-center gap-2 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleCopySingleDayWeekly(dayItem, idx)
-                          }
-                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer ${
-                            isDayCopied
-                              ? "bg-emerald-600 text-white border-emerald-600"
-                              : "bg-white dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 border-zinc-200 dark:border-zinc-700"
-                          }`}
-                        >
-                          {isDayCopied ? (
-                            <>
-                              <Check className="w-3.5 h-3.5" />
-                              <span>Tersalin!</span>
-                            </>
-                          ) : (
-                            <>
-                              <Copy className="w-3.5 h-3.5" />
-                              <span>Salin Hari Ini</span>
-                            </>
-                          )}
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setExpandedDayIdx(isExpanded ? -1 : idx)
-                          }
-                          className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 cursor-pointer"
-                        >
-                          {isExpanded ? (
-                            <ChevronUp className="w-4 h-4" />
-                          ) : (
-                            <ChevronDown className="w-4 h-4" />
-                          )}
-                        </button>
-                      </div>
-                    </div>
-
-                    {isExpanded && (
-                      <div className="px-4 pb-4 pt-2 border-t border-zinc-100 dark:border-zinc-800 space-y-3">
-                        {SECTIONS_CONFIG.map((sec) => {
-                          const Icon = sec.icon;
-                          const content = dayItem[sec.weeklyKey];
-                          return (
-                            <div
-                              key={sec.key}
-                              className={`rounded-xl p-3.5 border ${sec.bgClass} ${sec.borderClass}`}
-                            >
-                              <div className="flex items-center gap-2 mb-1.5">
-                                <div
-                                  className={`w-7 h-7 rounded-lg border flex items-center justify-center shrink-0 ${sec.accentClass}`}
-                                >
-                                  <Icon className="w-3.5 h-3.5" />
-                                </div>
-                                <div>
-                                  <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
-                                    {sec.number}. {sec.title}
-                                  </span>
-                                  <span className="text-[10px] text-zinc-500 dark:text-zinc-400 block">
-                                    {sec.badge}
-                                  </span>
-                                </div>
-                              </div>
-                              <p className="text-xs sm:text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed whitespace-pre-line pl-0 sm:pl-9">
-                                {content}
-                              </p>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </section>
+          <WeeklyResultsSection
+            weeklyResults={weeklyResults}
+            tipeKegiatan={tipeKegiatan}
+            peran={peran}
+            expandedDayIdx={expandedDayIdx}
+            setExpandedDayIdx={setExpandedDayIdx}
+            copiedDayIdx={copiedDayIdx}
+            copiedWeeklyAll={copiedWeeklyAll}
+            onOpenLivePreview={handleOpenLivePreview}
+            onCopySingleDayWeekly={handleCopySingleDayWeekly}
+            onCopyAllWeeklyMarkdown={handleCopyAllWeeklyMarkdown}
+            resultRef={resultRef}
+          />
         )}
 
         {/* ================================================================= */}
         {/* TAMPILAN HASIL MODE BULANAN (MONEV KEMAJUAN MBKM)                 */}
         {/* ================================================================= */}
         {mode === "monthly" && monthlyResult && !isLoading && (
-          <section
-            ref={resultRef}
-            className="bg-white dark:bg-zinc-900 rounded-xl p-5 sm:p-6 border border-zinc-200 dark:border-zinc-800 shadow-xs space-y-5 scroll-mt-16"
-          >
-            {/* Header Hasil Bulanan + Actions */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-zinc-100 dark:border-zinc-800">
-              <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-xs font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700">
-                    <Calendar className="w-3.5 h-3.5 text-zinc-500" />
-                    <span>{monthlyResult.periodeBulan}</span>
-                  </span>
-                  <span className="text-xs text-zinc-500">
-                    {tipeKegiatan} • {peran.trim() || "Mahasiswa"}
-                  </span>
-                </div>
-                <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 mt-1">
-                  Hasil Sintesis Laporan Kemajuan Bulanan (Monev)
-                </h2>
-              </div>
-
-              <div className="flex items-center gap-2 flex-wrap">
-                <button
-                  type="button"
-                  onClick={async () => {
-                    const fullText = [
-                      `# ${monthlyResult.periodeBulan}`,
-                      `**Nama Mahasiswa**: ${studentProfile.namaMahasiswa} (${studentProfile.nim})`,
-                      `**Mitra**: ${studentProfile.namaMitra} | **Program**: ${tipeKegiatan}`,
-                      `**Peran**: ${peran.trim() || "Peserta"}`,
-                      "",
-                      "## 1. Ringkasan Pencapaian IKU (Capaian Pembelajaran)",
-                      monthlyResult.ringkasanPencapaianIKU,
-                      "",
-                      "## 2. Milestone & Progres Proyek Utama",
-                      monthlyResult.milestoneProyekUtama,
-                      "",
-                      "## 3. Evaluasi Hambatan & Solusi Mitigasi",
-                      monthlyResult.evaluasiHambatanDanSolusi,
-                      "",
-                      "## 4. Rencana Kerja Strategis 4 Pekan ke Depan",
-                      monthlyResult.rencanaEmpatPekanKedepan,
-                      "",
-                      "## 5. Refleksi Pembelajaran Bermakna & Saran Kolaborasi",
-                      monthlyResult.rekomendasiDanRefleksi,
-                    ].join("\n");
-                    try {
-                      await navigator.clipboard.writeText(fullText);
-                      setCopiedMonthlyField("all");
-                      setTimeout(() => setCopiedMonthlyField(null), 2000);
-                      toast.success("Seluruh naskah laporan bulanan tersalin!");
-                    } catch {
-                      // ignore
-                    }
-                  }}
-                  className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700 shadow-xs"
-                >
-                  {copiedMonthlyField === "all" ? (
-                    <>
-                      <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                      <span>Semua Tersalin!</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-3.5 h-3.5" />
-                      <span>Salin Semua (MD)</span>
-                    </>
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleExportMonthlyDocx}
-                  disabled={isExportingMonthlyDocx}
-                  className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-zinc-200 text-white dark:text-zinc-900 shadow-xs disabled:opacity-50"
-                >
-                  {isExportingMonthlyDocx ? (
-                    <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>Mengekspor Word...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Download className="w-3.5 h-3.5" />
-                      <span>Unduh Dokumen (.docx)</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-
-            {/* 5 Kartu Bagian Laporan Bulanan */}
-            <div className="space-y-4">
-              {[
-                {
-                  id: "iku",
-                  title: "Ringkasan Pencapaian IKU & Capaian Pembelajaran",
-                  badge: "Indikator Kinerja Utama (IKU MBKM / CPL Kurikulum OBE)",
-                  icon: Award,
-                  content: monthlyResult.ringkasanPencapaianIKU,
-                },
-                {
-                  id: "milestone",
-                  title: "Milestone & Progres Proyek Utama",
-                  badge: "Deliverables & Progres Kerja Industri",
-                  icon: CheckCircle2,
-                  content: monthlyResult.milestoneProyekUtama,
-                },
-                {
-                  id: "evaluasi",
-                  title: "Evaluasi Hambatan, Tantangan, & Solusi Mitigasi",
-                  badge: "Problem Solving & Kendala Teratasi",
-                  icon: AlertTriangle,
-                  content: monthlyResult.evaluasiHambatanDanSolusi,
-                },
-                {
-                  id: "rencana",
-                  title: "Rencana Kerja Strategis & Target 4 Pekan ke Depan",
-                  badge: "Action Plan & Timeline Kerja Lanjutan",
-                  icon: Calendar,
-                  content: monthlyResult.rencanaEmpatPekanKedepan,
-                },
-                {
-                  id: "refleksi",
-                  title: "Refleksi Pembelajaran Bermakna & Evaluasi",
-                  badge: "Pengembangan Diri & Rekomendasi Sinergi Mitra",
-                  icon: Lightbulb,
-                  content: monthlyResult.rekomendasiDanRefleksi,
-                },
-              ].map((section, idx) => {
-                const IconComponent = section.icon;
-                const isCopied = copiedMonthlyField === section.id;
-
-                return (
-                  <div
-                    key={section.id}
-                    className="p-4 rounded-xl bg-zinc-50/70 dark:bg-zinc-800/40 border border-zinc-200/80 dark:border-zinc-800 space-y-2.5 transition hover:border-zinc-300 dark:hover:border-zinc-700"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-lg bg-zinc-200/70 dark:bg-zinc-700 flex items-center justify-center shrink-0 text-zinc-800 dark:text-zinc-200">
-                          <IconComponent className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <h3 className="text-xs sm:text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                            {idx + 1}. {section.title}
-                          </h3>
-                          <span className="text-[11px] text-zinc-500 dark:text-zinc-400 block">
-                            {section.badge}
-                          </span>
-                        </div>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          try {
-                            await navigator.clipboard.writeText(section.content);
-                            setCopiedMonthlyField(section.id);
-                            setTimeout(() => setCopiedMonthlyField(null), 2000);
-                            toast.success(`Bagian ${idx + 1} berhasil disalin!`);
-                          } catch {
-                            // ignore
-                          }
-                        }}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-200/60 dark:hover:bg-zinc-700/60 transition cursor-pointer shrink-0"
-                        title="Salin teks bagian ini"
-                      >
-                        {isCopied ? (
-                          <>
-                            <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-                            <span className="text-emerald-600 dark:text-emerald-400">Tersalin</span>
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="w-3 h-3" />
-                            <span>Salin</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-
-                    <p className="text-xs sm:text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed whitespace-pre-line pl-0 sm:pl-9.5">
-                      {section.content}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
+          <MonthlyResultsSection
+            monthlyResult={monthlyResult}
+            tipeKegiatan={tipeKegiatan}
+            peran={peran}
+            studentProfile={studentProfile}
+            copiedMonthlyField={copiedMonthlyField}
+            setCopiedMonthlyField={setCopiedMonthlyField}
+            isExportingMonthlyDocx={isExportingMonthlyDocx}
+            onExportMonthlyDocx={handleExportMonthlyDocx}
+            resultRef={resultRef}
+          />
         )}
 
         {/* ================================================================= */}
         {/* TAMPILAN HASIL MODE HARIAN (LENGKAP DENGAN BUKTI DOKUMENTASI FOTO)*/}
         {/* ================================================================= */}
         {mode === "daily" && result && !isLoading && (
-          <section
-            ref={resultRef}
-            className="bg-white dark:bg-zinc-900 rounded-xl p-5 sm:p-6 border border-zinc-200 dark:border-zinc-800 shadow-xs space-y-4 scroll-mt-16"
-          >
-            {/* Header Hasil + Tombol Salin Semua */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-zinc-100 dark:border-zinc-800">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700">
-                    {tipeKegiatan}
-                  </span>
-                  <span className="text-xs text-zinc-500 truncate max-w-[200px]">
-                    • {peran}
-                  </span>
-                </div>
-                <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 mt-1">
-                  Hasil Logbook Harian Resmi
-                </h2>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const nextState = !areAllSectionsCollapsed;
-                    setAreAllSectionsCollapsed(nextState);
-                    const updated: Record<string, boolean> = {};
-                    SECTIONS_CONFIG.forEach((s) => {
-                      updated[s.key] = nextState;
-                    });
-                    setCollapsedSections(updated);
-                  }}
-                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition cursor-pointer bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700 shadow-2xs"
-                  title={areAllSectionsCollapsed ? "Buka seluruh rincian kartu Bloom" : "Lipat ringkas seluruh kartu Bloom"}
-                >
-                  {areAllSectionsCollapsed ? (
-                    <>
-                      <ChevronDown className="w-3.5 h-3.5" />
-                      <span>Buka Semua</span>
-                    </>
-                  ) : (
-                    <>
-                      <ChevronUp className="w-3.5 h-3.5" />
-                      <span>Tutup Semua</span>
-                    </>
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleOpenLivePreview}
-                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition cursor-pointer bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700 shadow-2xs"
-                >
-                  <Eye className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-                  <span>Live Preview</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleCopyAll}
-                  className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium transition cursor-pointer bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-zinc-200 text-white dark:text-zinc-900 shadow-xs"
-                >
-                  {copiedAll ? (
-                    <>
-                      <Check className="w-3.5 h-3.5" />
-                      <span>Semua Bagian Tersalin!</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-3.5 h-3.5" />
-                      <span>Salin Semua</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-
-            {/* Bukti Dokumentasi Kegiatan (Jika ada foto yang dianalisis) */}
-            {resultPhoto && (
-              <div className="rounded-xl p-3.5 bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-200 dark:border-indigo-800/60 flex flex-col sm:flex-row items-center gap-4">
-                <div className="w-full sm:w-36 h-28 rounded-lg overflow-hidden border border-indigo-200 dark:border-indigo-800 bg-white dark:bg-zinc-900 shrink-0 shadow-2xs">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={resultPhoto}
-                    alt="Bukti Dokumentasi Kegiatan"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="flex-1 space-y-1 text-center sm:text-left">
-                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold bg-indigo-100 dark:bg-indigo-900/60 text-indigo-800 dark:text-indigo-200">
-                    <ImageIcon className="w-3.5 h-3.5" />
-                    <span>Bukti Dokumentasi Kegiatan Terverifikasi</span>
-                  </span>
-                  <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
-                    Narasi di bawah ini telah disinkronkan secara multimodal
-                    berdasarkan pengamatan visual foto dokumentasimu. Foto ini
-                    juga akan otomatis tersemat di Laporan Word (.docx) & Slide
-                    Sidang (.pptx).
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* 5 Kartu Bagian Logbook */}
-            <div className="space-y-3.5">
-              {SECTIONS_CONFIG.map((sec) => {
-                const Icon = sec.icon;
-                const isCopied = copiedSection === sec.key;
-                const isCollapsed = Boolean(collapsedSections[sec.key]);
-                const content = result[sec.key];
-
-                return (
-                  <div
-                    key={sec.key}
-                    className={`rounded-xl p-4 border transition ${sec.bgClass} ${sec.borderClass}`}
-                  >
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setCollapsedSections((prev) => ({
-                            ...prev,
-                            [sec.key]: !prev[sec.key],
-                          }))
-                        }
-                        className="flex items-center gap-2.5 text-left cursor-pointer flex-1 group"
-                        title={isCollapsed ? "Klik untuk membuka rincian" : "Klik untuk melipat"}
-                      >
-                        <div
-                          className={`w-8 h-8 rounded-lg border flex items-center justify-center shrink-0 ${sec.accentClass}`}
-                        >
-                          <Icon className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="text-xs font-extrabold text-zinc-400 dark:text-zinc-500">
-                              {sec.number}.
-                            </span>
-                            <h3 className="text-xs sm:text-sm font-bold text-zinc-900 dark:text-zinc-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                              {sec.title}
-                            </h3>
-                            {isCollapsed ? (
-                              <ChevronDown className="w-3.5 h-3.5 text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-200 transition-transform" />
-                            ) : (
-                              <ChevronUp className="w-3.5 h-3.5 text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-200 transition-transform" />
-                            )}
-                          </div>
-                          <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 block">
-                            {sec.badge}
-                          </span>
-                        </div>
-                      </button>
-
-                      {/* Tombol Salin per Bagian */}
-                      <button
-                        type="button"
-                        onClick={() => handleCopySection(sec.key, sec.title)}
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition shrink-0 cursor-pointer ${
-                          isCopied
-                            ? "bg-emerald-600 text-white border-emerald-600"
-                            : "bg-white dark:bg-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 border-zinc-200 dark:border-zinc-700 shadow-2xs"
-                        }`}
-                      >
-                        {isCopied ? (
-                          <>
-                            <Check className="w-3.5 h-3.5" />
-                            <span>Tersalin</span>
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="w-3.5 h-3.5" />
-                            <span>Salin Bagian</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-
-                    {!isCollapsed ? (
-                      <p className="text-xs sm:text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed whitespace-pre-line pl-0 sm:pl-10">
-                        {content}
-                      </p>
-                    ) : (
-                      <p className="text-xs text-zinc-500 dark:text-zinc-400 italic line-clamp-1 pl-0 sm:pl-10">
-                        {content}
-                      </p>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </section>
+          <DailyResultSection
+            result={result}
+            resultPhoto={resultPhoto}
+            tipeKegiatan={tipeKegiatan}
+            peran={peran}
+            copiedAll={copiedAll}
+            copiedSection={copiedSection}
+            collapsedSections={collapsedSections}
+            areAllSectionsCollapsed={areAllSectionsCollapsed}
+            setAreAllSectionsCollapsed={setAreAllSectionsCollapsed}
+            setCollapsedSections={setCollapsedSections}
+            onCopyAll={handleCopyAll}
+            onCopySection={handleCopySection}
+            onOpenLivePreview={handleOpenLivePreview}
+            resultRef={resultRef}
+          />
         )}
 
         {/* PANEL AKSI: HUB EKSPOR & INTEGRASI DOKUMEN */}
