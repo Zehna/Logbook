@@ -1,22 +1,15 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { WorkspaceSyncFileTab } from "./WorkspaceSyncFileTab";
+import { WorkspaceSyncCloudTab } from "./WorkspaceSyncCloudTab";
 import {
   Cloud,
-  Download,
-  Upload,
-  Database,
   Check,
   AlertTriangle,
   X,
   FileJson,
-  Smartphone,
-  Laptop,
   ArrowRightLeft,
-  Loader2,
-  Key,
-  ShieldCheck,
-  ExternalLink,
 } from "lucide-react";
 import { saveAs } from "file-saver";
 
@@ -397,183 +390,24 @@ export function WorkspaceSyncModal({
         {/* Content Body */}
         <div className="p-6 overflow-y-auto space-y-5">
           {activeTab === "file" ? (
-            <div className="space-y-4">
-              {/* Diagram Visual Perpindahan Perangkat */}
-              <div className="p-4 rounded-xl bg-indigo-50/60 border border-indigo-100 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-lg bg-indigo-600/10 flex items-center justify-center text-indigo-700">
-                    <Smartphone className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-bold text-slate-800">Perangkat Asal</div>
-                    <div className="text-[11px] text-slate-500">HP / Browser Lama</div>
-                  </div>
-                </div>
-
-                <div className="flex flex-col items-center gap-1">
-                  <ArrowRightLeft className="w-5 h-5 text-indigo-600 animate-pulse" />
-                  <span className="text-[10px] font-bold text-indigo-700 uppercase tracking-wider">
-                    Instant JSON
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-lg bg-indigo-600/10 flex items-center justify-center text-indigo-700">
-                    <Laptop className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-bold text-slate-800">Perangkat Baru</div>
-                    <div className="text-[11px] text-slate-500">Laptop / Sidang</div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2">
-                {/* Tombol Ekspor Backup */}
-                <div className="p-4 rounded-xl border border-slate-200 bg-white hover:border-indigo-300 transition-all flex flex-col justify-between space-y-3">
-                  <div>
-                    <div className="flex items-center gap-2 text-indigo-600 font-bold text-xs mb-1">
-                      <Download className="w-4 h-4" />
-                      <span>1. Unduh Berkas Backup</span>
-                    </div>
-                    <p className="text-[11px] text-slate-500 leading-relaxed">
-                      Simpan seluruh riwayat logbook harian, mingguan, biodata, bukti foto, dan lisensi Pro ke file JSON tunggal.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleExportJson}
-                    className="w-full py-2.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                    <span>Ekspor Backup (.json)</span>
-                  </button>
-                </div>
-
-                {/* Tombol Pulihkan Backup */}
-                <div className="p-4 rounded-xl border border-slate-200 bg-white hover:border-emerald-300 transition-all flex flex-col justify-between space-y-3">
-                  <div>
-                    <div className="flex items-center gap-2 text-emerald-600 font-bold text-xs mb-1">
-                      <Upload className="w-4 h-4" />
-                      <span>2. Pulihkan di Perangkat Baru</span>
-                    </div>
-                    <p className="text-[11px] text-slate-500 leading-relaxed">
-                      Buka di laptop atau browser baru, pilih file JSON hasil unduhan, dan seluruh data langsung aktif kembali.
-                    </p>
-                  </div>
-                  <div>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept=".json"
-                      className="hidden"
-                      onChange={handleImportJson}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all"
-                    >
-                      <Upload className="w-3.5 h-3.5" />
-                      <span>Impor / Pulihkan Data</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <WorkspaceSyncFileTab
+              fileInputRef={fileInputRef}
+              onExportJson={handleExportJson}
+              onImportJson={handleImportJson}
+            />
           ) : (
-            <div className="space-y-4">
-              <div className="p-3 bg-indigo-50/70 border border-indigo-100 rounded-xl text-[11px] text-indigo-900 leading-relaxed">
-                <b>Koneksi Cloud Mandiri (Opsional):</b> Hubungkan akun Supabase Anda untuk sinkronisasi otomatis multi-perangkat tanpa perlu mengunduh file secara manual.
-              </div>
-
-              <div className="space-y-3 text-xs">
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">
-                    Supabase Project URL:
-                  </label>
-                  <input
-                    type="text"
-                    value={supabaseUrl}
-                    onChange={(e) => setSupabaseUrl(e.target.value)}
-                    placeholder="https://your-project-id.supabase.co"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">
-                    Supabase Anon Public Key:
-                  </label>
-                  <input
-                    type="password"
-                    value={supabaseAnonKey}
-                    onChange={(e) => setSupabaseAnonKey(e.target.value)}
-                    placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6..."
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">
-                    ID Ruang Sinkronisasi (NIM / Kode Unik):
-                  </label>
-                  <input
-                    type="text"
-                    value={syncRoomId}
-                    onChange={(e) => setSyncRoomId(e.target.value)}
-                    placeholder="contoh: sync-12345678"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={handlePushToSupabase}
-                  disabled={isCloudLoading}
-                  className="py-2.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all disabled:opacity-50"
-                >
-                  {isCloudLoading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Cloud className="w-4 h-4" />
-                  )}
-                  <span>Push ke Cloud</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handlePullFromSupabase}
-                  disabled={isCloudLoading}
-                  className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all disabled:opacity-50"
-                >
-                  {isCloudLoading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Download className="w-4 h-4" />
-                  )}
-                  <span>Tarik dari Cloud</span>
-                </button>
-              </div>
-
-              {showSqlGuide && (
-                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs">
-                  <div className="font-bold text-slate-800">Perintah SQL Supabase:</div>
-                  <pre className="p-2.5 bg-slate-900 text-emerald-400 rounded-lg text-[11px] font-mono overflow-x-auto">
-{`create table if not exists logmagang_sync (
-  id text primary key,
-  backup_data jsonb,
-  updated_at timestamp with time zone default now()
-);
-
-alter table logmagang_sync enable row level security;
-create policy "Allow all access" on logmagang_sync for all using (true) with check (true);`}
-                  </pre>
-                </div>
-              )}
-            </div>
+            <WorkspaceSyncCloudTab
+              supabaseUrl={supabaseUrl}
+              onSupabaseUrlChange={setSupabaseUrl}
+              supabaseAnonKey={supabaseAnonKey}
+              onSupabaseAnonKeyChange={setSupabaseAnonKey}
+              syncRoomId={syncRoomId}
+              onSyncRoomIdChange={setSyncRoomId}
+              isCloudLoading={isCloudLoading}
+              showSqlGuide={showSqlGuide}
+              onPushToSupabase={handlePushToSupabase}
+              onPullFromSupabase={handlePullFromSupabase}
+            />
           )}
         </div>
       </div>

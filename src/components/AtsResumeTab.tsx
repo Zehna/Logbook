@@ -6,17 +6,9 @@ import {
   Briefcase,
   Sparkles,
   Loader2,
-  Copy,
-  Check,
-  Share2,
   FileText,
   Printer,
   Download,
-  Plus,
-  Trash2,
-  Edit3,
-  Eye,
-  CheckCircle2,
 } from "lucide-react";
 import { ResumeGeneratorResponse, ResumeBulletItem } from "@/src/lib/types/modules";
 import { StudentProfile } from "@/src/lib/exporters/types";
@@ -24,6 +16,9 @@ import {
   exportAtsResumeToDocx,
   AtsResumeData,
 } from "@/src/lib/exporters/exportAtsResumeDocx";
+import { AtsResumeInputConfig } from "./AtsResumeInputConfig";
+import { AtsResumeAnalysisView } from "./AtsResumeAnalysisView";
+import { AtsResumePreview } from "./AtsResumePreview";
 import { getIdbItem, setIdbItem, IDB_KEYS } from "@/src/lib/storage/indexedDbStore";
 
 interface AtsResumeTabProps {
@@ -305,84 +300,18 @@ export const AtsResumeTab: React.FC<AtsResumeTabProps> = ({
         </div>
       </div>
 
-      {/* Input Configuration */}
-      <div className="no-print bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-slate-200 dark:border-zinc-800 p-5 sm:p-6 space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider mb-1">
-              Peran Asal Magang / KKN:
-            </label>
-            <input
-              type="text"
-              readOnly
-              value={`${peran} (${tipeKegiatan})`}
-              className="w-full text-sm p-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/60 font-medium text-slate-700 dark:text-zinc-300"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider mb-1">
-              Target Posisi Karier Impian:
-            </label>
-            <input
-              type="text"
-              value={targetRole}
-              onChange={(e) => setTargetRole(e.target.value)}
-              placeholder="misal: Junior Product Manager, Frontend Developer..."
-              className="w-full text-sm p-3 rounded-xl border border-slate-300 dark:border-zinc-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-medium text-slate-800 dark:text-zinc-100 bg-white dark:bg-zinc-800/60"
-            />
-          </div>
-        </div>
-
-        <div>
-          <div className="flex items-center justify-between mb-1">
-            <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider">
-              Riwayat Logbook / Catatan Kerja yang Dianalisis:
-            </label>
-            <button
-              type="button"
-              onClick={handleFillSampleActivity}
-              className="text-xs text-blue-600 dark:text-blue-400 hover:underline cursor-pointer font-medium"
-            >
-              Isi Contoh Pengalaman
-            </button>
-          </div>
-          <textarea
-            rows={4}
-            value={activityContext}
-            onChange={(e) => setActivityContext(e.target.value)}
-            placeholder="Ketik atau biarkan terisi dari riwayat logbook aplikasi..."
-            className="w-full text-sm p-3 rounded-xl border border-slate-300 dark:border-zinc-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-slate-50/50 dark:bg-zinc-800/60 text-slate-800 dark:text-zinc-100"
-          />
-          <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">
-            💡 AI akan mengekstrak metrik keberhasilan, instrumen kerja, dan solusi yang pernah Anda terapkan menjadi data resume konkret.
-          </p>
-        </div>
-
-        {errorMsg && (
-          <div className="p-3 bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs rounded-xl">
-            {errorMsg}
-          </div>
-        )}
-
-        <button
-          type="button"
-          onClick={handleGenerate}
-          disabled={isLoading}
-          className="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-sm shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
-        >
-          {isLoading ? (
-            <>
-              <Loader2 className="w-5 h-5 animate-spin" />
-              <span>Mentransformasi Logbook ke Standar ATS & LinkedIn...</span>
-            </>
-          ) : (
-            <>
-              <Sparkles className="w-5 h-5" />
-              <span>🚀 Generate ATS Resume & LinkedIn Story</span>
-            </>
-          )}
-        </button>
-      </div>
+      <AtsResumeInputConfig
+        peran={peran}
+        tipeKegiatan={tipeKegiatan}
+        targetRole={targetRole}
+        onTargetRoleChange={setTargetRole}
+        activityContext={activityContext}
+        onActivityContextChange={setActivityContext}
+        isLoading={isLoading}
+        errorMsg={errorMsg}
+        onFillSample={handleFillSampleActivity}
+        onGenerate={handleGenerate}
+      />
 
       {/* Results Section */}
       {result && (
@@ -444,385 +373,62 @@ export const AtsResumeTab: React.FC<AtsResumeTabProps> = ({
 
           {/* VIEW 1: BREAKDOWN STAR METHOD & LINKEDIN STORYTELLING */}
           {activeView === "analysis" && (
-            <div className="space-y-6">
-              {/* ATS Bullets */}
-              <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-slate-200 dark:border-zinc-800 p-5 sm:p-6 space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-zinc-800 pb-4">
-                  <div>
-                    <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300">
-                      HARVARD CV FORMAT (STAR METHOD)
-                    </div>
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-zinc-100 mt-1">
-                      Bullet Points Pengalaman Kerja ({result.targetRole})
-                    </h3>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleCopyAllBullets}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 dark:bg-zinc-100 hover:bg-slate-800 dark:hover:bg-zinc-200 text-white dark:text-zinc-900 text-xs font-semibold shadow-xs transition-colors cursor-pointer"
-                  >
-                    {copiedSection === "all-bullets" ? (
-                      <>
-                        <Check className="w-4 h-4 text-emerald-400" />
-                        <span>Tersalin Semua!</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-4 h-4 text-slate-300 dark:text-zinc-600" />
-                        <span>Salin Semua Bullets</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-
-                <div className="space-y-4">
-                  {result.resumeBullets.map((b, idx) => (
-                    <div
-                      key={idx}
-                      className="p-4 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/60 dark:bg-zinc-800/40 hover:bg-white dark:hover:bg-zinc-800/80 hover:shadow-md transition-all space-y-2.5"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <p className="text-sm font-semibold text-slate-900 dark:text-zinc-100 leading-relaxed">
-                          • {b.bulletText}
-                        </p>
-                        <button
-                          type="button"
-                          onClick={() => copyToClipboard(`• ${b.bulletText}`, `bullet-${idx}`)}
-                          className="p-1.5 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-300 transition-colors shrink-0 cursor-pointer"
-                          title="Salin bullet ini"
-                        >
-                          {copiedSection === `bullet-${idx}` ? (
-                            <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                          ) : (
-                            <Copy className="w-4 h-4" />
-                          )}
-                        </button>
-                      </div>
-
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-200/60 dark:border-zinc-700/60 text-[11px]">
-                        <div className="p-2 rounded-lg bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700">
-                          <span className="font-bold text-slate-500 dark:text-zinc-400 block">S (Situation):</span>
-                          <span className="text-slate-700 dark:text-zinc-300">{b.starFramework.situation}</span>
-                        </div>
-                        <div className="p-2 rounded-lg bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700">
-                          <span className="font-bold text-slate-500 dark:text-zinc-400 block">T (Task):</span>
-                          <span className="text-slate-700 dark:text-zinc-300">{b.starFramework.task}</span>
-                        </div>
-                        <div className="p-2 rounded-lg bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700">
-                          <span className="font-bold text-slate-500 dark:text-zinc-400 block">A (Action):</span>
-                          <span className="text-slate-700 dark:text-zinc-300">{b.starFramework.action}</span>
-                        </div>
-                        <div className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800">
-                          <span className="font-bold text-emerald-700 dark:text-emerald-300 block">R (Result & Metric):</span>
-                          <span className="text-emerald-900 dark:text-emerald-100 font-semibold">{b.metric}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* LinkedIn Storytelling */}
-              <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-slate-200 dark:border-zinc-800 p-5 sm:p-6 space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-4">
-                  <div>
-                    <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full text-xs font-bold bg-sky-100 dark:bg-sky-950/60 text-sky-800 dark:text-sky-300">
-                      LINKEDIN STORYTELLING
-                    </div>
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-zinc-100 mt-1">
-                      Draf Postingan Reflektif & Personal Branding
-                    </h3>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleCopyLinkedIn}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
-                  >
-                    {copiedSection === "linkedin" ? (
-                      <>
-                        <Check className="w-4 h-4 text-emerald-300" />
-                        <span>Tersalin!</span>
-                      </>
-                    ) : (
-                      <>
-                        <Share2 className="w-4 h-4" />
-                        <span>Salin Naskah LinkedIn</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-
-                <div className="p-4 rounded-xl bg-slate-50 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700 text-sm leading-relaxed text-slate-800 dark:text-zinc-200 whitespace-pre-wrap font-sans">
-                  {result.linkedInPost.fullText}
-                </div>
-
-                <div className="flex flex-wrap gap-2 pt-2">
-                  {result.linkedInPost.hashtags.map((tag, idx) => (
-                    <span
-                      key={idx}
-                      className="px-2.5 py-1 rounded-md text-xs font-medium bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              {/* Top Skills */}
-              <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-slate-200 dark:border-zinc-800 p-5 sm:p-6 space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-3">
-                  <div>
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-zinc-100">
-                      Top 5 Skills untuk Profil LinkedIn
-                    </h3>
-                    <p className="text-xs text-slate-500 dark:text-zinc-400">
-                      Diverifikasi langsung berdasarkan rekaman aktivitas logbook Anda.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleCopySkills}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-300 text-xs font-medium transition-colors cursor-pointer"
-                  >
-                    {copiedSection === "skills" ? (
-                      <span className="text-emerald-600 dark:text-emerald-400 font-bold">Tersalin!</span>
-                    ) : (
-                      <>
-                        <Copy className="w-3.5 h-3.5 text-slate-500 dark:text-zinc-400" />
-                        <span>Salin Daftar</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {result.topSkills.map((sk, idx) => (
-                    <div
-                      key={idx}
-                      className="p-3.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-800/50 hover:bg-white dark:hover:bg-zinc-800 hover:border-blue-300 dark:hover:border-blue-700 transition-all space-y-1"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-sm text-slate-900 dark:text-zinc-100">{sk.name}</span>
-                        <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300">
-                          {sk.category}
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed pt-1">
-                        {sk.relevance}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+            <AtsResumeAnalysisView
+              result={result}
+              targetRole={targetRole}
+              copiedSection={copiedSection}
+              onCopySection={copyToClipboard}
+              onCopyAllBullets={handleCopyAllBullets}
+              onCopyLinkedIn={handleCopyLinkedIn}
+              onCopySkills={handleCopySkills}
+            />
           )}
 
           {/* VIEW 2: LIVE EDITABLE HARVARD ATS RESUME PREVIEW (A4 SHEET) */}
           {activeView === "preview" && (
-            <div className="space-y-4">
-              <div className="no-print p-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-xs text-indigo-900 dark:text-indigo-200 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Edit3 className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
-                  <span>
-                    <strong>Mode Live Editing Aktif:</strong> Anda dapat mengedit langsung nama, kontak, ringkasan, dan poin peluru (bullet) di lembar kertas di bawah ini sebelum mengunduh.
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleAddBullet}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs transition cursor-pointer"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Tambah Poin STAR</span>
-                </button>
-              </div>
-
-              {/* LEMBAR KERTAS A4 HARVARD CV */}
-              <div
-                id="harvard-cv-print-area"
-                className="max-w-4xl mx-auto bg-white p-8 sm:p-12 rounded-2xl shadow-xl border border-slate-300 text-slate-900 font-serif leading-normal transition-all"
-                style={{ fontFamily: '"Times New Roman", Times, serif' }}
-              >
-                {/* 1. Header Identitas */}
-                <div className="text-center pb-3 border-b-2 border-slate-900">
-                  <input
-                    type="text"
-                    value={editableName}
-                    onChange={(e) => setEditableName(e.target.value)}
-                    className="w-full text-center text-2xl sm:text-3xl font-extrabold uppercase tracking-wide bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-500 focus:outline-none"
-                  />
-                  <div className="flex flex-wrap items-center justify-center gap-2 text-xs sm:text-sm text-slate-700 mt-2 font-sans">
-                    <input
-                      type="text"
-                      value={editableLocation}
-                      onChange={(e) => setEditableLocation(e.target.value)}
-                      className="text-center w-36 bg-transparent border-b border-transparent hover:border-slate-300 focus:outline-none"
-                    />
-                    <span>•</span>
-                    <input
-                      type="text"
-                      value={editablePhone}
-                      onChange={(e) => setEditablePhone(e.target.value)}
-                      className="text-center w-36 bg-transparent border-b border-transparent hover:border-slate-300 focus:outline-none"
-                    />
-                    <span>•</span>
-                    <input
-                      type="text"
-                      value={editableEmail}
-                      onChange={(e) => setEditableEmail(e.target.value)}
-                      className="text-center w-48 bg-transparent border-b border-transparent hover:border-slate-300 focus:outline-none"
-                    />
-                    <span>•</span>
-                    <input
-                      type="text"
-                      value={editableLinkedIn}
-                      onChange={(e) => setEditableLinkedIn(e.target.value)}
-                      className="text-center w-48 bg-transparent border-b border-transparent hover:border-slate-300 focus:outline-none text-blue-700"
-                    />
-                  </div>
-                </div>
-
-                {/* 2. Professional Summary */}
-                <div className="mt-5">
-                  <h4 className="text-sm font-bold uppercase tracking-wider text-slate-900 border-b border-slate-800 pb-0.5 mb-2">
-                    Professional Summary
-                  </h4>
-                  <textarea
-                    rows={3}
-                    value={editableSummary}
-                    onChange={(e) => setEditableSummary(e.target.value)}
-                    className="w-full text-xs sm:text-sm leading-relaxed text-justify bg-transparent border border-transparent hover:border-slate-200 focus:border-indigo-500 rounded p-1 focus:outline-none"
-                  />
-                </div>
-
-                {/* 3. Work Experience */}
-                <div className="mt-5">
-                  <h4 className="text-sm font-bold uppercase tracking-wider text-slate-900 border-b border-slate-800 pb-0.5 mb-2">
-                    Professional Work Experience
-                  </h4>
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs sm:text-sm font-bold text-slate-900">
-                    <div className="flex items-center gap-1.5 flex-1">
-                      <input
-                        type="text"
-                        value={targetRole}
-                        onChange={(e) => setTargetRole(e.target.value)}
-                        className="font-bold bg-transparent border-b border-transparent hover:border-slate-300 focus:outline-none w-1/2"
-                      />
-                      <span>—</span>
-                      <input
-                        type="text"
-                        value={editableMitra}
-                        onChange={(e) => setEditableMitra(e.target.value)}
-                        className="italic font-medium bg-transparent border-b border-transparent hover:border-slate-300 focus:outline-none w-1/2"
-                      />
-                    </div>
-                    <input
-                      type="text"
-                      value={editablePeriode}
-                      onChange={(e) => setEditablePeriode(e.target.value)}
-                      className="text-right sm:w-44 font-normal text-slate-600 bg-transparent border-b border-transparent hover:border-slate-300 focus:outline-none mt-1 sm:mt-0"
-                    />
-                  </div>
-
-                  {/* Bullet Points List */}
-                  <div className="mt-2.5 space-y-2">
-                    {editableBullets.map((bullet, idx) => (
-                      <div key={idx} className="group relative flex items-start gap-2">
-                        <span className="text-slate-800 font-bold mt-1 select-none">•</span>
-                        <textarea
-                          rows={2}
-                          value={bullet}
-                          onChange={(e) => handleUpdateBullet(idx, e.target.value)}
-                          className="w-full text-xs sm:text-sm text-justify leading-relaxed bg-transparent border border-transparent hover:border-slate-200 focus:border-indigo-500 rounded p-1 focus:outline-none"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveBullet(idx)}
-                          className="no-print opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-rose-600 transition shrink-0 cursor-pointer"
-                          title="Hapus bullet ini"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* 4. Skills & Competencies */}
-                <div className="mt-5">
-                  <h4 className="text-sm font-bold uppercase tracking-wider text-slate-900 border-b border-slate-800 pb-0.5 mb-2">
-                    Technical & Core Competencies
-                  </h4>
-                  <div className="space-y-1.5 text-xs sm:text-sm">
-                    <div className="flex items-start gap-1">
-                      <span className="font-bold shrink-0">• Hard Skills:</span>
-                      <input
-                        type="text"
-                        value={editableHardSkills}
-                        onChange={(e) => setEditableHardSkills(e.target.value)}
-                        className="w-full bg-transparent border-b border-transparent hover:border-slate-300 focus:outline-none"
-                      />
-                    </div>
-                    <div className="flex items-start gap-1">
-                      <span className="font-bold shrink-0">• Tools & Technologies:</span>
-                      <input
-                        type="text"
-                        value={editableTools}
-                        onChange={(e) => setEditableTools(e.target.value)}
-                        className="w-full bg-transparent border-b border-transparent hover:border-slate-300 focus:outline-none"
-                      />
-                    </div>
-                    <div className="flex items-start gap-1">
-                      <span className="font-bold shrink-0">• Soft Skills:</span>
-                      <input
-                        type="text"
-                        value={editableSoftSkills}
-                        onChange={(e) => setEditableSoftSkills(e.target.value)}
-                        className="w-full bg-transparent border-b border-transparent hover:border-slate-300 focus:outline-none"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* 5. Education */}
-                <div className="mt-5">
-                  <h4 className="text-sm font-bold uppercase tracking-wider text-slate-900 border-b border-slate-800 pb-0.5 mb-2">
-                    Education
-                  </h4>
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs sm:text-sm">
-                    <input
-                      type="text"
-                      value={editableUniv}
-                      onChange={(e) => setEditableUniv(e.target.value)}
-                      className="font-bold bg-transparent border-b border-transparent hover:border-slate-300 focus:outline-none w-full sm:w-2/3"
-                    />
-                    <input
-                      type="text"
-                      value={editableTahun}
-                      onChange={(e) => setEditableTahun(e.target.value)}
-                      className="text-left sm:text-right font-normal text-slate-600 bg-transparent border-b border-transparent hover:border-slate-300 focus:outline-none w-full sm:w-1/3"
-                    />
-                  </div>
-                  <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-700 mt-1">
-                    <span>Bachelor Degree in</span>
-                    <input
-                      type="text"
-                      value={editableProdi}
-                      onChange={(e) => setEditableProdi(e.target.value)}
-                      className="font-medium bg-transparent border-b border-transparent hover:border-slate-300 focus:outline-none flex-1"
-                    />
-                    <span>(IPK:</span>
-                    <input
-                      type="text"
-                      value={editableIpk}
-                      onChange={(e) => setEditableIpk(e.target.value)}
-                      className="font-bold text-center w-24 bg-transparent border-b border-transparent hover:border-slate-300 focus:outline-none"
-                    />
-                    <span>)</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <AtsResumePreview
+              data={{
+                name: editableName,
+                email: editableEmail,
+                phone: editablePhone,
+                location: editableLocation,
+                linkedIn: editableLinkedIn,
+                summary: editableSummary,
+                mitra: editableMitra,
+                periode: editablePeriode,
+                bullets: editableBullets,
+                hardSkills: editableHardSkills,
+                tools: editableTools,
+                softSkills: editableSoftSkills,
+                univ: editableUniv,
+                prodi: editableProdi,
+                tahun: editableTahun,
+                ipk: editableIpk,
+              }}
+              onDataChange={(patch) => {
+                if (patch.name !== undefined) setEditableName(patch.name);
+                if (patch.email !== undefined) setEditableEmail(patch.email);
+                if (patch.phone !== undefined) setEditablePhone(patch.phone);
+                if (patch.location !== undefined) setEditableLocation(patch.location);
+                if (patch.linkedIn !== undefined) setEditableLinkedIn(patch.linkedIn);
+                if (patch.summary !== undefined) setEditableSummary(patch.summary);
+                if (patch.mitra !== undefined) setEditableMitra(patch.mitra);
+                if (patch.periode !== undefined) setEditablePeriode(patch.periode);
+                if (patch.bullets !== undefined) setEditableBullets(patch.bullets);
+                if (patch.hardSkills !== undefined) setEditableHardSkills(patch.hardSkills);
+                if (patch.tools !== undefined) setEditableTools(patch.tools);
+                if (patch.softSkills !== undefined) setEditableSoftSkills(patch.softSkills);
+                if (patch.univ !== undefined) setEditableUniv(patch.univ);
+                if (patch.prodi !== undefined) setEditableProdi(patch.prodi);
+                if (patch.tahun !== undefined) setEditableTahun(patch.tahun);
+                if (patch.ipk !== undefined) setEditableIpk(patch.ipk);
+              }}
+              targetRole={targetRole}
+              onTargetRoleChange={setTargetRole}
+              onAddBullet={handleAddBullet}
+              onRemoveBullet={handleRemoveBullet}
+              onUpdateBullet={handleUpdateBullet}
+            />
           )}
         </div>
       )}

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useRef } from "react";
 import { toast } from "sonner";
 import {
   Sparkles,
@@ -63,40 +63,20 @@ import { AuthLoginModal } from "@/src/components/AuthLoginModal";
 import { LivePreviewModal } from "@/src/components/LivePreviewModal";
 import { QrScannerModal } from "@/src/components/QrScannerModal";
 import { CalendarCompetencyModal } from "@/src/components/CalendarCompetencyModal";
-import { auth, getUserFromFirestore, AppUserProfile } from "@/src/lib/firebase/config";
-import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
+import { AppUserProfile } from "@/src/lib/firebase/config";
+import { User as FirebaseUser } from "firebase/auth";
 import { MentorAdminData } from "@/src/lib/exporters/exportAdminDocs";
 import {
-  autoMigrateFromLocalStorage,
-  getStorageUsageEstimate,
-  getStoredHistory,
   saveStoredHistory,
-  getStoredProfile,
   saveStoredProfile,
-  getStoredMentorData,
   saveStoredMentorData,
-  getStoredSksCourses,
   saveStoredSksCourses,
-  getStoredOfflineDrafts,
-  saveStoredOfflineDraft,
-  removeStoredOfflineDraft,
-  clearStoredOfflineDrafts,
   getStoredTemplates,
-  getStoredDailyAutoSave,
-  saveStoredDailyAutoSave,
-  clearStoredDailyAutoSave,
   OfflineDraftItem,
   StorageEstimateInfo,
 } from "@/src/lib/storage/indexedDbStore";
 import { MonthlyReportOutput } from "@/src/lib/types/monthlyReport";
-import {
-  MAX_FREE_QUOTA,
-  STORAGE_HISTORY_KEY,
-  STORAGE_LICENSE_KEY,
-  STORAGE_PROFILE_KEY,
-  STORAGE_PRO_KEY,
-  STORAGE_QUOTA_KEY,
-} from "@/src/lib/config/storageKeys";
+import { MAX_FREE_QUOTA } from "@/src/lib/config/storageKeys";
 import { getCurrentWeekMondayAndFriday } from "@/src/lib/utils/dates";
 import { PROGRAM_OPTIONS } from "@/src/lib/config/programOptions";
 import {
@@ -125,6 +105,7 @@ import { useGenerateHandlers } from "@/src/hooks/useGenerateHandlers";
 import { useExportHandlers } from "@/src/hooks/useExportHandlers";
 import { useHistorySyncHandlers } from "@/src/hooks/useHistorySyncHandlers";
 import { useCopyLicenseHandlers } from "@/src/hooks/useCopyLicenseHandlers";
+import { usePageLifecycle } from "@/src/hooks/usePageLifecycle";
 import { buildCombinedLogbookText } from "@/src/lib/utils/combinedLogbookText";
 
 
@@ -274,90 +255,46 @@ export default function HomePage() {
   // Calendar Heatmap, Competency & E-Paraf Hub Modal State
   const [isCalendarHubOpen, setIsCalendarHubOpen] = useState<boolean>(false);
   const [calendarHubTab, setCalendarHubTab] = useState<"calendar" | "competency" | "signature">("calendar");
+  // Toast sukses ekspor (dipindah ke atas agar bisa dioper ke usePageLifecycle)
+  const triggerToast = (msg: string, description?: string) => {
+    toast.success(msg, { description });
+    setExportSuccessToast(msg);
+    setTimeout(() => {
+      setExportSuccessToast((prev) => (prev === msg ? null : prev));
+    }, 3500);
+  };
 
-  // Listener Autentikasi Firebase & Profil Lokal
-  useEffect(() => {
-    // Muat profil lokal yang tersimpan jika ada
-    if (typeof window !== "undefined") {
-      const savedLocal = localStorage.getItem("logmagang_local_user");
-      if (savedLocal) {
-        try {
-          const parsed = JSON.parse(savedLocal);
-          setCurrentUserProfile(parsed);
-          setStudentProfile((prev) => ({
-            ...prev,
-            namaMahasiswa: parsed.displayName || prev.namaMahasiswa,
-            nim: parsed.nim || prev.nim,
-            perguruanTinggi: parsed.campus || prev.perguruanTinggi,
-            programStudi: parsed.prodi || prev.programStudi,
-          }));
-        } catch {
-          // ignore corrupted local user
-        }
-      }
-    }
+  // Efek lifecycle: auth, tema, hidrasi, ref-sync, auto-save, online/offline, ack ekstensi
+  usePageLifecycle({
+    mode,
+    catatan,
+    catatanRef,
+    lastSavedCatatanRef,
+    triggerToast,
+    setCurrentUserProfile,
+    setStudentProfile,
+    setCurrentFbUser,
+    setIsAuthLoading,
+    setIsDarkMode,
+    setUsedQuota,
+    setIsPro,
+    setLicenseDetails,
+    setHistory,
+    setSelectedPreset,
+    setMentorAdminData,
+    setSksCoursesContext,
+    setTemplateSnippets,
+    setCatatan,
+    setLastAutoSavedAt,
+    setStorageInfo,
+    setOfflineDrafts,
+    setIsHydrated,
+    setIsOnline,
+    setExtensionSyncAck,
+  });
 
-    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
-      setCurrentFbUser(fbUser);
-      if (fbUser) {
-        try {
-          const profile = await getUserFromFirestore(fbUser.uid);
-          if (profile) {
-            setCurrentUserProfile(profile);
-            if (typeof window !== "undefined") {
-              localStorage.setItem("logmagang_local_user", JSON.stringify(profile));
-            }
-            setStudentProfile((prev) => ({
-              ...prev,
-              namaMahasiswa: profile.displayName || prev.namaMahasiswa,
-              nim: profile.nim || prev.nim,
-              perguruanTinggi: profile.campus || prev.perguruanTinggi,
-              programStudi: profile.prodi || prev.programStudi,
-            }));
-          } else {
-            const fallbackProfile: AppUserProfile = {
-              uid: fbUser.uid,
-              displayName: fbUser.displayName || "Mahasiswa MBKM",
-              email: fbUser.email || "",
-              photoURL: fbUser.photoURL || "",
-            };
-            setCurrentUserProfile(fallbackProfile);
-            if (typeof window !== "undefined") {
-              localStorage.setItem("logmagang_local_user", JSON.stringify(fallbackProfile));
-            }
-          }
-        } catch (e) {
-          console.warn("Gagal fetch user profile dari Firestore:", e);
-        }
-      } else {
-        // Jika tidak ada user Firebase, cek apakah user sedang login dengan profil lokal
-        if (typeof window !== "undefined") {
-          const savedLocal = localStorage.getItem("logmagang_local_user");
-          if (!savedLocal) {
-            setCurrentUserProfile(null);
-          }
-        } else {
-          setCurrentUserProfile(null);
-        }
-      }
-      setIsAuthLoading(false);
-    });
 
-    return () => unsubscribe();
-  }, []);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const isDark =
-      document.documentElement.classList.contains("dark") ||
-      localStorage.getItem("logmagang_theme") === "dark";
-    setIsDarkMode(isDark);
-    if (isDark) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-  }, []);
 
   const toggleTheme = () => {
     const nextDark = !isDarkMode;
@@ -380,167 +317,8 @@ export default function HomePage() {
   const resultRef = useRef<HTMLDivElement>(null);
   const paywallRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    let isMounted = true;
 
-    try {
-      const savedQuota = localStorage.getItem(STORAGE_QUOTA_KEY);
-      const savedPro = localStorage.getItem(STORAGE_PRO_KEY);
-      const savedLicense = localStorage.getItem(STORAGE_LICENSE_KEY);
-      const savedHistory = localStorage.getItem(STORAGE_HISTORY_KEY);
-      const savedProfile = localStorage.getItem(STORAGE_PROFILE_KEY);
 
-      if (savedQuota !== null) {
-        const parsed = parseInt(savedQuota, 10);
-        if (!Number.isNaN(parsed) && parsed >= 0) {
-          setUsedQuota(parsed);
-        }
-      }
-      if (savedPro === "true") {
-        setIsPro(true);
-      }
-      if (savedLicense) {
-        try {
-          const parsedLicense = JSON.parse(savedLicense);
-          setLicenseDetails(parsedLicense);
-        } catch {
-          // ignore
-        }
-      }
-      if (savedHistory) {
-        try {
-          const parsedHistory = JSON.parse(savedHistory);
-          if (Array.isArray(parsedHistory)) {
-            setHistory(parsedHistory);
-          }
-        } catch {
-          // ignore
-        }
-      }
-      if (savedProfile) {
-        try {
-          const parsedProfile = JSON.parse(savedProfile);
-          if (parsedProfile && typeof parsedProfile === "object") {
-            setStudentProfile((prev) => ({ ...prev, ...parsedProfile }));
-            if (parsedProfile.kampusPreset) {
-              setSelectedPreset(parsedProfile.kampusPreset);
-            }
-          }
-        } catch {
-          // ignore
-        }
-      }
-    } catch {
-      // Abaikan jika akses localStorage dibatasi
-    } finally {
-      setIsHydrated(true);
-    }
-
-    // Inisialisasi & Auto-Migrasi ke IndexedDB Native Engine
-    (async () => {
-      try {
-        await autoMigrateFromLocalStorage();
-        const [idbHistory, idbProfile, idbMentor, idbCourses, idbTemplates, idbDailyAutoSave] = await Promise.all([
-          getStoredHistory(),
-          getStoredProfile(),
-          getStoredMentorData(),
-          getStoredSksCourses(),
-          getStoredTemplates(),
-          getStoredDailyAutoSave(),
-        ]);
-
-        if (!isMounted) return;
-
-        if (idbHistory && idbHistory.length > 0) {
-          setHistory(idbHistory);
-        }
-        if (idbProfile) {
-          setStudentProfile((prev) => ({ ...prev, ...idbProfile }));
-          if (idbProfile.kampusPreset) {
-            setSelectedPreset(idbProfile.kampusPreset);
-          }
-        }
-        if (idbMentor) {
-          setMentorAdminData(idbMentor);
-        }
-        if (idbCourses) {
-          setSksCoursesContext(idbCourses);
-        }
-        if (idbTemplates && idbTemplates.length > 0) {
-          setTemplateSnippets(idbTemplates);
-        }
-        if (idbDailyAutoSave && idbDailyAutoSave.catatan.trim()) {
-          setCatatan((prev) => (prev.trim() ? prev : idbDailyAutoSave.catatan));
-          catatanRef.current = idbDailyAutoSave.catatan;
-          lastSavedCatatanRef.current = idbDailyAutoSave.catatan;
-          const parsedTime = new Date(idbDailyAutoSave.updatedAt);
-          if (!isNaN(parsedTime.getTime())) {
-            setLastAutoSavedAt(
-              parsedTime.toLocaleTimeString("id-ID", {
-                hour: "2-digit",
-                minute: "2-digit",
-                second: "2-digit",
-              })
-            );
-          }
-        }
-
-        const est = await getStorageUsageEstimate();
-        const drafts = await getStoredOfflineDrafts();
-        if (isMounted) {
-          setStorageInfo(est);
-          setOfflineDrafts(drafts);
-        }
-      } catch (err) {
-        console.warn("IndexedDB bootstrap warning:", err);
-      }
-    })();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  // Sinkronisasi ref catatan terbaru agar interval 30 detik tidak ter-reset setiap ketikan
-  useEffect(() => {
-    catatanRef.current = catatan;
-  }, [catatan]);
-
-  // Auto-save catatan ke IndexedDB setiap 30 detik pada mode 'daily'
-  useEffect(() => {
-    if (mode !== "daily") return;
-
-    const autoSaveInterval = setInterval(async () => {
-      const currentCatatan = catatanRef.current;
-      if (currentCatatan === lastSavedCatatanRef.current) return;
-
-      try {
-        if (currentCatatan.trim()) {
-          const savedDraft = await saveStoredDailyAutoSave(currentCatatan);
-          lastSavedCatatanRef.current = currentCatatan;
-          const timeFormatted = new Date(savedDraft.updatedAt).toLocaleTimeString(
-            "id-ID",
-            {
-              hour: "2-digit",
-              minute: "2-digit",
-              second: "2-digit",
-            }
-          );
-          setLastAutoSavedAt(timeFormatted);
-        } else {
-          await clearStoredDailyAutoSave();
-          lastSavedCatatanRef.current = "";
-          setLastAutoSavedAt(null);
-        }
-      } catch (err) {
-        console.warn("Gagal menyimpan otomatis catatan harian ke IndexedDB:", err);
-      }
-    }, 30000);
-
-    return () => {
-      clearInterval(autoSaveInterval);
-    };
-  }, [mode]);
 
   const refreshTemplateSnippets = async () => {
     try {
@@ -562,45 +340,7 @@ export default function HomePage() {
     }
   };
 
-  // Listener Status Koneksi Online / Offline untuk Mahasiswa KKN di Pelosok
-  useEffect(() => {
-    const handleOnline = async () => {
-      setIsOnline(true);
-      const drafts = await getStoredOfflineDrafts();
-      setOfflineDrafts(drafts);
-      toast.success("🌐 Anda kembali online. Sinkronisasi draf siap dijalankan.");
-    };
 
-    const handleOffline = () => {
-      setIsOnline(false);
-      toast.warning("⚠️ Koneksi internet terputus. Mode pencatatan draf offline aktif.");
-    };
-
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
-
-    if (typeof navigator !== "undefined") {
-      setIsOnline(navigator.onLine);
-    }
-
-    return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-    };
-  }, []);
-
-  // Listener Konfirmasi Live Bridge Ekstensi Chrome
-  useEffect(() => {
-    const handleExtensionAck = (event: MessageEvent) => {
-      if (event.data && event.data.source === "LOGMAGANG_EXTENSION_ACK") {
-        setExtensionSyncAck(true);
-        triggerToast(`⚡ Ekstensi berhasil menerima ${event.data.count || 0} entri secara live!`);
-        setTimeout(() => setExtensionSyncAck(false), 3000);
-      }
-    };
-    window.addEventListener("message", handleExtensionAck);
-    return () => window.removeEventListener("message", handleExtensionAck);
-  }, []);
 
   const remainingQuota = Math.max(0, MAX_FREE_QUOTA - usedQuota);
   const isQuotaExhausted = !isPro && usedQuota >= MAX_FREE_QUOTA;
@@ -631,16 +371,6 @@ export default function HomePage() {
       isBulkSelectionActive,
       selectedExportEntryIds
     );
-
-  const triggerToast = (msg: string, description?: string) => {
-    toast.success(msg, { description });
-    setExportSuccessToast(msg);
-    setTimeout(() => {
-      setExportSuccessToast((prev) => (prev === msg ? null : prev));
-    }, 3500);
-  };
-
-
 
 
   const {

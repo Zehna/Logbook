@@ -4,16 +4,9 @@ import React, { useState, useMemo } from "react";
 import {
   BarChart3,
   Calendar,
-  CheckCircle2,
-  AlertTriangle,
-  FileText,
-  Copy,
   Trash2,
   Search,
-  Sparkles,
-  Loader2,
   History,
-  Check,
   X,
   Filter,
   Briefcase,
@@ -34,91 +27,19 @@ export interface AuditHistoryPanelProps {
   onToast: (message: string) => void;
 }
 
-export const getWordList = (text: string): string[] => {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/gi, " ")
-    .split(/\s+/)
-    .filter((w) => w.length > 2);
-};
-
-export const getWordSet = (text: string): Set<string> => {
-  return new Set(getWordList(text));
-};
-
-export const computeJaccardSimilarity = (textA: string, textB: string): number => {
-  const setA = getWordSet(textA);
-  const setB = getWordSet(textB);
-  if (setA.size === 0 || setB.size === 0) return 0;
-  let intersection = 0;
-  setA.forEach((w) => {
-    if (setB.has(w)) intersection++;
-  });
-  const union = new Set([...setA, ...setB]).size;
-  return union === 0 ? 0 : Math.round((intersection / union) * 100);
-};
-
-export const computeOverallUniqueness = (entriesList: LogbookEntry[]): number => {
-  if (entriesList.length === 0) return 100;
-  const allWords = entriesList.flatMap((e) =>
-    getWordList(e.deskripsiKegiatan || "")
-  );
-  if (allWords.length === 0) return 100;
-  const uniqueCount = new Set(allWords).size;
-  return Math.round((uniqueCount / allWords.length) * 100);
-};
-
-const INDONESIAN_MONTHS = [
-  "januari",
-  "februari",
-  "maret",
-  "april",
-  "mei",
-  "juni",
-  "juli",
-  "agustus",
-  "september",
-  "oktober",
-  "november",
-  "desember",
-];
-
-function checkDateMatch(entryTanggal: string, targetDateYmd: string): boolean {
-  if (!targetDateYmd) return true;
-  if (!entryTanggal) return false;
-
-  // Cek substring langsung jika berformat YYYY-MM-DD
-  if (entryTanggal.includes(targetDateYmd)) return true;
-
-  const [y, m, d] = targetDateYmd.split("-");
-  if (!y || !m || !d) return false;
-
-  const monthIdx = parseInt(m, 10) - 1;
-  const monthName = INDONESIAN_MONTHS[monthIdx];
-  const dayNum = parseInt(d, 10).toString();
-
-  const lowerEntry = entryTanggal.toLowerCase();
-
-  // Cek apakah tanggal teks bahasa Indonesia memuat nama bulan, hari, dan tahun
-  if (
-    monthName &&
-    lowerEntry.includes(monthName) &&
-    lowerEntry.includes(dayNum) &&
-    lowerEntry.includes(y)
-  ) {
-    return true;
-  }
-
-  // Cek format angka DD/MM/YYYY atau DD-MM-YYYY
-  const slashFormat = `${d}/${m}/${y}`;
-  const dashFormat = `${d}-${m}-${y}`;
-  if (entryTanggal.includes(slashFormat) || entryTanggal.includes(dashFormat)) {
-    return true;
-  }
-
-  return false;
-}
-
+// Util kata dipakai ulang dari textSimilarity (sebelumnya diduplikasi persis di file ini).
+export {
+  computeJaccardSimilarity,
+  computeOverallUniqueness,
+  getWordList,
+  getWordSet,
+} from "@/src/lib/utils/textSimilarity";
+import {
+  computeAuditMetrics,
+  extractAvailableActivityTypes,
+  filterHistory,
+} from "@/src/lib/utils/auditFilters";
+import { AuditHistoryEntryCard } from "./AuditHistoryEntryCard";
 export const AuditHistoryPanel: React.FC<AuditHistoryPanelProps> = ({
   history,
   onClearAllHistory,
@@ -148,131 +69,33 @@ export const AuditHistoryPanel: React.FC<AuditHistoryPanelProps> = ({
   };
 
   // Kalkulasi Metrik Keseluruhan
-  const metrics = useMemo(() => {
-    const uniquenessScore = computeOverallUniqueness(history);
-    const shortEntriesCount = history.filter(
-      (e) => getWordList(e.deskripsiKegiatan || "").length < 20
-    ).length;
-
-    let repetitiveEntriesCount = 0;
-    for (let i = 0; i < history.length; i++) {
-      const cur = history[i];
-      const others = history.filter((_, idx) => idx !== i);
-      const maxSim = Math.max(
-        0,
-        ...others.map((o) =>
-          computeJaccardSimilarity(
-            cur.deskripsiKegiatan || "",
-            o.deskripsiKegiatan || ""
-          )
-        )
-      );
-      if (maxSim >= 70) {
-        repetitiveEntriesCount++;
-      }
-    }
-
-    return {
-      uniquenessScore,
-      shortEntriesCount,
-      repetitiveEntriesCount,
-    };
-  }, [history]);
+  const metrics = useMemo(() => computeAuditMetrics(history), [history]);
 
   // Ekstraksi seluruh tipe kegiatan unik yang ada di riwayat
-  const availableActivityTypes = useMemo(() => {
-    const typesSet = new Set<string>();
-    typesSet.add("Magang MBKM");
-    typesSet.add("MSIB");
-    typesSet.add("KKN");
-    history.forEach((e) => {
-      if (e.tipeKegiatan && e.tipeKegiatan.trim()) {
-        typesSet.add(e.tipeKegiatan.trim());
-      }
-    });
-    return Array.from(typesSet);
-  }, [history]);
+  const availableActivityTypes = useMemo(
+    () => extractAvailableActivityTypes(history),
+    [history]
+  );
 
   // Eksekusi multi-filter komprehensif: keyword, tipe kegiatan, tanggal, dan status kualitas
-  const filteredHistory = useMemo(() => {
-    return history.filter((entry) => {
-      // 1. Filter Kata Kunci (Keyword Search)
-      if (activeSearchQuery.trim()) {
-        const q = activeSearchQuery.toLowerCase().trim();
-        const matchKeyword =
-          (entry.tanggal || "").toLowerCase().includes(q) ||
-          (entry.peran || "").toLowerCase().includes(q) ||
-          (entry.tipeKegiatan || "").toLowerCase().includes(q) ||
-          (entry.deskripsiKegiatan || "").toLowerCase().includes(q) ||
-          (entry.kompetensiDikembangkan || "").toLowerCase().includes(q) ||
-          (entry.kendalaDihadapi || "").toLowerCase().includes(q) ||
-          (entry.solusiTindakan || "").toLowerCase().includes(q) ||
-          (entry.refleksiPembelajaran || "").toLowerCase().includes(q);
-
-        if (!matchKeyword) return false;
-      }
-
-      // 2. Filter Tipe Kegiatan (Activity Type)
-      if (selectedActivityType !== "all") {
-        if (entry.tipeKegiatan !== selectedActivityType) {
-          return false;
-        }
-      }
-
-      // 3. Filter Tanggal (Date Filter)
-      if (datePreset === "today") {
-        const todayIso = new Date().toISOString().slice(0, 10);
-        if (!checkDateMatch(entry.tanggal, todayIso)) return false;
-      } else if (datePreset === "7days" || datePreset === "30days") {
-        const daysCount = datePreset === "7days" ? 7 : 30;
-        let inRange = false;
-        for (let i = 0; i <= daysCount; i++) {
-          const d = new Date();
-          d.setDate(d.getDate() - i);
-          const iso = d.toISOString().slice(0, 10);
-          if (checkDateMatch(entry.tanggal, iso)) {
-            inRange = true;
-            break;
-          }
-        }
-        if (!inRange) return false;
-      } else if (selectedDate) {
-        if (!checkDateMatch(entry.tanggal, selectedDate)) {
-          return false;
-        }
-      }
-
-      // 4. Filter Kualitas Audit
-      if (selectedQualityFilter !== "all") {
-        const words = getWordList(entry.deskripsiKegiatan || "");
-        const isShort = words.length < 20;
-
-        const others = history.filter((other) => other.id !== entry.id);
-        let maxSim = 0;
-        for (const other of others) {
-          const sim = computeJaccardSimilarity(
-            entry.deskripsiKegiatan || "",
-            other.deskripsiKegiatan || ""
-          );
-          if (sim > maxSim) maxSim = sim;
-        }
-        const isRepetitive = maxSim >= 70;
-        const needsFix = isShort || isRepetitive;
-
-        if (selectedQualityFilter === "needs_fix" && !needsFix) return false;
-        if (selectedQualityFilter === "optimal" && needsFix) return false;
-      }
-
-      return true;
-    });
-  }, [
-    history,
-    activeSearchQuery,
-    selectedActivityType,
-    selectedDate,
-    datePreset,
-    selectedQualityFilter,
-  ]);
+  const filteredHistory = useMemo(
+    () =>
+      filterHistory(history, {
+        query: activeSearchQuery,
+        activityType: selectedActivityType,
+        selectedDate,
+        datePreset,
+        qualityFilter: selectedQualityFilter,
+      }),
+    [
+      history,
+      activeSearchQuery,
+      selectedActivityType,
+      selectedDate,
+      datePreset,
+      selectedQualityFilter,
+    ]
+  );
 
   const hasActiveFilters =
     Boolean(activeSearchQuery.trim()) ||
@@ -623,166 +446,19 @@ export const AuditHistoryPanel: React.FC<AuditHistoryPanelProps> = ({
                 </button>
               </div>
             ) : (
-              filteredHistory.map((entry, idx) => {
-                const words = getWordList(entry.deskripsiKegiatan || "");
-                const wordCount = words.length;
-                const isShort = wordCount < 20;
-
-                const others = history.filter((other) => other.id !== entry.id);
-                let maxSimilarity = 0;
-                let matchedDate = "";
-                for (const other of others) {
-                  const sim = computeJaccardSimilarity(
-                    entry.deskripsiKegiatan || "",
-                    other.deskripsiKegiatan || ""
-                  );
-                  if (sim > maxSimilarity) {
-                    maxSimilarity = sim;
-                    matchedDate = other.tanggal;
-                  }
-                }
-                const isRepetitive = maxSimilarity >= 70;
-                const needsFix = isRepetitive || isShort;
-                const isFixingThis = fixingEntryId === entry.id;
-
-                return (
-                  <div
-                    key={entry.id || idx}
-                    className={`p-4 rounded-xl border transition space-y-3 ${
-                      isRepetitive
-                        ? "bg-rose-50/40 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900/60"
-                        : isShort
-                        ? "bg-amber-50/30 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/60"
-                        : "bg-white dark:bg-zinc-900/50 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700"
-                    }`}
-                  >
-                    {/* Entry Top Header */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
-                          <Calendar className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-                          <span>{entry.tanggal}</span>
-                        </span>
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200/80 dark:border-zinc-700">
-                          {entry.tipeKegiatan}
-                        </span>
-                        <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium truncate max-w-[150px]">
-                          • {entry.peran}
-                        </span>
-                      </div>
-
-                      {/* Quality Badges */}
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        {isShort && (
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800 flex items-center gap-1">
-                            <AlertTriangle className="w-3 h-3 text-amber-600 dark:text-amber-400" />
-                            <span>Terlalu Singkat ({wordCount} kata &lt; 20)</span>
-                          </span>
-                        )}
-                        {isRepetitive ? (
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-800 flex items-center gap-1">
-                            <AlertTriangle className="w-3 h-3 text-rose-600 dark:text-rose-400" />
-                            <span>Repetisi {maxSimilarity}% (mirip {matchedDate})</span>
-                          </span>
-                        ) : (
-                          !isShort && (
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 flex items-center gap-1">
-                              <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-                              <span>Optimal ({wordCount} kata)</span>
-                            </span>
-                          )
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Entry Content Preview with optional photo thumbnail */}
-                    <div className="flex items-start gap-3">
-                      {entry.fotoBase64 && (
-                        <div className="w-16 h-16 rounded-lg overflow-hidden border border-zinc-200 dark:border-zinc-800 shrink-0 bg-zinc-100 dark:bg-zinc-800">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={entry.fotoBase64}
-                            alt="Foto dokumentasi"
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0 space-y-1">
-                        <p className="text-xs text-zinc-800 dark:text-zinc-200 line-clamp-2 leading-relaxed">
-                          <strong>Deskripsi:</strong> {entry.deskripsiKegiatan}
-                        </p>
-                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 line-clamp-1">
-                          <strong>Kompetensi:</strong> {entry.kompetensiDikembangkan}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Actions bar for this entry */}
-                    <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-zinc-100 dark:border-zinc-800/80 text-xs">
-                      <div>
-                        {/* Tombol 1-Click AI Auto-Fix jika entri terdeteksi bermasalah */}
-                        {needsFix && (
-                          <button
-                            type="button"
-                            onClick={() => onAutoFixEntry(entry)}
-                            disabled={isFixingThis}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold text-xs shadow-xs transition cursor-pointer disabled:opacity-50"
-                            title="Tulis ulang dan variasikan kosakata secara otomatis menggunakan Gemini AI"
-                          >
-                            {isFixingThis ? (
-                              <>
-                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                <span>Memvariasikan Narasi AI...</span>
-                              </>
-                            ) : (
-                              <>
-                                <Sparkles className="w-3.5 h-3.5" />
-                                <span>✨ Variasikan & Perbaiki Otomatis</span>
-                              </>
-                            )}
-                          </button>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-1.5 ml-auto">
-                        <button
-                          type="button"
-                          onClick={() => onLoadEntry(entry)}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-semibold transition cursor-pointer"
-                        >
-                          <FileText className="w-3.5 h-3.5" />
-                          <span>Muat ke Editor</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleCopySingle(entry)}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 font-semibold transition cursor-pointer"
-                        >
-                          {copiedId === entry.id ? (
-                            <>
-                              <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                              <span className="text-emerald-700 dark:text-emerald-300">Tersalin</span>
-                            </>
-                          ) : (
-                            <>
-                              <Copy className="w-3.5 h-3.5" />
-                              <span>Salin</span>
-                            </>
-                          )}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onDeleteEntry(entry.id)}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white dark:bg-zinc-900 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-zinc-200 dark:border-zinc-800 hover:border-rose-200 dark:hover:border-rose-900/60 transition cursor-pointer"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          <span>Hapus</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
+              filteredHistory.map((entry, idx) => (
+                <AuditHistoryEntryCard
+                  key={entry.id || idx}
+                  entry={entry}
+                  history={history}
+                  copiedId={copiedId}
+                  fixingEntryId={fixingEntryId}
+                  onLoadEntry={onLoadEntry}
+                  onDeleteEntry={onDeleteEntry}
+                  onAutoFixEntry={onAutoFixEntry}
+                  onCopyEntry={handleCopySingle}
+                />
+              ))
             )}
           </div>
         </>

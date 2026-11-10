@@ -21,20 +21,15 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { LogbookEntry, StudentProfile, TipeKegiatan } from "@/src/lib/exporters/types";
+import {
+  parseMentorQrPayload,
+  SAMPLE_QR_PATTERNS,
+  type ScannedMentorQrData,
+} from "@/src/lib/utils/qrMentorCode";
+import { useQrCamera } from "@/src/hooks/useQrCamera";
 
-export interface ScannedMentorQrData {
-  rawCode: string;
-  mode: "attendance" | "verification" | "custom";
-  tanggal: string;
-  isoDate: string;
-  mentorName: string;
-  mitraName: string;
-  peran: string;
-  tipeKegiatan: TipeKegiatan | string;
-  agendaCatatan: string;
-  verificationHash: string;
-  jamKerja: number;
-}
+// Dipindah ke qrMentorCode; re-export agar impor lama dari file ini tetap jalan.
+export type { ScannedMentorQrData } from "@/src/lib/utils/qrMentorCode";
 
 interface QrScannerModalProps {
   isOpen: boolean;
@@ -46,101 +41,8 @@ interface QrScannerModalProps {
   onRecordInstantAttendance: (entry: LogbookEntry, mentorName?: string, mitraName?: string) => void;
 }
 
-// Type declaration for browser BarcodeDetector API
-interface DetectedBarcode {
-  rawValue: string;
-  format: string;
-}
 
-interface BarcodeDetectorInstance {
-  detect(source: HTMLVideoElement | HTMLImageElement | HTMLCanvasElement | ImageBitmap): Promise<DetectedBarcode[]>;
-}
 
-declare global {
-  interface Window {
-    BarcodeDetector?: {
-      new (options?: { formats: string[] }): BarcodeDetectorInstance;
-      getSupportedFormats?: () => Promise<string[]>;
-    };
-  }
-}
-
-const SAMPLE_QR_PATTERNS: {
-  id: string;
-  label: string;
-  badge: string;
-  rawPayload: string;
-}[] = [
-  {
-    id: "att-1",
-    label: "QR Presensi Harian Mentor (WFO / Lapangan)",
-    badge: "Kehadiran +8 Jam",
-    rawPayload: JSON.stringify({
-      type: "LOGMAGANG_ATTENDANCE",
-      mentor: "Ir. Budi Santoso, M.T.",
-      mitra: "PT Telkom Indonesia (Persero) Tbk",
-      role: "Software Engineer Intern",
-      program: "Magang MBKM",
-      agenda:
-        "Mengikuti daily standup sprint bersama mentor lapangan, melakukan integrasi endpoint API autentikasi, serta pengujian unit test modul pelaporan.",
-      hash: "LM-ATT-2026-8841",
-    }),
-  },
-  {
-    id: "ver-1",
-    label: "QR Pengesahan & Paraf Digital DPL / Mentor",
-    badge: "Verifikasi Logbook",
-    rawPayload: JSON.stringify({
-      type: "LOGMAGANG_VERIFY",
-      mentor: "Dr. Eng. Ratna Sari, S.Kom., M.Cs.",
-      mitra: "Direktorat Kemahasiswaan & MBKM",
-      role: "Peserta Program MBKM",
-      program: "MSIB",
-      agenda:
-        "Evaluasi berkala pemenuhan jam kerja 900 jam MBKM dan validasi kesesuaian bukti dokumentasi kegiatan mingguan bersama Dosen Pembimbing Lapangan.",
-      hash: "LM-VER-DPL-9920",
-    }),
-  },
-  {
-    id: "kkn-1",
-    label: "QR Presensi Posko KKN Desa Binaan",
-    badge: "Presensi KKN",
-    rawPayload: JSON.stringify({
-      type: "LOGMAGANG_ATTENDANCE",
-      mentor: "Drs. Hendra Wijaya, M.Si. (Kepala Desa / DPL)",
-      mitra: "Pemerintah Desa Sukamaju",
-      role: "Koordinator Program Kerja Digitalisasi Desa",
-      program: "KKN",
-      agenda:
-        "Melaksanakan sosialisasi literasi digital dan pendampingan pembukuan UMKM warga desa di Balai Desa bersama perangkat desa.",
-      hash: "LM-KKN-2026-5519",
-    }),
-  },
-];
-
-function formatIndonesianDateNow(): { iso: string; display: string } {
-  const now = new Date();
-  const months = [
-    "Januari",
-    "Februari",
-    "Maret",
-    "April",
-    "Mei",
-    "Juni",
-    "Juli",
-    "Agustus",
-    "September",
-    "Oktober",
-    "November",
-    "Desember",
-  ];
-  const year = now.getFullYear();
-  const monthIdx = now.getMonth();
-  const dateNum = now.getDate();
-  const iso = `${year}-${String(monthIdx + 1).padStart(2, "0")}-${String(dateNum).padStart(2, "0")}`;
-  const display = `${dateNum} ${months[monthIdx]} ${year}`;
-  return { iso, display };
-}
 
 export function QrScannerModal({
   isOpen,
@@ -151,214 +53,56 @@ export function QrScannerModal({
   onApplyToForm,
   onRecordInstantAttendance,
 }: QrScannerModalProps) {
-  const [cameraActive, setCameraActive] = useState<boolean>(false);
-  const [cameraError, setCameraError] = useState<string | null>(null);
-  const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
   const [scannedData, setScannedData] = useState<ScannedMentorQrData | null>(null);
   const [manualInputCode, setManualInputCode] = useState<string>("");
   const [showManualInput, setShowManualInput] = useState<boolean>(false);
-  const [isDetectorSupported, setIsDetectorSupported] = useState<boolean>(true);
 
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const scanIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-
-  const stopCamera = useCallback(() => {
-    if (scanIntervalRef.current) {
-      clearInterval(scanIntervalRef.current);
-      scanIntervalRef.current = null;
-    }
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
-    setCameraActive(false);
-  }, []);
-
-  const parseRawQrPayload = useCallback(
-    (rawText: string): ScannedMentorQrData => {
-      const { iso, display } = formatIndonesianDateNow();
-      const cleaned = rawText.trim();
-
-      // Try JSON format first
-      try {
-        const parsed = JSON.parse(cleaned);
-        if (parsed && typeof parsed === "object") {
-          const isVerify =
-            String(parsed.type || "").toUpperCase().includes("VERIFY") ||
-            Boolean(parsed.verificationCode);
-          return {
-            rawCode: cleaned,
-            mode: isVerify ? "verification" : "attendance",
-            tanggal: parsed.date || display,
-            isoDate: parsed.isoDate || iso,
-            mentorName:
-              parsed.mentor ||
-              parsed.pembimbing ||
-              studentProfile.namaPembimbing ||
-              "Mentor Pembimbing Lapangan",
-            mitraName:
-              parsed.mitra ||
-              parsed.company ||
-              studentProfile.namaMitra ||
-              "Mitra Industri / Instansi",
-            peran: parsed.role || parsed.peran || currentRole || "Peserta Magang MBKM",
-            tipeKegiatan: parsed.program || currentProgram || "Magang MBKM",
-            agendaCatatan:
-              parsed.agenda ||
-              parsed.notes ||
-              parsed.catatan ||
-              "Melaksanakan kegiatan kerja harian sesuai arahan dan verifikasi QR dokumen Mentor Lapangan.",
-            verificationHash:
-              parsed.hash ||
-              parsed.token ||
-              parsed.verificationCode ||
-              `QR-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-            jamKerja: Number(parsed.hours) || 8,
-          };
-        }
-      } catch {
-        // Not JSON, parse prefix or URL or plain string
-      }
-
-      // Check URL query params or key=value pattern
-      if (cleaned.startsWith("http://") || cleaned.startsWith("https://")) {
-        try {
-          const url = new URL(cleaned);
-          const mentor =
-            url.searchParams.get("mentor") ||
-            studentProfile.namaPembimbing ||
-            "Mentor Lapangan";
-          const mitra =
-            url.searchParams.get("mitra") ||
-            studentProfile.namaMitra ||
-            url.hostname;
-          const agenda =
-            url.searchParams.get("agenda") ||
-            `Verifikasi kehadiran dan logbook melalui tautan resmi mentor (${url.hostname}).`;
-          const code =
-            url.searchParams.get("code") ||
-            url.searchParams.get("token") ||
-            `URL-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
-
-          return {
-            rawCode: cleaned,
-            mode: "verification",
-            tanggal: display,
-            isoDate: iso,
-            mentorName: mentor,
-            mitraName: mitra,
-            peran: currentRole || "Peserta Program",
-            tipeKegiatan: currentProgram || "Magang MBKM",
-            agendaCatatan: agenda,
-            verificationHash: code,
-            jamKerja: 8,
-          };
-        } catch {
-          // Fall through
-        }
-      }
-
-      // Plain code or custom mentor string
-      return {
-        rawCode: cleaned,
-        mode: cleaned.toUpperCase().includes("VER") ? "verification" : "attendance",
-        tanggal: display,
-        isoDate: iso,
-        mentorName: studentProfile.namaPembimbing || "Mentor Pembimbing Lapangan",
-        mitraName: studentProfile.namaMitra || "Instansi Mitra MBKM",
-        peran: currentRole || "Mahasiswa Peserta Program",
-        tipeKegiatan: currentProgram || "Magang MBKM",
-        agendaCatatan: `Kehadiran & aktivitas harian terverifikasi melalui kode QR Dokumen Mentor (${cleaned.slice(
-          0,
-          80
-        )}). Melaksanakan tugas kerja lapangan sesuai arahan pembimbing.`,
-        verificationHash:
-          cleaned.length <= 24
-            ? cleaned.toUpperCase()
-            : `QR-${cleaned.slice(0, 8).toUpperCase()}`,
-        jamKerja: 8,
-      };
+  const handleQrDetectedRef = useRef<(rawValue: string) => void>(() => {});
+  const {
+    videoRef,
+    fileInputRef,
+    cameraActive,
+    cameraError,
+    isDetectorSupported,
+    startCamera,
+    stopCamera,
+    toggleFacingMode,
+    handleImageFileUpload,
+  } = useQrCamera({
+    onDetected: (rawValue) => handleQrDetectedRef.current(rawValue),
+    onCameraStart: () => setScannedData(null),
+    fallbackContext: {
+      mentorName: studentProfile.namaPembimbing,
+      mitraName: studentProfile.namaMitra,
+      currentRole,
+      currentProgram,
     },
-    [currentProgram, currentRole, studentProfile.namaMitra, studentProfile.namaPembimbing]
-  );
+  });
 
   const handleQrDetected = useCallback(
     (rawValue: string) => {
       if (!rawValue || !rawValue.trim()) return;
       stopCamera();
-      const parsed = parseRawQrPayload(rawValue);
+      const parsed = parseMentorQrPayload(rawValue, {
+        mentorName: studentProfile.namaPembimbing,
+        mitraName: studentProfile.namaMitra,
+        currentRole,
+        currentProgram,
+      });
       setScannedData(parsed);
       toast.success("Kode QR Dokumen Mentor berhasil dipindai!", {
         description: `${parsed.mentorName} • ${parsed.mitraName}`,
       });
     },
-    [parseRawQrPayload, stopCamera]
+    [
+      currentProgram,
+      currentRole,
+      stopCamera,
+      studentProfile.namaMitra,
+      studentProfile.namaPembimbing,
+    ]
   );
-
-  const startCamera = useCallback(async () => {
-    setCameraError(null);
-    setScannedData(null);
-
-    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
-      setCameraError(
-        "Browser atau perangkat ini tidak mengizinkan akses kamera langsung. Anda dapat mengunggah gambar QR atau memilih simulasi QR Mentor di bawah."
-      );
-      return;
-    }
-
-    try {
-      stopCamera();
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: facingMode },
-          width: { ideal: 640 },
-          height: { ideal: 480 },
-        },
-        audio: false,
-      });
-
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
-      setCameraActive(true);
-
-      // Check if native BarcodeDetector is available
-      if (typeof window !== "undefined" && window.BarcodeDetector) {
-        setIsDetectorSupported(true);
-        const detector = new window.BarcodeDetector({ formats: ["qr_code"] });
-        scanIntervalRef.current = setInterval(async () => {
-          if (
-            videoRef.current &&
-            videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA
-          ) {
-            try {
-              const barcodes = await detector.detect(videoRef.current);
-              if (barcodes && barcodes.length > 0 && barcodes[0]?.rawValue) {
-                handleQrDetected(barcodes[0].rawValue);
-              }
-            } catch {
-              // Ignore frame detection error
-            }
-          }
-        }, 350);
-      } else {
-        setIsDetectorSupported(false);
-      }
-    } catch (err: unknown) {
-      console.warn("Gagal membuka kamera QR:", err);
-      setCameraError(
-        "Akses kamera ditolak atau tidak tersedia di perangkat ini. Gunakan unggah gambar QR atau pilih pola QR Dokumen Mentor di bawah."
-      );
-      setCameraActive(false);
-    }
-  }, [facingMode, handleQrDetected, stopCamera]);
+  handleQrDetectedRef.current = handleQrDetected;
 
   // Start camera automatically when modal opens
   useEffect(() => {
@@ -382,39 +126,6 @@ export function QrScannerModal({
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [isOpen, onClose]);
-
-  const handleImageFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (typeof window !== "undefined" && window.BarcodeDetector) {
-      try {
-        const bitmap = await createImageBitmap(file);
-        const detector = new window.BarcodeDetector({ formats: ["qr_code"] });
-        const barcodes = await detector.detect(bitmap);
-        if (barcodes && barcodes.length > 0 && barcodes[0]?.rawValue) {
-          handleQrDetected(barcodes[0].rawValue);
-          return;
-        }
-      } catch {
-        // Fallback below
-      }
-    }
-
-    // Fallback: extract filename metadata as verified mentor document QR
-    const cleanFileName = file.name.replace(/\.[^/.]+$/, "").replace(/[_-]+/g, " ");
-    handleQrDetected(
-      JSON.stringify({
-        type: "LOGMAGANG_VERIFY",
-        mentor: studentProfile.namaPembimbing || "Mentor Pembimbing Lapangan",
-        mitra: studentProfile.namaMitra || "Instansi Mitra MBKM",
-        role: currentRole || "Mahasiswa Peserta",
-        program: currentProgram || "Magang MBKM",
-        agenda: `Verifikasi dokumen kehadiran & kegiatan dari berkas QR Mentor (${cleanFileName}).`,
-        hash: `DOC-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-      })
-    );
-  };
 
   const handleConfirmInstantRecord = () => {
     if (!scannedData) return;
@@ -544,11 +255,7 @@ export function QrScannerModal({
                   <div className="absolute top-3 right-3 flex items-center gap-1.5">
                     <button
                       type="button"
-                      onClick={() =>
-                        setFacingMode((prev) =>
-                          prev === "environment" ? "user" : "environment"
-                        )
-                      }
+                      onClick={toggleFacingMode}
                       className="px-2.5 py-1 rounded-lg bg-black/60 hover:bg-black/80 text-white text-[11px] font-medium backdrop-blur-xs border border-white/15 flex items-center gap-1 cursor-pointer transition"
                       title="Ganti Kamera Depan / Belakang"
                     >
